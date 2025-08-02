@@ -136,6 +136,7 @@ a:hover {
     backdrop-filter: blur(10px);
     background-color: rgba(248, 249, 250, 0.95) !important;
     border-bottom: 1px solid var(--vapor-gray);
+    z-index: 1030;
 }
 
 .navbar-brand {
@@ -384,6 +385,10 @@ a:hover {
     background-color: var(--cloud-white);
     border: 1px solid var(--vapor-gray);
     z-index: 9999 !important;
+}
+
+.navbar .dropdown-menu {
+    z-index: 1040 !important;
 }
 
 .dropdown-item {

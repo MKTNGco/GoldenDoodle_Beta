@@ -770,7 +770,7 @@ a:hover {
 .floating-benefits-section {
     position: relative;
     overflow: hidden;
-    height: 500px;
+    height: 600px;
 }
 
 .benefits-row {
@@ -778,18 +778,18 @@ a:hover {
     gap: 50px;
     position: absolute;
     width: calc(100% + 3000px);
-    animation: floatRow 80s linear infinite;
+    animation: floatRow 114s linear infinite;
 }
 
 .benefits-row-1 {
-    top: -150px;
+    top: 20px;
     animation-name: floatRowLeft;
 }
 
 .benefits-row-2 {
-    top: 50px;
+    top: 280px;
     animation-name: floatRowRight;
-    animation-delay: -40s;
+    animation-delay: -57s;
 }
 
 @keyframes floatRowLeft {

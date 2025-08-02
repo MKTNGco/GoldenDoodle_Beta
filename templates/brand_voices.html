@@ -28,7 +28,7 @@
             </div>
         </div>
     </div>
-    
+
     {% if company_brand_voices and tenant.tenant_type.value == 'company' %}
     <div class="row mb-4">
         <div class="col-12">
@@ -72,6 +72,12 @@
                                         {% endif %}
                                     </div>
                                     {% endif %}
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('brand_voice_wizard', type='company', edit=voice.brand_voice_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i>Edit
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -89,7 +95,7 @@
         </div>
     </div>
     {% endif %}
-    
+
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -132,6 +138,12 @@
                                         {% endif %}
                                     </div>
                                     {% endif %}
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('brand_voice_wizard', type='user', edit=voice.brand_voice_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i>Edit
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -160,7 +172,7 @@
             </div>
         </div>
     </div>
-    
+
     {% if not can_create_user_voice and not can_create_company_voice %}
     <div class="row mt-4">
         <div class="col-12">

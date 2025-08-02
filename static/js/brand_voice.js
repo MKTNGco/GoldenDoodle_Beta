@@ -7,6 +7,7 @@ class BrandVoiceWizard {
         this.isSubmitting = false;
         this.autoSaveTimeout = null;
         this.profileId = null;
+        this.isEditing = false;
         this.initializeElements();
         this.bindEvents();
         this.updateStepVisibility();
@@ -153,9 +154,28 @@ class BrandVoiceWizard {
                     const data = await response.json();
                     this.populateForm(data);
                     this.profileId = editProfileId;
+                    this.isEditing = true;
+                    
+                    // Update UI to show we're editing
+                    const title = document.querySelector('.card-header h4');
+                    if (title) {
+                        title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Brand Voice' + 
+                                        title.innerHTML.substring(title.innerHTML.indexOf('<span'));
+                    }
+                    
+                    const submitBtn = document.getElementById('submitBtn');
+                    if (submitBtn) {
+                        submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Update Brand Voice';
+                    }
+                } else {
+                    this.showAlert('Failed to load brand voice data. Redirecting...', 'danger');
+                    setTimeout(() => {
+                        window.location.href = '/brand-voices';
+                    }, 2000);
                 }
             } catch (error) {
                 console.error('Error loading existing data:', error);
+                this.showAlert('Error loading brand voice data. Please try again.', 'danger');
             }
         }
     }
@@ -335,6 +355,11 @@ class BrandVoiceWizard {
         try {
             const formData = this.collectFormData();
             formData.profile_id = this.profileId;
+            
+            // Add brand voice ID for editing
+            if (this.isEditing && this.profileId) {
+                formData.brand_voice_id = this.profileId;
+            }
 
             const response = await fetch('/create-brand-voice', {
                 method: 'POST',
@@ -369,10 +394,18 @@ class BrandVoiceWizard {
     updateSubmitButton() {
         if (this.isSubmitting) {
             this.submitBtn.disabled = true;
-            this.submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+            if (this.isEditing) {
+                this.submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
+            } else {
+                this.submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+            }
         } else {
             this.submitBtn.disabled = false;
-            this.submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Create Brand Voice';
+            if (this.isEditing) {
+                this.submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Update Brand Voice';
+            } else {
+                this.submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Create Brand Voice';
+            }
         }
     }
 

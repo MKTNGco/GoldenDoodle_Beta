@@ -253,8 +253,9 @@ def brand_voices():
 @app.route('/brand-voice-wizard')
 @login_required
 def brand_voice_wizard():
-    """Brand voice creation wizard"""
+    """Brand voice creation/editing wizard"""
     voice_type = request.args.get('type', 'user')
+    edit_id = request.args.get('edit')
     user = get_current_user()
     if not user:
         return redirect(url_for('login'))
@@ -263,12 +264,48 @@ def brand_voice_wizard():
         flash('Admin access required to create company brand voices.', 'error')
         return redirect(url_for('brand_voices'))
     
-    return render_template('brand_voice_wizard.html', voice_type=voice_type, user=user)
+    # If editing, verify the brand voice exists and user has permission
+    if edit_id:
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        if not tenant:
+            flash('Invalid tenant. Please contact support.', 'error')
+            return redirect(url_for('logout'))
+        
+        # Get brand voice to verify permission
+        company_brand_voices = []
+        if tenant.tenant_type == TenantType.COMPANY:
+            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+        
+        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        all_brand_voices = company_brand_voices + user_brand_voices
+        
+        selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == edit_id), None)
+        
+        if not selected_brand_voice:
+            flash('Brand voice not found.', 'error')
+            return redirect(url_for('brand_voices'))
+        
+        # Check permissions
+        if selected_brand_voice.user_id and selected_brand_voice.user_id != user.user_id:
+            flash('Permission denied.', 'error')
+            return redirect(url_for('brand_voices'))
+        
+        if not selected_brand_voice.user_id and not user.is_admin:
+            flash('Permission denied.', 'error')
+            return redirect(url_for('brand_voices'))
+        
+        # Determine voice type based on the brand voice
+        voice_type = 'company' if not selected_brand_voice.user_id else 'user'
+    
+    return render_template('brand_voice_wizard.html', 
+                         voice_type=voice_type, 
+                         user=user, 
+                         edit_id=edit_id)
 
 @app.route('/create-brand-voice', methods=['POST'])
 @login_required
 def create_brand_voice():
-    """Create a new brand voice"""
+    """Create a new brand voice or update an existing one"""
     try:
         data = request.get_json()
         
@@ -277,6 +314,7 @@ def create_brand_voice():
         company_url = data.get('company_url', '').strip()
         voice_short_name = data.get('voice_short_name', '').strip()
         voice_type = data.get('voice_type', 'user')
+        brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
         
         if not all([company_name, company_url, voice_short_name]):
             return jsonify({'error': 'Company name, URL, and voice name are required'}), 400
@@ -288,30 +326,35 @@ def create_brand_voice():
         if not tenant:
             return jsonify({'error': 'Invalid tenant'}), 400
         
+        # Determine if this is an edit or create operation
+        is_editing = bool(brand_voice_id)
+        
         # Check permissions and limits
         if voice_type == 'company':
             if not user.is_admin:
                 return jsonify({'error': 'Admin access required'}), 403
             
-            existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            if len(existing_company_voices) >= tenant.max_brand_voices:
-                return jsonify({'error': f'Maximum of {tenant.max_brand_voices} company brand voices allowed'}), 400
+            if not is_editing:
+                existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+                if len(existing_company_voices) >= tenant.max_brand_voices:
+                    return jsonify({'error': f'Maximum of {tenant.max_brand_voices} company brand voices allowed'}), 400
             
             user_id = None
         else:
-            existing_user_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
-            
-            if user.subscription_level == SubscriptionLevel.PRO:
-                max_voices = 10
-            elif user.subscription_level == SubscriptionLevel.SOLO:
-                max_voices = 1
-            elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
-                max_voices = 10
-            else:
-                max_voices = 1
-            
-            if len(existing_user_voices) >= max_voices:
-                return jsonify({'error': f'Maximum of {max_voices} personal brand voices allowed for your subscription level'}), 400
+            if not is_editing:
+                existing_user_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+                
+                if user.subscription_level == SubscriptionLevel.PRO:
+                    max_voices = 10
+                elif user.subscription_level == SubscriptionLevel.SOLO:
+                    max_voices = 1
+                elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
+                    max_voices = 10
+                else:
+                    max_voices = 1
+                
+                if len(existing_user_voices) >= max_voices:
+                    return jsonify({'error': f'Maximum of {max_voices} personal brand voices allowed for your subscription level'}), 400
             
             user_id = user.user_id
         
@@ -355,23 +398,88 @@ def create_brand_voice():
         # Generate comprehensive markdown content for RAG
         markdown_content = generate_brand_voice_markdown(wizard_data)
         
-        # Create brand voice with comprehensive data
-        brand_voice = db_manager.create_comprehensive_brand_voice(
-            tenant_id=tenant.tenant_id,
-            wizard_data=wizard_data,
-            markdown_content=markdown_content,
-            user_id=user_id
-        )
-        
-        return jsonify({
-            'success': True,
-            'brand_voice_id': brand_voice.brand_voice_id,
-            'message': f'Brand voice "{voice_short_name}" created successfully!'
-        })
+        # Create or update brand voice with comprehensive data
+        if is_editing:
+            # Verify permissions for editing
+            existing_voices = []
+            if voice_type == 'company':
+                existing_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            else:
+                existing_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+            
+            # Check if the brand voice exists and user has permission
+            voice_exists = any(bv.brand_voice_id == brand_voice_id for bv in existing_voices)
+            if not voice_exists:
+                return jsonify({'error': 'Brand voice not found or permission denied'}), 404
+            
+            brand_voice = db_manager.update_brand_voice(
+                tenant_id=tenant.tenant_id,
+                brand_voice_id=brand_voice_id,
+                wizard_data=wizard_data,
+                markdown_content=markdown_content,
+                user_id=user_id
+            )
+            
+            return jsonify({
+                'success': True,
+                'brand_voice_id': brand_voice.brand_voice_id,
+                'message': f'Brand voice "{voice_short_name}" updated successfully!'
+            })
+        else:
+            brand_voice = db_manager.create_comprehensive_brand_voice(
+                tenant_id=tenant.tenant_id,
+                wizard_data=wizard_data,
+                markdown_content=markdown_content,
+                user_id=user_id
+            )
+            
+            return jsonify({
+                'success': True,
+                'brand_voice_id': brand_voice.brand_voice_id,
+                'message': f'Brand voice "{voice_short_name}" created successfully!'
+            })
         
     except Exception as e:
         logger.error(f"Error creating brand voice: {e}")
         return jsonify({'error': 'An error occurred while creating the brand voice. Please try again.'}), 500
+
+@app.route('/get-brand-voice/<brand_voice_id>')
+@login_required
+def get_brand_voice(brand_voice_id):
+    """Get brand voice data for editing"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        if not tenant:
+            return jsonify({'error': 'Invalid tenant'}), 400
+        
+        # Get brand voice from database
+        company_brand_voices = []
+        if tenant.tenant_type == TenantType.COMPANY:
+            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+        
+        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        all_brand_voices = company_brand_voices + user_brand_voices
+        
+        selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == brand_voice_id), None)
+        
+        if not selected_brand_voice:
+            return jsonify({'error': 'Brand voice not found'}), 404
+        
+        # Check permissions
+        if selected_brand_voice.user_id and selected_brand_voice.user_id != user.user_id:
+            return jsonify({'error': 'Permission denied'}), 403
+        
+        if not selected_brand_voice.user_id and not user.is_admin:
+            return jsonify({'error': 'Permission denied'}), 403
+        
+        return jsonify(selected_brand_voice.configuration)
+        
+    except Exception as e:
+        logger.error(f"Error getting brand voice: {e}")
+        return jsonify({'error': 'An error occurred while loading the brand voice'}), 500
 
 @app.route('/auto-save-brand-voice', methods=['POST'])
 @login_required

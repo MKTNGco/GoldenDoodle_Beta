@@ -359,6 +359,52 @@ class DatabaseManager:
             logger.error(f"Error creating brand voice: {e}")
             raise
 
+    def update_brand_voice(self, tenant_id: str, brand_voice_id: str, wizard_data: Dict[str, Any], 
+                          markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
+        """Update an existing brand voice with new wizard data"""
+        try:
+            name = wizard_data['voice_short_name']
+            configuration = wizard_data.copy()
+            
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            if user_id:
+                # User brand voice
+                table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
+                cursor.execute(f"""
+                    UPDATE {table_name} 
+                    SET name = %s, configuration = %s, markdown_content = %s
+                    WHERE brand_voice_id = %s AND user_id = %s
+                """, (name, json.dumps(configuration), markdown_content, brand_voice_id, user_id))
+            else:
+                # Company brand voice
+                table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+                cursor.execute(f"""
+                    UPDATE {table_name} 
+                    SET name = %s, configuration = %s, markdown_content = %s
+                    WHERE brand_voice_id = %s
+                """, (name, json.dumps(configuration), markdown_content, brand_voice_id))
+            
+            if cursor.rowcount == 0:
+                raise Exception("Brand voice not found or permission denied")
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return BrandVoice(
+                brand_voice_id=brand_voice_id,
+                name=name,
+                configuration=configuration,
+                markdown_content=markdown_content,
+                user_id=user_id
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating brand voice: {e}")
+            raise
+
     def create_comprehensive_brand_voice(self, tenant_id: str, wizard_data: Dict[str, Any], 
                                        markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
         """Create a comprehensive brand voice with full wizard data"""

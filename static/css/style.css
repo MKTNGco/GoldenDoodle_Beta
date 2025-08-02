@@ -782,12 +782,12 @@ a:hover {
 }
 
 .benefits-row-1 {
-    top: 50px;
+    top: -150px;
     animation-name: floatRowLeft;
 }
 
 .benefits-row-2 {
-    top: 250px;
+    top: 50px;
     animation-name: floatRowRight;
     animation-delay: -40s;
 }

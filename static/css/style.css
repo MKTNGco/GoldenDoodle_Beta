@@ -782,7 +782,7 @@ a:hover {
 }
 
 .benefits-row-1 {
-    top: 50px;
+    top: -100px;
     animation-name: floatRowLeft;
 }
 

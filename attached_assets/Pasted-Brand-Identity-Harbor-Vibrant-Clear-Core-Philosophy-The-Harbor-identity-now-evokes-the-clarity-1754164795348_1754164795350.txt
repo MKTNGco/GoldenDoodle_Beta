@@ -1,0 +1,47 @@
+Brand Identity: Harbor (Vibrant & Clear)
+Core Philosophy: The Harbor identity now evokes the clarity and calm of clear, sunlit water. It’s a space that feels refreshing, clean, and optimistic. The brand is a deep, cleansing breath—invigorating yet peaceful, promoting mental clarity and positive forward momentum.
+1. The Vibrant & Clear Color Palette
+We are integrating your new, more vibrant teal into the clean, cool-toned neutral foundation. This creates a high-contrast, professional, and uplifting aesthetic.
+Primary: Clearwater Teal
+#32808c
+Usage: This is the new star of the show. As your primary color, it should be used for all major calls-to-action, interactive icons, active navigation states, and key brand moments. It’s vibrant enough to draw the eye without causing anxiety.
+Neutrals: The Bright Foundation (Unchanged)
+Primary Background: Cloud White (#f8f9fa)
+Secondary Background / Cards: Vapor Gray (#e9ecef)
+Primary Text: Charcoal (#212529)
+Usage: This clean, modern, and cool-toned trio remains the perfect foundation. It allows the new Clearwater Teal to pop, ensuring the interface feels bright, airy, and exceptionally readable, as you requested.
+Accents & States (The New Teal Family)
+Light Accent: Aqua Mist
+#cce5e8
+Usage: A very light, airy tint of the primary teal. Perfect for subtle hover effects, success message backgrounds, or to highlight a specific section in a delicate way.
+Dark Accent: Deep Teal
+#256069
+Usage: A darker, richer shade of the primary. Excellent for secondary buttons (like "ghost" buttons), text links, and borders on active input fields, providing clear visual hierarchy.
+Optional Accent: Calm Sky Blue (Unchanged)
+#90b0d1
+Usage: This soft, reassuring blue remains a valuable tool for tertiary highlights. It’s harmonious with Clearwater Teal and can be used for non-critical notifications or illustrative accents to add a layer of serenity.
+Color Palette Summary:
+Clearwater Teal: #32808c
+Cloud White: #f8f9fa
+Vapor Gray: #e9ecef
+Charcoal: #212529
+Aqua Mist: #cce5e8
+Deep Teal: #256069
+Calm Sky Blue (Optional): #90b0d1
+2. Typography
+The friendly and readable font system is maintained, now powered by the new color scheme for greater clarity and impact.
+Fonts: Poppins (Headings) and Lora (Body) remain.
+Color Application:
+All primary text continues to use Charcoal (#212529) for maximum contrast and a modern feel.
+Text links should now use Deep Teal (#256069), making them clearly clickable while fitting perfectly into the new palette.
+3. Logo & Iconography
+The execution remains clean and modern, now with a more energetic touch.
+Logo: Rendered in Charcoal on a Cloud White background for a crisp, timeless look.
+Icons: Standard icons use Charcoal. When hovered over or active, they should transform to Clearwater Teal (#32808c). This provides immediate, satisfying feedback to the user.
+5. UI/UX & Interaction Example
+Here's how the refreshed UI will feel in action:
+The Scene: A user lands on their dashboard. The background is a clean Cloud White. Their main content feed is on cards with a subtle Vapor Gray background.
+Call to Action: A prominent button invites them to "Start a New Reflection." The button's background is Clearwater Teal with text in Cloud White. It feels inviting and clear.
+Interaction: As the user hovers over navigation links (like "My Harbor," "Resources"), the Charcoal text smoothly transitions to Clearwater Teal.
+Confirmation: After they save their reflection, a confirmation message appears: "Your thoughts are safely anchored." The message box has a soft Aqua Mist background, giving gentle, positive feedback that doesn't startle the user.
+This revised system successfully injects energy and vibrancy while honoring the core mission of creating a calm, safe, and modern space for your users.

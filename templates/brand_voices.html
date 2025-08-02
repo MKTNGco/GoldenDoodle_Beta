@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Brand Voices - GoldenDoodleLM{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h2 text-primary mb-2">
+                        <i class="fas fa-palette me-2"></i>Brand Voices
+                    </h1>
+                    <p class="text-muted mb-0">Manage your organization's unique communication styles</p>
+                </div>
+                <div>
+                    {% if can_create_user_voice %}
+                    <a href="{{ url_for('brand_voice_wizard', type='user') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-plus me-1"></i>Personal Voice
+                    </a>
+                    {% endif %}
+                    {% if can_create_company_voice %}
+                    <a href="{{ url_for('brand_voice_wizard', type='company') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i>Company Voice
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if company_brand_voices and tenant.tenant_type.value == 'company' %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-building me-2"></i>Company Brand Voices
+                        <span class="badge bg-light text-primary ms-2">{{ company_brand_voices|length }}/{{ tenant.max_brand_voices }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if company_brand_voices %}
+                    <div class="row g-3">
+                        {% for voice in company_brand_voices %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title fw-bold text-primary">{{ voice.name }}</h6>
+                                        <span class="badge bg-primary">Company</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">
+                                            <strong>Tone:</strong> {{ voice.configuration.get('tone', 'N/A').title() }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <strong>Style:</strong> {{ voice.configuration.get('style', 'N/A').title() }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <strong>Audience:</strong> {{ voice.configuration.get('audience', 'N/A').title() }}
+                                        </small>
+                                    </div>
+                                    {% if voice.configuration.get('values') %}
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block mb-1"><strong>Values:</strong></small>
+                                        {% for value in voice.configuration.get('values', [])[:2] %}
+                                        <span class="badge bg-light text-dark me-1">{{ value }}</span>
+                                        {% endfor %}
+                                        {% if voice.configuration.get('values')|length > 2 %}
+                                        <span class="badge bg-light text-muted">+{{ voice.configuration.get('values')|length - 2 }} more</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-building text-muted mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted">No company brand voices yet</h5>
+                        <p class="text-muted">Company admins can create shared brand voices for the organization.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2"></i>Personal Brand Voices
+                        <span class="badge bg-secondary ms-2">{{ user_brand_voices|length }}/{{ max_user_voices }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if user_brand_voices %}
+                    <div class="row g-3">
+                        {% for voice in user_brand_voices %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="card-title fw-bold">{{ voice.name }}</h6>
+                                        <span class="badge bg-secondary">Personal</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">
+                                            <strong>Tone:</strong> {{ voice.configuration.get('tone', 'N/A').title() }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <strong>Style:</strong> {{ voice.configuration.get('style', 'N/A').title() }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            <strong>Audience:</strong> {{ voice.configuration.get('audience', 'N/A').title() }}
+                                        </small>
+                                    </div>
+                                    {% if voice.configuration.get('values') %}
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block mb-1"><strong>Values:</strong></small>
+                                        {% for value in voice.configuration.get('values', [])[:2] %}
+                                        <span class="badge bg-light text-dark me-1">{{ value }}</span>
+                                        {% endfor %}
+                                        {% if voice.configuration.get('values')|length > 2 %}
+                                        <span class="badge bg-light text-muted">+{{ voice.configuration.get('values')|length - 2 }} more</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-user text-muted mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted">No personal brand voices yet</h5>
+                        <p class="text-muted">Create your first personal brand voice to get started.</p>
+                        {% if can_create_user_voice %}
+                        <a href="{{ url_for('brand_voice_wizard', type='user') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create Personal Voice
+                        </a>
+                        {% else %}
+                        <p class="text-muted">
+                            <small>
+                                You've reached your limit of {{ max_user_voices }} personal brand voice{{ 's' if max_user_voices != 1 else '' }} 
+                                for your subscription level.
+                            </small>
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if not can_create_user_voice and not can_create_company_voice %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-info-circle text-primary mb-2"></i>
+                    <h6 class="text-primary">Brand Voice Limits</h6>
+                    <p class="text-muted mb-0">
+                        You've reached your brand voice limits. 
+                        {% if user.subscription_level.value == 'entry' %}
+                        Upgrade to Pro to create up to 10 personal brand voices.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

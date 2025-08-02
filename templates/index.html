@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center min-vh-100">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold text-primary mb-4">
+                    <i class="fas fa-heart me-3"></i>
+                    Trauma-Informed AI for Nonprofits
+                </h1>
+                <p class="lead text-muted mb-4">
+                    GoldenDoodleLM empowers nonprofit organizations to create empathetic, 
+                    on-brand communications that prioritize safety, trust, and healing.
+                </p>
+                <div class="d-flex flex-column flex-sm-row gap-3">
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-4">
+                        <i class="fas fa-rocket me-2"></i>Get Started Free
+                    </a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg px-4">
+                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="hero-image p-4">
+                    <div class="card shadow-lg border-0">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar bg-primary rounded-circle d-flex align-items-center justify-content-center me-3">
+                                    <i class="fas fa-robot text-white"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">GoldenDoodleLM</h6>
+                                    <small class="text-muted">Your Trauma-Informed AI Assistant</small>
+                                </div>
+                            </div>
+                            <div class="chat-preview">
+                                <div class="message-bubble bg-light p-3 rounded mb-2">
+                                    <small class="text-muted">Email Mode Selected</small>
+                                    <p class="mb-0">Help me write a supportive email to trauma survivors about our new support group...</p>
+                                </div>
+                                <div class="message-bubble bg-primary text-white p-3 rounded">
+                                    <p class="mb-0">I'd be happy to help you craft an empathetic, trauma-informed email. Here's a draft that prioritizes safety and empowerment...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="display-5 fw-bold text-primary mb-3">Designed for Trauma-Informed Care</h2>
+                <p class="lead text-muted">
+                    Every feature is built with trauma-informed principles at its core, 
+                    ensuring your communications always prioritize safety and healing.
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">Secure & Private</h5>
+                        <p class="card-text text-muted">
+                            Multi-tenant architecture ensures your data stays private. 
+                            We never train on your content.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3">
+                            <i class="fas fa-palette"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">Brand Voice Management</h5>
+                        <p class="card-text text-muted">
+                            Create custom brand voices that reflect your organization's 
+                            unique approach to trauma-informed care.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">Smart Content Modes</h5>
+                        <p class="card-text text-muted">
+                            Seven specialized modes optimize AI responses for emails, 
+                            articles, social media, and more.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Content Modes Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="display-5 fw-bold text-primary mb-3">Content Modes for Every Need</h2>
+                <p class="lead text-muted">
+                    Each mode is fine-tuned for specific communication needs while 
+                    maintaining trauma-informed principles.
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-3">
+            <div class="col-md-6 col-lg-3">
+                <div class="content-mode-card card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-3">
+                        <i class="fas fa-envelope text-primary mb-2"></i>
+                        <h6 class="fw-bold">Email</h6>
+                        <small class="text-muted">Professional, empathetic communication</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="content-mode-card card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-3">
+                        <i class="fas fa-newspaper text-primary mb-2"></i>
+                        <h6 class="fw-bold">Article</h6>
+                        <small class="text-muted">Informative, trauma-informed content</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="content-mode-card card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-3">
+                        <i class="fas fa-share-alt text-primary mb-2"></i>
+                        <h6 class="fw-bold">Social Media</h6>
+                        <small class="text-muted">Engaging, accessible posts</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="content-mode-card card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-3">
+                        <i class="fas fa-edit text-primary mb-2"></i>
+                        <h6 class="fw-bold">Rewrite</h6>
+                        <small class="text-muted">Transform with trauma-informed lens</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="display-5 fw-bold text-white mb-4">
+                    Ready to Transform Your Communications?
+                </h2>
+                <p class="lead text-white-50 mb-4">
+                    Join nonprofit organizations already using GoldenDoodleLM to create 
+                    more empathetic, effective communications.
+                </p>
+                <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-5">
+                    <i class="fas fa-rocket me-2"></i>Start Your Free Account
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

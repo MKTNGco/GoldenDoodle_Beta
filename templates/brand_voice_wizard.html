@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Brand Voice Wizard - GoldenDoodleLM{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-magic me-2"></i>Brand Voice Wizard
+                        <span class="badge bg-light text-primary ms-2">
+                            {{ 'Company' if voice_type == 'company' else 'Personal' }}
+                        </span>
+                    </h4>
+                    <p class="mb-0 opacity-75">Create a custom brand voice that reflects your trauma-informed approach</p>
+                </div>
+                <div class="card-body p-4">
+                    <form id="brandVoiceForm">
+                        <input type="hidden" name="voice_type" value="{{ voice_type }}">
+                        
+                        <!-- Step 1: Basic Information -->
+                        <div class="wizard-step" id="step1">
+                            <h5 class="text-primary mb-3">
+                                <span class="step-number bg-primary text-white rounded-circle me-2">1</span>
+                                Basic Information
+                            </h5>
+                            
+                            <div class="mb-4">
+                                <label for="voiceName" class="form-label fw-semibold">Brand Voice Name</label>
+                                <input type="text" class="form-control" id="voiceName" name="name" 
+                                       placeholder="e.g., Crisis Support Voice, Community Outreach Tone" required>
+                                <div class="form-text">Choose a descriptive name that reflects the voice's purpose</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2: Tone & Style -->
+                        <div class="wizard-step" id="step2">
+                            <h5 class="text-primary mb-3">
+                                <span class="step-number bg-primary text-white rounded-circle me-2">2</span>
+                                Tone & Style
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label class="form-label fw-semibold">Primary Tone</label>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="card tone-card" data-value="empathetic">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-heart text-primary mb-2"></i>
+                                                        <h6>Empathetic</h6>
+                                                        <small class="text-muted">Warm, understanding</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="card tone-card" data-value="professional">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-briefcase text-primary mb-2"></i>
+                                                        <h6>Professional</h6>
+                                                        <small class="text-muted">Formal, authoritative</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="card tone-card" data-value="supportive">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-hands-helping text-primary mb-2"></i>
+                                                        <h6>Supportive</h6>
+                                                        <small class="text-muted">Encouraging, uplifting</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="card tone-card" data-value="approachable">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-smile text-primary mb-2"></i>
+                                                        <h6>Approachable</h6>
+                                                        <small class="text-muted">Friendly, accessible</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="tone" id="selectedTone">
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label class="form-label fw-semibold">Writing Style</label>
+                                        <div class="row g-2">
+                                            <div class="col-6">
+                                                <div class="card style-card" data-value="conversational">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-comments text-primary mb-2"></i>
+                                                        <h6>Conversational</h6>
+                                                        <small class="text-muted">Natural, flowing</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="card style-card" data-value="informative">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-info-circle text-primary mb-2"></i>
+                                                        <h6>Informative</h6>
+                                                        <small class="text-muted">Educational, clear</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="card style-card" data-value="storytelling">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-book text-primary mb-2"></i>
+                                                        <h6>Storytelling</h6>
+                                                        <small class="text-muted">Narrative, engaging</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="card style-card" data-value="direct">
+                                                    <div class="card-body text-center p-3">
+                                                        <i class="fas fa-arrow-right text-primary mb-2"></i>
+                                                        <h6>Direct</h6>
+                                                        <small class="text-muted">Concise, to-the-point</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="style" id="selectedStyle">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 3: Audience & Values -->
+                        <div class="wizard-step" id="step3">
+                            <h5 class="text-primary mb-3">
+                                <span class="step-number bg-primary text-white rounded-circle me-2">3</span>
+                                Audience & Values
+                            </h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="audience" class="form-label fw-semibold">Primary Audience</label>
+                                        <select class="form-select" id="audience" name="audience">
+                                            <option value="trauma_survivors">Trauma Survivors</option>
+                                            <option value="families">Families & Caregivers</option>
+                                            <option value="professionals">Mental Health Professionals</option>
+                                            <option value="community">General Community</option>
+                                            <option value="donors">Donors & Supporters</option>
+                                            <option value="volunteers">Volunteers</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label class="form-label fw-semibold">Core Values</label>
+                                        <div class="values-container">
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="safety" value="Safety">
+                                                        <label class="form-check-label" for="safety">Safety</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="trust" value="Trust">
+                                                        <label class="form-check-label" for="trust">Trust</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="empowerment" value="Empowerment">
+                                                        <label class="form-check-label" for="empowerment">Empowerment</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="hope" value="Hope">
+                                                        <label class="form-check-label" for="hope">Hope</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="inclusion" value="Inclusion">
+                                                        <label class="form-check-label" for="inclusion">Inclusion</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="resilience" value="Resilience">
+                                                        <label class="form-check-label" for="resilience">Resilience</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 4: Key Messages & Terminology -->
+                        <div class="wizard-step" id="step4">
+                            <h5 class="text-primary mb-3">
+                                <span class="step-number bg-primary text-white rounded-circle me-2">4</span>
+                                Key Messages & Language
+                            </h5>
+                            
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Key Messages</label>
+                                <div class="form-text mb-2">What are the main messages your organization wants to communicate?</div>
+                                <div id="keyMessagesContainer">
+                                    <div class="input-group mb-2">
+                                        <input type="text" class="form-control" placeholder="e.g., You are not alone in your healing journey">
+                                        <button class="btn btn-outline-danger" type="button" onclick="removeKeyMessage(this)">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addKeyMessage()">
+                                    <i class="fas fa-plus me-1"></i>Add Message
+                                </button>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Preferred Terminology</label>
+                                <div class="form-text mb-2">Specify preferred language to ensure trauma-informed communication</div>
+                                <div id="terminologyContainer">
+                                    <div class="row mb-2">
+                                        <div class="col-5">
+                                            <input type="text" class="form-control avoid-term" placeholder="Avoid this term">
+                                        </div>
+                                        <div class="col-2 text-center">
+                                            <i class="fas fa-arrow-right text-muted mt-2"></i>
+                                        </div>
+                                        <div class="col-4">
+                                            <input type="text" class="form-control prefer-term" placeholder="Use this instead">
+                                        </div>
+                                        <div class="col-1">
+                                            <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeTerminology(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addTerminology()">
+                                    <i class="fas fa-plus me-1"></i>Add Term
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Navigation & Submit -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="changeStep(-1)">
+                                <i class="fas fa-arrow-left me-1"></i>Previous
+                            </button>
+                            <button type="button" class="btn btn-primary" id="nextBtn" onclick="changeStep(1)">
+                                Next<i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                            <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
+                                <i class="fas fa-save me-1"></i>Create Brand Voice
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/brand_voice.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,21 @@
+import os
+import logging
+from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Create the app
+app = Flask(__name__)
+app.secret_key = os.environ.get("SESSION_SECRET", "goldendoodlelm-secret-key")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Import routes after app creation to avoid circular imports
+from routes import *
+from database import init_databases
+
+if __name__ == '__main__':
+    with app.app_context():
+        init_databases()
+    app.run(host='0.0.0.0', port=5000, debug=True)

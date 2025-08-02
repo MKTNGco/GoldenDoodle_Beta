@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - GoldenDoodleLM{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center py-5">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-heart text-primary mb-3" style="font-size: 3rem;"></i>
+                        <h2 class="fw-bold text-primary">Join GoldenDoodleLM</h2>
+                        <p class="text-muted">Create your trauma-informed AI assistant account</p>
+                    </div>
+                    
+                    <form method="POST" id="registerForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label fw-semibold">Full Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           placeholder="Enter your full name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label fw-semibold">Email Address</label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           placeholder="Enter your email" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label fw-semibold">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   placeholder="Create a secure password" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Account Type</label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="card account-type-card" data-type="independent">
+                                        <div class="card-body text-center p-3">
+                                            <i class="fas fa-user text-primary mb-2"></i>
+                                            <h6 class="fw-bold">Individual</h6>
+                                            <small class="text-muted">Personal account</small>
+                                            <input type="radio" name="user_type" value="independent" class="d-none" checked>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card account-type-card" data-type="company">
+                                        <div class="card-body text-center p-3">
+                                            <i class="fas fa-building text-primary mb-2"></i>
+                                            <h6 class="fw-bold">Organization</h6>
+                                            <small class="text-muted">Team account</small>
+                                            <input type="radio" name="user_type" value="company" class="d-none">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3" id="organizationField" style="display: none;">
+                            <label for="organization_name" class="form-label fw-semibold">Organization Name</label>
+                            <input type="text" class="form-control" id="organization_name" name="organization_name" 
+                                   placeholder="Enter your organization name">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Subscription Level</label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="card subscription-card" data-level="entry">
+                                        <div class="card-body text-center p-3">
+                                            <h6 class="fw-bold">Entry</h6>
+                                            <small class="text-muted">1 personal brand voice</small>
+                                            <input type="radio" name="subscription_level" value="entry" class="d-none" checked>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card subscription-card" data-level="pro">
+                                        <div class="card-body text-center p-3">
+                                            <h6 class="fw-bold">Pro</h6>
+                                            <small class="text-muted">10 personal brand voices</small>
+                                            <input type="radio" name="subscription_level" value="pro" class="d-none">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-rocket me-2"></i>Create Account
+                        </button>
+                    </form>
+                    
+                    <div class="text-center">
+                        <p class="text-muted mb-0">
+                            Already have an account? 
+                            <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-semibold">
+                                Sign in here
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <small class="text-muted">
+                    <i class="fas fa-shield-alt me-1"></i>
+                    Your data is secure and private. We never train on your content.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Account type selection
+    const accountTypeCards = document.querySelectorAll('.account-type-card');
+    const organizationField = document.getElementById('organizationField');
+    
+    accountTypeCards.forEach(card => {
+        card.addEventListener('click', function() {
+            accountTypeCards.forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            const radio = this.querySelector('input[type="radio"]');
+            radio.checked = true;
+            
+            if (radio.value === 'company') {
+                organizationField.style.display = 'block';
+                document.getElementById('organization_name').required = true;
+            } else {
+                organizationField.style.display = 'none';
+                document.getElementById('organization_name').required = false;
+            }
+        });
+    });
+    
+    // Subscription level selection
+    const subscriptionCards = document.querySelectorAll('.subscription-card');
+    
+    subscriptionCards.forEach(card => {
+        card.addEventListener('click', function() {
+            subscriptionCards.forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            const radio = this.querySelector('input[type="radio"]');
+            radio.checked = true;
+        });
+    });
+    
+    // Initialize first options as selected
+    document.querySelector('.account-type-card').classList.add('selected');
+    document.querySelector('.subscription-card').classList.add('selected');
+});
+</script>
+{% endblock %}

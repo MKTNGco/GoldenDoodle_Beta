@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const demoResponseContent = document.getElementById('demoResponseContent');
     const demoBrandVoiceBtn = document.getElementById('demoBrandVoiceBtn');
     const demoModeButtons = document.querySelectorAll('.demo-mode-btn');
+    const demoMoreBtn = document.getElementById('demoMoreBtn');
+    const demoSecondaryModes = document.getElementById('demoSecondaryModes');
 
     // Check if elements exist before adding event listeners
     if (!demoInput || !demoSendBtn || !demoResponseArea || !demoResponseContent) {
@@ -41,6 +43,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set default active mode
     if (demoModeButtons.length > 0) {
         demoModeButtons[0].classList.add('active');
+    }
+
+    // More button functionality
+    if (demoMoreBtn && demoSecondaryModes) {
+        demoMoreBtn.addEventListener('click', function() {
+            const isExpanded = demoSecondaryModes.classList.contains('show');
+            demoSecondaryModes.classList.toggle('show');
+            demoMoreBtn.classList.toggle('expanded');
+        });
     }
 
     // Brand voice button (premium feature demo)
@@ -141,7 +152,136 @@ This revision:
 ✓ Offers choice and flexibility
 ✓ Acknowledges different comfort levels  
 ✓ Provides multiple ways to participate
-✓ Uses inclusive, welcoming language`
+✓ Uses inclusive, welcoming language`,
+
+            summarize: `## Key Points Summary
+
+**Trauma-Informed Communication Principles:**
+• Safety first - creating secure emotional and physical environments
+• Trust building through consistent, transparent communication  
+• Empowerment through choice and collaboration
+• Cultural humility and responsiveness
+
+**Practical Applications:**
+• Use invitational rather than demanding language
+• Provide multiple engagement options
+• Acknowledge different comfort levels
+• Center dignity and respect in all interactions
+
+**Impact:** These approaches create spaces where healing can happen naturally while honoring each person's unique journey and needs.`,
+
+            brainstorm: `## Content Ideas for Trauma-Informed Communications
+
+**Email Campaigns:**
+• Survivor story highlights (with permission)
+• Educational series on trauma-informed principles
+• Community resource roundups
+• Gentle fundraising appeals
+
+**Social Media:**
+• Daily affirmations and healing quotes
+• Behind-the-scenes glimpses of your work
+• Partner organization spotlights
+• Awareness day posts
+
+**Articles & Blog Posts:**
+• "Understanding Secondary Trauma"
+• "Creating Safe Spaces in Your Community"
+• "The Science of Healing"
+• "Building Resilience Together"
+
+**Event Ideas:**
+• Trauma-informed care workshops
+• Community healing circles
+• Professional development sessions
+• Awareness campaigns`,
+
+            analyze: `## Communication Analysis & Recommendations
+
+**Current Strengths:**
+✓ Uses person-first language
+✓ Acknowledges individual experiences
+✓ Provides multiple engagement pathways
+
+**Areas for Enhancement:**
+⚡ Increase use of collaborative language
+⚡ Add more choice-oriented phrasing
+⚡ Include cultural responsiveness elements
+
+**Trauma-Informed Score: 8/10**
+
+**Specific Improvements:**
+• Replace "you should" with "you might consider"
+• Add "if this feels right for you" to suggestions
+• Include diverse representation in examples
+• Offer alternative ways to engage
+
+**Emotional Safety Level: High**
+Your communication prioritizes emotional safety while maintaining clear, helpful information.`,
+
+            outreach: `Subject: Partnership Opportunity - Trauma-Informed Community Building
+
+Dear [Organization Name],
+
+We hope this message finds you well. We're reaching out because we deeply admire the work you do in supporting our community.
+
+At [Your Organization], we're exploring opportunities to collaborate with like-minded organizations who share our commitment to trauma-informed care and community healing.
+
+We'd love to learn more about your current initiatives and explore how we might support each other's missions. Whether that's through resource sharing, joint programming, or simply connecting our communities, we believe there's strength in working together.
+
+If a conversation feels right for your organization, we'd be honored to connect. Please feel free to reach out at your convenience, or let us know if you'd prefer to receive updates about our work instead.
+
+With gratitude and respect,
+[Your Team]`,
+
+            memo: `**MEMO**
+
+**To:** Team Leadership
+**From:** Communications Team  
+**Date:** [Current Date]
+**Re:** Trauma-Informed Communication Guidelines
+
+**Purpose:**
+This memo outlines key principles for maintaining trauma-informed approaches in all organizational communications.
+
+**Key Guidelines:**
+• **Language Choices:** Use invitational rather than directive phrasing
+• **Accessibility:** Provide multiple ways for people to engage
+• **Safety:** Prioritize emotional and psychological safety in messaging
+• **Choice:** Always offer options and respect boundaries
+
+**Implementation:**
+All outward-facing communications should be reviewed using our trauma-informed checklist before distribution.
+
+**Resources:**
+Training materials and templates are available on our shared drive. Please contact the Communications team with questions.
+
+Thank you for your continued commitment to creating healing spaces through our communications.`,
+
+            grant_proposal: `**Project Title:** Community Healing Initiative
+
+**Executive Summary**
+Our organization requests $[Amount] to expand trauma-informed communication training throughout our community network. This initiative will build capacity among local nonprofits to create safer, more inclusive spaces for healing.
+
+**Project Description**
+The Community Healing Initiative will provide comprehensive training on trauma-informed communication principles to 25 local nonprofit organizations, reaching an estimated 500 community members.
+
+**Goals & Objectives**
+• Train 75 nonprofit staff in trauma-informed communication
+• Develop culturally responsive communication resources
+• Create peer support networks for ongoing learning
+• Establish community-wide standards for healing-centered communication
+
+**Expected Outcomes**
+Participants will demonstrate increased knowledge of trauma-informed principles and report greater confidence in creating safe, inclusive communication environments.
+
+**Budget Summary**
+Training materials: $[Amount]
+Facilitator fees: $[Amount]  
+Resource development: $[Amount]
+Evaluation: $[Amount]
+
+This investment will create lasting change in how our community approaches healing-centered communication.`
         };
 
         demoResponseContent.innerHTML = responses[mode] || responses.email;

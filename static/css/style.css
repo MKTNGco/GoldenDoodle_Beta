@@ -336,6 +336,49 @@ a:hover {
     margin-right: 6px;
 }
 
+.demo-more-btn {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--cloud-white);
+    border: 1px solid var(--vapor-gray);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.demo-more-btn:hover {
+    border-color: var(--clearwater-teal);
+    color: var(--clearwater-teal);
+}
+
+.chevron-icon {
+    width: 14px;
+    height: 14px;
+    margin-left: 6px;
+    transition: transform 0.2s ease;
+}
+
+.demo-more-btn.expanded .chevron-icon {
+    transform: rotate(180deg);
+}
+
+/* Demo Secondary Modes */
+.demo-secondary-modes {
+    display: none;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.demo-secondary-modes.show {
+    display: flex;
+}
+
 /* Demo Response Area */
 .demo-response-area {
     margin-top: 20px;

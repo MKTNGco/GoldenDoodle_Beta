@@ -1,0 +1,45 @@
+Looking at the sign-up page, I see that an organization (team account) offers an "Entry" level with a single personal brand. The Organization account is for a minimum of three users and offer up to three brand voices be default.
+
+Let's rework the account types to be as follows:
+
+INDIVIDUAL PLANS
+Solo
+Ideal for freelance grant writers, nonprofit consultants, or single-person communications teams. $20/month billed annually
+✓ 1 User Seat
+✓ 1 Custom Brand Voice Index
+✓ Ironclad Security: Your data is never used for training
+✓ YOUR Brand Voice: Fine-tune the AI to your organization's unique style
+✓ Trauma-Informed: Every response is filtered through our empathetic tone
+✓ Powered by Gemini: Access to the latest models for high-quality text generation without the snooping!
+
+Pro
+Ideal for a single, heavy user like a full-time development director or grant writer who needs maximum flexibility. $82 /month billed annually
+✓ 1 User Seat
+✓ Up to 10 Brand Voice Indexes
+✓ Priority access to new features
+✓ Advanced usage analytics
+✓ All Solo features included
+✓ Ironclad Security: Your data is never used for training
+
+TEAM PLANS
+
+Team
+Ideal for small nonprofits with a core communications or development team. $24 /user/month billed annually
+✓ At least 3 User Seats
+✓ Up to 3 Custom Brand Voice Indexes
+✓ Team collaboration features
+✓ All Solo features included
+✓ Ironclad Security: Your data is never used for training
+✓ YOUR Brand Voice: Fine-tune the AI to your organization's unique style
+✓ Trauma-Informed: Every response is filtered through our empathetic tone
+✓ Powered by Gemini: Access to the latest models for high-quality text generation without the snooping!
+
+Enterprise
+✓ Custom User Seats
+✓ Single Sign-On (SSO) integration
+✓ Bespoke feature development
+✓ All Pro features included
+✓ Ironclad Security: Your data is never used for training
+✓ Custom Brand Voice: Fine-tune the AI to your organization's unique style
+✓ Trauma-Informed Guardrails: Every response is filtered through our finely tuned voice
+✓ Powered by Gemini: Access to the latest models for high-quality text generation

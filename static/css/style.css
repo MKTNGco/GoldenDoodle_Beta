@@ -237,6 +237,45 @@ a:hover {
     color: var(--cloud-white);
 }
 
+/* Account status and icon colors */
+.text-info, .text-cyan {
+    color: var(--coastal-sage) !important;
+}
+
+.fas.fa-calendar,
+.fas.fa-tree,
+.fas.fa-building-user,
+.fas.fa-check-circle {
+    color: var(--coastal-sage) !important;
+}
+
+/* Pro plan badge */
+.badge-info, .badge-primary.bg-primary {
+    background-color: var(--coastal-sage) !important;
+    border-color: var(--coastal-sage) !important;
+}
+
+/* Quick action buttons with coastal sage accents */
+.btn-outline-info {
+    color: var(--coastal-sage);
+    border-color: var(--coastal-sage);
+}
+
+.btn-outline-info:hover {
+    background-color: var(--coastal-sage);
+    border-color: var(--coastal-sage);
+    color: var(--cloud-white);
+}
+
+/* Account status active indicator */
+.text-warning {
+    color: var(--coastal-sage) !important;
+}
+
+.fas.fa-circle-check {
+    color: var(--coastal-sage) !important;
+}
+
 /* Brand Voice Wizard */
 .wizard-step {
     margin-bottom: 2rem;
@@ -344,6 +383,7 @@ a:hover {
 .dropdown-menu {
     background-color: var(--cloud-white);
     border: 1px solid var(--vapor-gray);
+    z-index: 1050;
 }
 
 .dropdown-item {

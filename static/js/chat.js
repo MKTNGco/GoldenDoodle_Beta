@@ -72,6 +72,11 @@ class ChatInterface {
         // Send button
         this.sendBtn.addEventListener('click', () => this.sendMessage());
 
+        // Attachment button
+        document.querySelector('.attachment-btn').addEventListener('click', () => {
+            this.handleAttachment();
+        });
+
         // Brand voice selector
         this.brandVoiceBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -327,6 +332,61 @@ class ChatInterface {
                 </svg>
             `;
         }
+    }
+
+    handleAttachment() {
+        // Create a hidden file input
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.txt,.pdf,.doc,.docx,.md';
+        fileInput.style.display = 'none';
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.processAttachment(file);
+            }
+        });
+        
+        document.body.appendChild(fileInput);
+        fileInput.click();
+        document.body.removeChild(fileInput);
+    }
+
+    async processAttachment(file) {
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be less than 5MB');
+            return;
+        }
+
+        try {
+            const text = await this.readFileAsText(file);
+            const truncatedText = text.substring(0, 2000); // Limit to first 2000 characters
+            
+            // Add the file content to the chat input
+            const currentText = this.chatInput.value;
+            const newText = currentText + (currentText ? '\n\n' : '') + 
+                           `[Attached file: ${file.name}]\n${truncatedText}${text.length > 2000 ? '\n...(truncated)' : ''}`;
+            
+            this.chatInput.value = newText;
+            this.autoResizeTextarea();
+            this.updateSendButton();
+            this.chatInput.focus();
+            
+        } catch (error) {
+            console.error('Error reading file:', error);
+            alert('Error reading file. Please try again.');
+        }
+    }
+
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
     }
 
     formatMessage(content) {

@@ -1,0 +1,194 @@
+TRAUMA_INFORMED_KNOWLEDGE = {
+    'general_principles': '''
+    Trauma-Informed Communication Core Principles:
+
+    1. Person-First Language: Always put the person before their experience or condition. Say "person who experienced trauma" rather than "trauma victim."
+
+    2. Strengths-Based Approach: Focus on resilience, capabilities, and potential rather than deficits or problems.
+
+    3. Cultural Sensitivity: Recognize and respect diverse cultural backgrounds, beliefs, and experiences.
+
+    4. Empowerment and Choice: Provide options and respect individual autonomy in decision-making.
+
+    5. Safety and Trust: Create psychologically and physically safe environments through consistent, predictable communication.
+
+    6. Collaboration: Work with rather than for people, recognizing their expertise in their own experiences.
+
+    Key Language Considerations:
+    - Use "person-first" language consistently
+    - Avoid stigmatizing terms like "crazy," "broken," or "damaged"
+    - Choose empowering words like "survivor" over "victim" when appropriate
+    - Be specific and clear rather than vague
+    - Acknowledge strengths and resilience explicitly
+    ''',
+
+    'email_communication': '''
+    Trauma-Informed Email Communication Guidelines:
+
+    Subject Lines:
+    - Be clear and specific, avoid ambiguous or urgent-sounding subjects
+    - Use neutral, professional tone
+    - Example: "Meeting Follow-up" rather than "URGENT: We Need to Talk"
+
+    Opening:
+    - Use warm, professional greetings
+    - Acknowledge the person's time and attention
+    - Be clear about the purpose upfront
+
+    Body Content:
+    - Use clear, straightforward language
+    - Break information into digestible chunks
+    - Provide context for requests or information
+    - Offer choices when possible
+    - Be specific about next steps or expectations
+
+    Closing:
+    - Express appreciation
+    - Provide clear contact information
+    - Indicate response timeframes if needed
+    - Use supportive, professional sign-offs
+
+    Avoid:
+    - Aggressive or demanding language
+    - Time pressure unless absolutely necessary
+    - Assumptions about the recipient's situation
+    - Judgmental or critical tone
+    ''',
+
+    'written_communication': '''
+    Trauma-Informed Written Content Guidelines:
+
+    Structure and Flow:
+    - Use clear headings and subheadings
+    - Include content warnings when discussing potentially triggering topics
+    - Provide clear navigation and exit strategies
+    - Break up long blocks of text
+
+    Language and Tone:
+    - Use accessible, jargon-free language
+    - Maintain a respectful, non-judgmental tone
+    - Include diverse perspectives and experiences
+    - Focus on hope and possibility
+
+    Content Considerations:
+    - Lead with strengths and resilience
+    - Provide practical, actionable information
+    - Include resources and support options
+    - Acknowledge different experiences and responses
+    - Validate feelings and experiences
+
+    Formatting:
+    - Use bullet points for key information
+    - Include white space for readability
+    - Use consistent formatting throughout
+    - Consider accessibility needs (font size, contrast)
+    ''',
+
+    'social_media_guidelines': '''
+    Trauma-Informed Social Media Communication:
+
+    Content Creation:
+    - Use content warnings for sensitive topics
+    - Focus on empowerment and hope
+    - Share resources and support information
+    - Highlight diverse voices and experiences
+    - Celebrate resilience and recovery
+
+    Engagement:
+    - Respond with empathy and respect
+    - Avoid giving unsolicited advice
+    - Direct people to appropriate resources
+    - Maintain professional boundaries
+    - Model supportive communication
+
+    Language Choices:
+    - Use inclusive, accessible language
+    - Avoid sensationalism or dramatic language
+    - Choose images and words carefully
+    - Consider cultural sensitivity
+    - Promote dignity and respect
+
+    Community Building:
+    - Foster supportive environments
+    - Moderate comments thoughtfully
+    - Create safe spaces for sharing
+    - Encourage peer support
+    - Address harmful content promptly
+
+    Hashtags and Accessibility:
+    - Use relevant, supportive hashtags
+    - Include image descriptions
+    - Consider platform accessibility features
+    - Make content searchable for those seeking help
+    ''',
+
+    'rewriting_guidelines': '''
+    Trauma-Informed Content Rewriting Principles:
+
+    Assessment Phase:
+    - Identify potentially harmful or stigmatizing language
+    - Look for deficit-based framing
+    - Check for cultural insensitivity
+    - Assess tone and accessibility
+
+    Revision Strategies:
+    - Replace stigmatizing terms with respectful language
+    - Shift from deficit-based to strengths-based framing
+    - Add person-first language where appropriate
+    - Improve clarity and accessibility
+    - Include diverse perspectives
+
+    Language Replacements:
+    - "Victim" → "Person who experienced..." or "Survivor" (context dependent)
+    - "Suffers from" → "Lives with" or "Experiences"
+    - "Normal people" → "People without this experience"
+    - "Crazy" → "Experiencing distress" or specific descriptors
+    - "Broken" → "Healing" or "Working through challenges"
+
+    Tone Adjustments:
+    - Add warmth and empathy
+    - Remove judgment or blame
+    - Include hope and possibility
+    - Acknowledge complexity
+    - Validate experiences
+
+    Structure Improvements:
+    - Add clear headings and organization
+    - Include resource information
+    - Provide content warnings if needed
+    - Improve readability and flow
+    ''',
+
+    'crisis_communication': '''
+    Crisis Communication Guidelines:
+
+    Immediate Response Principles:
+    - Prioritize safety and stabilization
+    - Use calm, clear, directive language
+    - Avoid overwhelming with information
+    - Provide immediate next steps
+    - Connect to appropriate resources
+
+    Language During Crisis:
+    - Use simple, concrete language
+    - Repeat important information
+    - Avoid jargon or complex instructions
+    - Be patient and non-judgmental
+    - Validate the person's experience
+
+    Resource Provision:
+    - Have crisis resources readily available
+    - Provide multiple contact options
+    - Include both immediate and long-term resources
+    - Consider accessibility needs
+    - Follow up when appropriate
+
+    Boundaries and Safety:
+    - Know your scope of practice
+    - Don't provide services outside your expertise
+    - Ensure confidentiality and privacy
+    - Document appropriately
+    - Seek consultation when needed
+    '''
+    
+}

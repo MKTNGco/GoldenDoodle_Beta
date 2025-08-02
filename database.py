@@ -38,7 +38,7 @@ class DatabaseManager:
             
             cursor.execute("""
                 DO $$ BEGIN
-                    CREATE TYPE subscription_level AS ENUM ('entry', 'pro');
+                    CREATE TYPE subscription_level AS ENUM ('solo', 'pro', 'team', 'enterprise');
                 EXCEPTION
                     WHEN duplicate_object THEN null;
                 END $$;

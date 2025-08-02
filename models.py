@@ -8,8 +8,10 @@ class TenantType(Enum):
     INDEPENDENT_USER = 'independent_user'
 
 class SubscriptionLevel(Enum):
-    ENTRY = 'entry'
+    SOLO = 'solo'
     PRO = 'pro'
+    TEAM = 'team'
+    ENTERPRISE = 'enterprise'
 
 @dataclass
 class Tenant:

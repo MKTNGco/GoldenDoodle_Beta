@@ -46,19 +46,37 @@ def register():
                 flash('An account with this email already exists.', 'error')
                 return render_template('register.html')
             
-            # Create tenant
+            # Create tenant and determine brand voice limits
+            subscription_enum = SubscriptionLevel(subscription_level)
+            
             if user_type == 'company':
+                # Team or Enterprise plans
+                if subscription_enum == SubscriptionLevel.TEAM:
+                    max_brand_voices = 3
+                elif subscription_enum == SubscriptionLevel.ENTERPRISE:
+                    max_brand_voices = 10  # Higher limit for enterprise
+                else:
+                    max_brand_voices = 3  # Default for team plans
+                
                 tenant = db_manager.create_tenant(
                     name=organization_name,
                     tenant_type=TenantType.COMPANY,
-                    max_brand_voices=3
+                    max_brand_voices=max_brand_voices
                 )
                 is_admin = True  # First user in company is admin
             else:
+                # Individual plans (Solo/Pro)
+                if subscription_enum == SubscriptionLevel.SOLO:
+                    max_brand_voices = 1
+                elif subscription_enum == SubscriptionLevel.PRO:
+                    max_brand_voices = 10
+                else:
+                    max_brand_voices = 1  # Default
+                
                 tenant = db_manager.create_tenant(
                     name=f"{first_name} {last_name}'s Account",
                     tenant_type=TenantType.INDEPENDENT_USER,
-                    max_brand_voices=1
+                    max_brand_voices=max_brand_voices
                 )
                 is_admin = False
             
@@ -207,8 +225,16 @@ def brand_voices():
     
     user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
     
-    # Check limits
-    max_user_voices = 10 if user.subscription_level == SubscriptionLevel.PRO else 1
+    # Check limits based on subscription level
+    if user.subscription_level == SubscriptionLevel.PRO:
+        max_user_voices = 10
+    elif user.subscription_level == SubscriptionLevel.SOLO:
+        max_user_voices = 1
+    elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
+        max_user_voices = 10  # Team members can have personal voices too
+    else:
+        max_user_voices = 1  # Default
+    
     can_create_user_voice = len(user_brand_voices) < max_user_voices
     can_create_company_voice = (user.is_admin and 
                                tenant.tenant_type == TenantType.COMPANY and 
@@ -277,7 +303,15 @@ def create_brand_voice():
             user_id = None
         else:
             existing_user_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
-            max_voices = 10 if user.subscription_level == SubscriptionLevel.PRO else 1
+            
+            if user.subscription_level == SubscriptionLevel.PRO:
+                max_voices = 10
+            elif user.subscription_level == SubscriptionLevel.SOLO:
+                max_voices = 1
+            elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
+                max_voices = 10
+            else:
+                max_voices = 1
             
             if len(existing_user_voices) >= max_voices:
                 return jsonify({'error': f'Maximum of {max_voices} personal brand voices allowed for your subscription level'}), 400

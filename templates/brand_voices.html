@@ -170,8 +170,10 @@
                     <h6 class="text-primary">Brand Voice Limits</h6>
                     <p class="text-muted mb-0">
                         You've reached your brand voice limits. 
-                        {% if user.subscription_level.value == 'entry' %}
+                        {% if user.subscription_level.value == 'solo' %}
                         Upgrade to Pro to create up to 10 personal brand voices.
+                        {% elif user.subscription_level.value == 'team' %}
+                        Contact your administrator to upgrade your organization plan.
                         {% endif %}
                     </p>
                 </div>

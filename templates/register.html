@@ -76,24 +76,90 @@
                                    placeholder="Enter your organization name">
                         </div>
                         
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Subscription Level</label>
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <div class="card subscription-card" data-level="entry">
-                                        <div class="card-body text-center p-3">
-                                            <h6 class="fw-bold">Entry</h6>
-                                            <small class="text-muted">1 personal brand voice</small>
-                                            <input type="radio" name="subscription_level" value="entry" class="d-none" checked>
+                        <div class="mb-4" id="subscriptionPlans">
+                            <label class="form-label fw-semibold">Choose Your Plan</label>
+                            
+                            <!-- Individual Plans -->
+                            <div id="individualPlans">
+                                <h6 class="text-primary mb-2">Individual Plans</h6>
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card subscription-card h-100" data-level="solo">
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="fw-bold text-primary">Solo</h6>
+                                                    <span class="badge bg-success">$20/mo</span>
+                                                </div>
+                                                <p class="small text-muted mb-2">Ideal for freelance grant writers, nonprofit consultants, or single-person communications teams.</p>
+                                                <ul class="list-unstyled small mb-0">
+                                                    <li><i class="fas fa-check text-success me-1"></i> 1 User Seat</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> 1 Custom Brand Voice</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Trauma-Informed AI</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Ironclad Security</li>
+                                                </ul>
+                                                <input type="radio" name="subscription_level" value="solo" class="d-none" checked>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card subscription-card h-100" data-level="pro">
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="fw-bold text-primary">Pro</h6>
+                                                    <span class="badge bg-warning">$82/mo</span>
+                                                </div>
+                                                <p class="small text-muted mb-2">Ideal for heavy users like full-time development directors who need maximum flexibility.</p>
+                                                <ul class="list-unstyled small mb-0">
+                                                    <li><i class="fas fa-check text-success me-1"></i> 1 User Seat</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Up to 10 Brand Voices</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Priority Features</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Advanced Analytics</li>
+                                                </ul>
+                                                <input type="radio" name="subscription_level" value="pro" class="d-none">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="card subscription-card" data-level="pro">
-                                        <div class="card-body text-center p-3">
-                                            <h6 class="fw-bold">Pro</h6>
-                                            <small class="text-muted">10 personal brand voices</small>
-                                            <input type="radio" name="subscription_level" value="pro" class="d-none">
+                            </div>
+                            
+                            <!-- Team Plans -->
+                            <div id="teamPlans" style="display: none;">
+                                <h6 class="text-primary mb-2">Team Plans</h6>
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card subscription-card h-100" data-level="team">
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="fw-bold text-primary">Team</h6>
+                                                    <span class="badge bg-info">$24/user/mo</span>
+                                                </div>
+                                                <p class="small text-muted mb-2">Ideal for small nonprofits with a core communications or development team.</p>
+                                                <ul class="list-unstyled small mb-0">
+                                                    <li><i class="fas fa-check text-success me-1"></i> At least 3 User Seats</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Up to 3 Brand Voices</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Team Collaboration</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> All Solo Features</li>
+                                                </ul>
+                                                <input type="radio" name="subscription_level" value="team" class="d-none">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card subscription-card h-100" data-level="enterprise">
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="fw-bold text-primary">Enterprise</h6>
+                                                    <span class="badge bg-dark">Custom</span>
+                                                </div>
+                                                <p class="small text-muted mb-2">For large organizations requiring custom solutions and enterprise features.</p>
+                                                <ul class="list-unstyled small mb-0">
+                                                    <li><i class="fas fa-check text-success me-1"></i> Custom User Seats</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> SSO Integration</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> Bespoke Development</li>
+                                                    <li><i class="fas fa-check text-success me-1"></i> All Pro Features</li>
+                                                </ul>
+                                                <input type="radio" name="subscription_level" value="enterprise" class="d-none">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -131,6 +197,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Account type selection
     const accountTypeCards = document.querySelectorAll('.account-type-card');
     const organizationField = document.getElementById('organizationField');
+    const individualPlans = document.getElementById('individualPlans');
+    const teamPlans = document.getElementById('teamPlans');
     
     accountTypeCards.forEach(card => {
         card.addEventListener('click', function() {
@@ -143,9 +211,25 @@ document.addEventListener('DOMContentLoaded', function() {
             if (radio.value === 'company') {
                 organizationField.style.display = 'block';
                 document.getElementById('organization_name').required = true;
+                individualPlans.style.display = 'none';
+                teamPlans.style.display = 'block';
+                
+                // Select team plan by default for organizations
+                const teamCard = document.querySelector('[data-level="team"]');
+                if (teamCard) {
+                    teamCard.click();
+                }
             } else {
                 organizationField.style.display = 'none';
                 document.getElementById('organization_name').required = false;
+                individualPlans.style.display = 'block';
+                teamPlans.style.display = 'none';
+                
+                // Select solo plan by default for individuals
+                const soloCard = document.querySelector('[data-level="solo"]');
+                if (soloCard) {
+                    soloCard.click();
+                }
             }
         });
     });

@@ -1,29 +1,43 @@
-/* GoldenDoodleLM Custom Styles - Trauma-Informed Design */
+
+/* GoldenDoodleLM Custom Styles - Harbor Brand Identity */
 
 :root {
-    --primary-color: #6366f1;
-    --primary-light: #8b5cf6;
-    --primary-dark: #4338ca;
-    --secondary-color: #10b981;
-    --accent-color: #f59e0b;
-    --text-primary: #1f2937;
-    --text-secondary: #6b7280;
-    --text-muted: #9ca3af;
-    --bg-light: #f9fafb;
-    --bg-white: #ffffff;
-    --border-light: #e5e7eb;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    /* Harbor Brand Color Palette */
+    --primary-color: #7aa095; /* Coastal Sage */
+    --primary-light: #b9cdc6; /* Sage Mist */
+    --primary-dark: #5a7a6e; /* Darker Coastal Sage */
+    --secondary-color: #7aa095; /* Using Coastal Sage for secondary */
+    --accent-color: #c7a97f; /* Golden Ochre - use sparingly */
+    --text-primary: #3a4b45; /* Deep Forest */
+    --text-secondary: #5a6b65; /* Lighter Deep Forest */
+    --text-muted: #8a9b95; /* Muted Forest */
+    --bg-light: #fdfcf7; /* Linen White */
+    --bg-white: #fdfcf7; /* Linen White */
+    --border-light: #e8e5e1; /* Pebble Gray */
+    --shadow-sm: 0 1px 2px 0 rgba(58, 75, 69, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(58, 75, 69, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(58, 75, 69, 0.1);
     --border-radius: 0.5rem;
 }
 
-/* Base Typography - Trauma-Informed */
+/* Base Typography - Harbor Identity */
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Lora', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: var(--text-primary);
     line-height: 1.6;
     background-color: var(--bg-light);
+}
+
+/* Headings with Poppins font */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Major headings can use Coastal Sage for softer look */
+h1, h2 {
+    color: var(--primary-color);
 }
 
 /* Accessibility Improvements */
@@ -44,28 +58,45 @@ body {
 .btn-primary {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
+    color: var(--bg-white);
     transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
     background-color: var(--primary-dark);
     border-color: var(--primary-dark);
+    color: var(--bg-white);
     transform: translateY(-1px);
 }
 
 .btn-outline-primary {
     color: var(--primary-color);
-    border-color: var(--primary-color);
+    border-color: var(--primary-light);
+    background-color: transparent;
 }
 
 .btn-outline-primary:hover {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
+    background-color: var(--primary-light);
+    border-color: var(--primary-light);
+    color: var(--text-primary);
+}
+
+/* Secondary buttons with ghost style */
+.btn-secondary {
+    background-color: transparent;
+    border: 1px solid var(--primary-light);
+    color: var(--primary-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--primary-light);
+    border-color: var(--primary-light);
+    color: var(--text-primary);
 }
 
 /* Hero Section */
 .hero-section {
-    background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-light) 100%);
+    background: linear-gradient(135deg, var(--bg-white) 0%, var(--primary-light) 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -91,35 +122,41 @@ body {
     width: 60px;
     height: 60px;
     font-size: 1.5rem;
+    color: var(--primary-color);
 }
 
 .content-mode-card {
     transition: all 0.2s ease;
     cursor: pointer;
+    border: 1px solid var(--border-light);
 }
 
 .content-mode-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
+    border-color: var(--primary-light);
 }
 
 /* CTA Section */
 .cta-section {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
-    color: white;
+    color: var(--bg-white);
 }
 
-/* Forms - Trauma-Informed Design */
+/* Forms - Harbor Design */
 .form-control {
     border: 1px solid var(--border-light);
     border-radius: var(--border-radius);
     padding: 0.75rem 1rem;
     transition: all 0.2s ease;
+    background-color: var(--bg-white);
+    color: var(--text-primary);
 }
 
 .form-control:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 0.2rem rgba(185, 205, 198, 0.25);
+    background-color: var(--bg-white);
 }
 
 .form-label {
@@ -134,6 +171,7 @@ body {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-sm);
     transition: all 0.2s ease;
+    background-color: var(--bg-white);
 }
 
 .card:hover {
@@ -148,17 +186,21 @@ body {
 /* Navigation */
 .navbar {
     backdrop-filter: blur(10px);
-    background-color: rgba(255, 255, 255, 0.95) !important;
+    background-color: rgba(253, 252, 247, 0.95) !important;
+    border-bottom: 1px solid var(--border-light);
 }
 
 .navbar-brand {
+    font-family: 'Poppins', sans-serif;
     font-weight: 700;
     font-size: 1.25rem;
+    color: var(--primary-color) !important;
 }
 
 .nav-link {
     font-weight: 500;
     transition: color 0.2s ease;
+    color: var(--text-primary) !important;
 }
 
 .nav-link:hover {
@@ -171,18 +213,19 @@ body {
     cursor: pointer;
     transition: all 0.2s ease;
     border: 2px solid var(--border-light);
+    background-color: var(--bg-white);
 }
 
 .account-type-card:hover,
 .subscription-card:hover {
-    border-color: var(--primary-color);
+    border-color: var(--primary-light);
     box-shadow: var(--shadow-sm);
 }
 
 .account-type-card.selected,
 .subscription-card.selected {
     border-color: var(--primary-color);
-    background-color: rgba(99, 102, 241, 0.05);
+    background-color: rgba(122, 160, 149, 0.05);
 }
 
 /* Account Page */
@@ -192,6 +235,8 @@ body {
     font-size: 2rem;
     font-weight: bold;
     border-radius: 50%;
+    background-color: var(--primary-light);
+    color: var(--text-primary);
 }
 
 /* Brand Voice Wizard */
@@ -207,6 +252,9 @@ body {
     justify-content: center;
     font-size: 0.9rem;
     font-weight: 600;
+    background-color: var(--primary-color);
+    color: var(--bg-white);
+    border-radius: 50%;
 }
 
 .tone-card,
@@ -215,18 +263,19 @@ body {
     transition: all 0.2s ease;
     border: 2px solid var(--border-light);
     height: 100%;
+    background-color: var(--bg-white);
 }
 
 .tone-card:hover,
 .style-card:hover {
-    border-color: var(--primary-color);
+    border-color: var(--primary-light);
     transform: translateY(-2px);
 }
 
 .tone-card.selected,
 .style-card.selected {
     border-color: var(--primary-color);
-    background-color: rgba(99, 102, 241, 0.05);
+    background-color: rgba(122, 160, 149, 0.05);
 }
 
 /* Brand Voice Cards */
@@ -243,35 +292,40 @@ body {
 }
 
 .chat-messages {
-    background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+    background: linear-gradient(to bottom, var(--bg-light), var(--bg-white));
 }
 
 .message-user .message-bubble {
     background: var(--primary-color);
-    color: white;
+    color: var(--bg-white);
 }
 
 .message-ai .message-bubble {
     background: var(--bg-white);
     border: 1px solid var(--border-light);
     box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
 }
 
 .mode-btn {
     transition: all 0.2s ease;
     font-size: 0.875rem;
     font-weight: 500;
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    background-color: var(--bg-white);
 }
 
 .mode-btn:hover {
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
+    border-color: var(--primary-light);
 }
 
 .mode-btn.active {
     background: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
-    color: white !important;
+    color: var(--bg-white) !important;
 }
 
 /* Content Input Area */
@@ -282,9 +336,10 @@ body {
 
 .brand-voice-selector {
     padding: 1rem;
-    background: rgba(99, 102, 241, 0.02);
+    background: rgba(122, 160, 149, 0.02);
     border-radius: var(--border-radius);
     margin-bottom: 1rem;
+    border: 1px solid var(--border-light);
 }
 
 /* Loading States */
@@ -292,35 +347,63 @@ body {
     color: var(--text-muted);
 }
 
-/* Alerts - Trauma-Informed Colors */
+/* Alerts - Harbor Colors */
 .alert-success {
-    background-color: rgba(16, 185, 129, 0.1);
-    border-color: var(--secondary-color);
-    color: #047857;
-}
-
-.alert-info {
-    background-color: rgba(99, 102, 241, 0.1);
+    background-color: rgba(122, 160, 149, 0.1);
     border-color: var(--primary-color);
     color: var(--primary-dark);
 }
 
+.alert-info {
+    background-color: rgba(185, 205, 198, 0.1);
+    border-color: var(--primary-light);
+    color: var(--text-primary);
+}
+
 .alert-warning {
-    background-color: rgba(245, 158, 11, 0.1);
+    background-color: rgba(199, 169, 127, 0.1);
     border-color: var(--accent-color);
-    color: #92400e;
+    color: #8b6914;
 }
 
 .alert-danger {
-    background-color: rgba(239, 68, 68, 0.1);
-    border-color: #ef4444;
-    color: #dc2626;
+    background-color: rgba(199, 169, 127, 0.15);
+    border-color: var(--accent-color);
+    color: #8b6914;
 }
 
 /* Footer */
 footer {
     background-color: var(--bg-light) !important;
     border-top: 1px solid var(--border-light);
+    color: var(--text-secondary);
+}
+
+/* Dropdown menus */
+.dropdown-menu {
+    background-color: var(--bg-white);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+}
+
+.dropdown-item {
+    color: var(--text-primary);
+}
+
+.dropdown-item:hover {
+    background-color: var(--primary-light);
+    color: var(--text-primary);
+}
+
+/* Icons */
+.fas, .far, .fab {
+    color: var(--text-secondary);
+}
+
+.text-primary .fas,
+.text-primary .far,
+.text-primary .fab {
+    color: var(--primary-color);
 }
 
 /* Responsive Design */

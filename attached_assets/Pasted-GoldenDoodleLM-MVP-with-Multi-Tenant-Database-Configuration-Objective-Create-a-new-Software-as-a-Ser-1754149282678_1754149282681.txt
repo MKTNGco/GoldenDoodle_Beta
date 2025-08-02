@@ -1,0 +1,151 @@
+GoldenDoodleLM MVP with Multi-Tenant Database Configuration
+Objective
+Create a new Software-as-a-Service (SaaS) application, GoldenDoodleLM, on Replit using Python, Flask, and Neon's serverless PostgreSQL. The application is a specialized AI chatbot designed for trauma-informed nonprofit organizations to generate high-quality, on-brand, trauma-informed content in a secure environment where the model does not train on their inputs and their data remains private. The Minimum Viable Product (MVP) must implement a multi-tenant database architecture to manage users, companies, and brand voices, integrate with Google Gemini for AI responses, and use LlamaIndex for a dual Retrieval-Augmented Generation (RAG) system. The application must support secure user authentication, a chat interface with preset content modes, and a brand voice wizard, adhering to the specifications in the Product Definition Document (PDD).
+Product Definition Overview
+GoldenDoodleLM empowers small-to-medium-sized nonprofit organizations (e.g., mental health, crisis support, social services) to create trauma-informed communications. The target users are Communications or Marketing Coordinators who need to produce engaging, safe content efficiently. The MVP focuses on:
+Multi-Tenant User Authentication: Securely separate data for each organization, supporting shared brand voices (up to 3 per organization, or 10 for large accounts) and personal user brand voices (1 for entry-level, 10 for pro-level).
+AI-Powered Chat Interface: A ChatGPT-like interface with a gracious prompt entry space, inviting user interaction. The prompt box features a dropdown selector for Brand Voices that are programed into the user or company account as well as the opportunity to have a neutral brand voice (no input from the brand voice program). The prompt box will feature preset content modes, functioning as follows.  
+Preset Content Modes: Dedicated buttons ("Email", "Blog Post", "Social Media Content", "Rewrite") allow the user to instantly set the AI's task, streamlining the content creation process.
+Here are the seven specialized modes:
+Primary Row (Always Visible):
+Email - Professional, empathetic email generation
+Article - Informative content writing with trauma-informed principles
+Social Media - Engaging, accessible social content creation
+Rewrite - Transform existing content with trauma-informed enhancements
+More - Toggle button to reveal additional modes
+Secondary Row (Hidden by default, shown when "More" is clicked):
+Summarize - Document and content summarization
+Idea Brainstorm - Creative ideation and brainstorming
+Analyze - Data and content analysis
+Mode Behavior:
+Selection: Users can click any mode button to activate it =
+Deselection: Clicking an active mode deactivates it, returning to general mode
+Multiple Selection: The system appears to support selecting multiple modes simultaneously
+Placeholder Updates: Each mode changes the textarea placeholder to provide context-specific prompts
+Temperature Settings: Different modes use varying creativity levels (as seen in documentation - Email/Summarize use 0.5 for consistency, Brainstorm/Social use higher values for creativity)
+
+Temperature Settings by Mode
+The AI automatically adjusts its creativity level (temperature) based on the selected content mode to optimize output quality:
+Conservative Modes (Lower Temperature)
+Summarize: 0.3 - Most consistent for factual summaries
+Rewrite: 0.4 - Conservative to preserve original meaning
+Analyze: 0.4 - Consistent analytical approach
+Email: 0.5 - More professional and consistent
+Balanced Modes (Medium Temperature)
+Article/Blog Post: 0.7 - Balanced creativity and structure
+General: 0.7 - Balanced for conversational responses
+Creative Modes (Higher Temperature)
+Social Media: 0.8 - More creative and engaging
+Brainstorm: 0.9 - Highest creativity for idea generation
+How Temperature Works
+Lower temperatures (0.3-0.5) produce:
+More predictable, consistent outputs
+Better for factual content and professional communication
+Reduced creativity but higher accuracy
+Higher temperatures (0.7-0.9) produce:
+More varied, creative responses
+Better for brainstorming and engaging content
+Increased creativity but potentially less predictable
+Implementation Details
+The temperature is dynamically set in your gemini_service.py based on the content_mode parameter:
+# Example from your code
+'email': {
+   'temperature': 0.5  # Professional and consistent
+},
+'brainstorm': {
+   'temperature': 0.9  # Highest creativity for idea generation
+}
+This ensures that when users select "Email," they get professional, consistent responses, while "Brainstorm" mode encourages maximum creativity and idea variety - all while maintaining GoldenDoodleLM's trauma-informed principles across every mode.
+Dual Retrieval-Augmented Generation (RAG) System: This is the core technology of GoldenDoodleLM. For every user request, the system retrieves relevant context from two distinct, secure knowledge bases before generating a response:
+Shared Trauma-Informed Index: A universal knowledge base containing best practices, principles, and examples of trauma-informed communication.
+Client-Specific Brand Voice Index: A private knowledge base unique to each client, built from the Brand Voice Wizard which creates a brand voice .MD doc for each voice used by the user organization. Specific inputs for the Brand Voice Database to follow. 
+Friendly AI Persona: The AI, GoldenDoodleLM, is empathetic, encouraging and supportive. Technical Stack:
+Language: Python
+Web Framework: Flask
+Database: Neon (PostgreSQL)
+AI Model: Google Gemini
+RAG Framework: LlamaIndex
+Authentication: Werkzeug (password hashing), Flask Sessions
+Frontend: HTML, CSS, JavaScript
+Environment: Replit
+Database Requirements
+Implement a database-per-tenant architecture using Neon's serverless PostgreSQL to ensure data isolation and scalability. Each organization (company) and independent user is a tenant with a dedicated database. A main "control plane" database manages tenant metadata and user authentication. The database must support:
+Users: Part of a company or independent. Entry-level users have 1 personal brand voice; pro-level users have up to 10. Company admins configure up to 3 shared company brand voices (or 10 for large accounts).
+Companies: Organizations with multiple users, sharing up to 3 brand voices (or 10 for large accounts) via a brand voice wizard.
+Brand Voices: JSON configurations (or Markdown files for RAG) that influence AI output. Company brand voices are shared; user brand voices are personal.
+Main Database (Control Plane)
+Create a main database to store tenant and user metadata with the following tables:
+Table: tenants
+Stores metadata for each tenant (company or independent user).
+
+CREATE TYPE tenant_type AS ENUM ('company', 'independent_user');
+CREATE TABLE tenants (
+    tenant_id UUID PRIMARY KEY,
+    tenant_type tenant_type NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    database_name VARCHAR(255) NOT NULL UNIQUE,
+    max_brand_voices INTEGER NOT NULL DEFAULT 3
+);
+
+Table: users
+Stores user information and their tenant association.
+
+CREATE TYPE subscription_level AS ENUM ('entry', 'pro');
+CREATE TABLE users (
+    user_id UUID PRIMARY KEY,
+    tenant_id UUID REFERENCES tenants(tenant_id),
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    subscription_level subscription_level NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE
+);
+Tenant Databases
+Each tenant (company or independent user) has a dedicated database with the following structure:
+For Company Tenants:
+Table: company_brand_voices
+Stores shared brand voices, accessible to all users in the tenant, managed by admins.
+
+CREATE TABLE company_brand_voices (
+    brand_voice_id UUID PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    configuration JSON NOT NULL,
+    markdown_content TEXT
+);
+
+Table: user_brand_voices
+Stores personal brand voices for users within the company.
+
+CREATE TABLE user_brand_voices (
+    brand_voice_id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    configuration JSON NOT NULL,
+    markdown_content TEXT
+);
+
+For Independent User Tenants:
+Table: user_brand_voices
+Stores personal brand voices for the independent user.
+
+CREATE TABLE user_brand_voices (
+    brand_voice_id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    configuration JSON NOT NULL,
+    markdown_content TEXT
+);
+
+(No company_brand_voices table, as independent users do not have shared voices.)
+Access Control and Business Rules
+Company Brand Voices:
+Read access: All users in the tenant (users.tenant_id matches tenant's tenant_id).
+Write access: Only admins (users.is_admin = true).
+Limit: Up to 3 voices (or 10 for large accounts, stored in tenants.max_brand_voices).
+User Brand Voices:
+Read/write access: Only the owning user (user_brand_voices.user_id matches users.user_id).
+Limits: 1 for entry-level users, 10 for pro-level users.
+Brand Voice Configuration:
+Stored in configuration (JSON) for AI parameters (e.g., tone).
+Stored in markdown_content (TEXT) for RAG index (Markdown files generated by the brand voice wizard).
+

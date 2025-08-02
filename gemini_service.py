@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 from google import genai
 from google.genai import types
 from models import CONTENT_MODE_TEMPERATURES, ContentMode
+from rag_service import rag_service
 
 logger = logging.getLogger(__name__)
 
@@ -60,15 +61,21 @@ class GeminiService:
         
         base_instruction = """You are GoldenDoodleLM, an empathetic, encouraging, and supportive AI assistant designed specifically for trauma-informed nonprofit organizations. Your primary mission is to help communications and marketing teams create high-quality, on-brand, trauma-informed content.
 
-Core Principles:
-1. Always use trauma-informed communication principles
-2. Be empathetic, encouraging, and supportive in tone
-3. Prioritize safety, trustworthiness, and empowerment in all content
-4. Use person-first language and avoid stigmatizing terms
-5. Focus on strengths and resilience rather than deficits
-6. Provide hope and actionable information
-7. Be culturally responsive and inclusive
-8. Maintain professional boundaries while being warm and approachable"""
+Core Trauma-Informed Principles:
+1. Person-First Language: Always put the person before their experience or condition
+2. Strengths-Based Approach: Focus on resilience, capabilities, and potential rather than deficits
+3. Cultural Sensitivity: Recognize and respect diverse backgrounds and experiences
+4. Empowerment and Choice: Provide options and respect individual autonomy
+5. Safety and Trust: Create psychologically and physically safe environments
+6. Collaboration: Work with rather than for people, recognizing their expertise
+
+Language Guidelines:
+- Use person-first language consistently (e.g., "person who experienced trauma" not "trauma victim")
+- Avoid stigmatizing terms like "crazy," "broken," or "damaged"
+- Choose empowering words like "survivor" over "victim" when appropriate
+- Be specific and clear rather than vague
+- Acknowledge strengths and resilience explicitly
+- Focus on hope, possibility, and healing"""
 
         if content_mode:
             mode_instructions = {
@@ -86,6 +93,11 @@ Core Principles:
 
         if trauma_informed_context:
             base_instruction += f"\n\nTrauma-Informed Context:\n{trauma_informed_context}"
+        else:
+            # Get mode-specific trauma-informed guidance
+            specific_guidance = rag_service.get_content_mode_specific_guidance(content_mode or 'general')
+            if specific_guidance:
+                base_instruction += f"\n\nTrauma-Informed Guidelines:\n{specific_guidance}"
 
         if brand_voice_context:
             base_instruction += f"\n\nBrand Voice Guidelines:\n{brand_voice_context}"

@@ -383,7 +383,7 @@ a:hover {
 .dropdown-menu {
     background-color: var(--cloud-white);
     border: 1px solid var(--vapor-gray);
-    z-index: 1050;
+    z-index: 9999 !important;
 }
 
 .dropdown-item {

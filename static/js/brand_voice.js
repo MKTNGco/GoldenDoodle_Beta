@@ -39,7 +39,14 @@ class BrandVoiceWizard {
 
         // Required field validation for step 1
         [this.companyNameInput, this.companyUrlInput, this.voiceShortNameInput].forEach(input => {
-            input.addEventListener('input', () => this.validateStep1());
+            input.addEventListener('input', () => {
+                this.validateStep1();
+                this.updateNavigationButtons();
+            });
+            input.addEventListener('blur', () => {
+                this.validateStep1();
+                this.updateNavigationButtons();
+            });
         });
 
         // Navigation buttons
@@ -174,8 +181,16 @@ class BrandVoiceWizard {
             return;
         }
 
-        // Validate current step before proceeding
+        // Validate current step before proceeding forward
         if (direction > 0 && !this.validateCurrentStep()) {
+            // Show validation errors
+            if (this.currentStep === 1) {
+                this.showAlert('Please fill in all required fields (Company Name, Company URL, and Voice Short Name) to continue.', 'warning');
+                // Force validation UI to show
+                this.updateValidationUI(this.companyNameInput, this.companyNameInput.value.trim().length > 0);
+                this.updateValidationUI(this.companyUrlInput, this.companyUrlInput.value.trim().length > 0);
+                this.updateValidationUI(this.voiceShortNameInput, this.voiceShortNameInput.value.trim().length > 0);
+            }
             return;
         }
 
@@ -211,10 +226,24 @@ class BrandVoiceWizard {
         } else {
             this.nextBtn.style.display = 'inline-block';
             this.submitBtn.style.display = 'none';
+            
+            // Update next button state based on current step validation
+            const isValid = this.validateCurrentStep();
+            this.nextBtn.disabled = !isValid;
+            
+            if (this.currentStep === 1) {
+                // Update button text based on validation
+                if (isValid) {
+                    this.nextBtn.innerHTML = 'Next<i class="fas fa-arrow-right ms-1"></i>';
+                    this.nextBtn.classList.remove('btn-outline-primary');
+                    this.nextBtn.classList.add('btn-primary');
+                } else {
+                    this.nextBtn.innerHTML = 'Complete Required Fields<i class="fas fa-arrow-right ms-1"></i>';
+                    this.nextBtn.classList.remove('btn-primary');
+                    this.nextBtn.classList.add('btn-outline-primary');
+                }
+            }
         }
-
-        // Update next button state
-        this.nextBtn.disabled = !this.validateCurrentStep();
     }
 
     updateProgress() {
@@ -237,20 +266,25 @@ class BrandVoiceWizard {
         const hasCompanyUrl = this.companyUrlInput.value.trim().length > 0;
         const hasVoiceShortName = this.voiceShortNameInput.value.trim().length > 0;
         
-        // Update validation UI
-        this.updateValidationUI(this.companyNameInput, hasCompanyName);
-        this.updateValidationUI(this.companyUrlInput, hasCompanyUrl);
-        this.updateValidationUI(this.voiceShortNameInput, hasVoiceShortName);
+        // Only show validation UI if fields have been touched
+        if (this.companyNameInput.value.length > 0) {
+            this.updateValidationUI(this.companyNameInput, hasCompanyName);
+        }
+        if (this.companyUrlInput.value.length > 0) {
+            this.updateValidationUI(this.companyUrlInput, hasCompanyUrl);
+        }
+        if (this.voiceShortNameInput.value.length > 0) {
+            this.updateValidationUI(this.voiceShortNameInput, hasVoiceShortName);
+        }
         
         return hasCompanyName && hasCompanyUrl && hasVoiceShortName;
     }
 
     updateValidationUI(element, isValid) {
+        element.classList.remove('is-valid', 'is-invalid');
         if (isValid) {
-            element.classList.remove('is-invalid');
             element.classList.add('is-valid');
         } else {
-            element.classList.remove('is-valid');
             element.classList.add('is-invalid');
         }
     }

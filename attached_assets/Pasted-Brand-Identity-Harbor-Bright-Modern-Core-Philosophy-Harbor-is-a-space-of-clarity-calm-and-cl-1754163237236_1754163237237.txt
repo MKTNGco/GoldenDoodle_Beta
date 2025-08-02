@@ -1,0 +1,50 @@
+Brand Identity: Harbor (Bright & Modern)
+Core Philosophy: Harbor is a space of clarity, calm, and clean air. The brand identity is built on principles of minimalism and light. It evokes the feeling of a clear morning, with bright, indirect sunlight and the fresh scent of coastal sage. It’s a modern, safe space that feels open, breathable, and optimistic.
+1. The Bright & Clean Color Palette
+We are replacing the warm, earthy neutrals with crisp, cool-toned neutrals. This will make your primary green, Coastal Sage, feel more vibrant and contemporary.
+Primary: Coastal Sage
+#7aa095 (Unchanged)
+Usage: Remains the heart of the brand. Use it for all primary actions, interactive elements, highlights, and key illustrations. It provides a splash of calming, natural color in a clean space.
+
+
+Primary Background: Cloud White
+#f8f9fa
+Usage: This is your new primary background. It’s a very light, cool-toned gray that is significantly brighter and cleaner than the previous "Linen White." It provides a sense of spaciousness and modernity without the clinical starkness of pure white.
+Secondary Background / Cards: Vapor Gray
+#e9ecef
+Usage: A soft, cool gray used for content containers, cards, and dividers. It creates a subtle, clean separation of elements and pairs perfectly with Cloud White.
+Primary Text: Charcoal
+#212529
+Usage: This is your new text color. It’s a dark, near-black charcoal that provides crisp, clear contrast against the bright backgrounds. It makes typography feel sharp and modern, significantly improving readability and perceived freshness.
+Accents & States (The Green Family)
+Mint Haze: #d1e2de
+A lighter, airier tint of Coastal Sage. Use for gentle hover states, subtle alerts, or background patterns.
+Deep Seafoam: #5c8078
+A darker, richer shade of Coastal Sage. Use for secondary buttons, active form fields, or text links to create hierarchy within the green family.
+Optional Accent: Calm Sky Blue
+#90b0d1
+Usage: To be used sparingly as a tertiary accent. This soft, reassuring blue can highlight positive achievements, success notifications, or gentle guidance prompts. It complements the green beautifully and reinforces the "Harbor" theme (water, sky).
+Color Palette Summary:
+Coastal Sage: #7aa095
+Cloud White: #f8f9fa
+Vapor Gray: #e9ecef
+Charcoal: #212529
+Mint Haze: #d1e2de
+Deep Seafoam: #5c8078
+Calm Sky Blue (Optional): #90b0d1
+2. Typography
+The excellent font pairing of Poppins and Lora is maintained, but its application is sharpened by the new color palette.
+Color Application (Updated):
+All headings and body copy should now use Charcoal (#212529). This will make the text feel exceptionally crisp and legible against the Cloud White background.
+Text links can use Deep Seafoam (#5c8078) to stand out from the body copy while staying within the calming palette.
+3. Logo & Iconography
+The clean palette gives the logo and icons a more modern, tech-forward feel that aligns with the "Gemini/Claude" sense of innovation.
+Logo: Rendered in Charcoal on a Cloud White background, the logo will look sharp, clean, and confident.
+Icons: Icons should be rendered in Charcoal. When active or hovered, they can change to Coastal Sage for a clear, intuitive user experience.
+5. UI/UX & Interaction Example
+This new system translates into a UI that feels responsive, clean, and effortless to use.
+Screen Layout: The entire background is a breathable Cloud White. A central content area or sidebar might use Vapor Gray to gently frame the main content.
+Call to Action: A primary button ("Begin Today's Journal") has a solid Coastal Sage background with crisp Cloud White text. It looks inviting and clear.
+User Input: A text field has a light Vapor Gray border. When the user clicks into it, the border glows with Deep Seafoam, and the text they type appears in sharp Charcoal.
+Success Message: After saving an entry, a small, unobtrusive banner appears at the top. It has a Mint Haze background, with a small checkmark icon in Coastal Sage and text in Charcoal, saying "Your entry has been saved."
+This refreshed branding system maintains the core goal of being calm and safe while feeling modern, bright, and invigoratingly clean. It creates a space that feels both trustworthy and forward-thinking.

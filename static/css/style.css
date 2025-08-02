@@ -141,6 +141,7 @@ a:hover {
     background-color: rgba(248, 249, 250, 0.95) !important;
     border-bottom: 1px solid var(--vapor-gray);
     z-index: 1030;
+    padding: 1rem 0;
 }
 
 /* Logo Styles */
@@ -157,11 +158,25 @@ a:hover {
 /* Responsive logo sizing */
 @media (max-width: 768px) {
     .navbar-brand img {
-        height: 28px !important;
+        height: 48px !important;
     }
 
     .hero-section img {
+        height: 56px !important;
+    }
+
+    .navbar {
+        padding: 0.75rem 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-brand img {
         height: 40px !important;
+    }
+
+    .navbar {
+        padding: 0.5rem 0;
     }
 }
 

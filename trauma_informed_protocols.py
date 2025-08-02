@@ -126,38 +126,38 @@ TRAUMA_INFORMED_KNOWLEDGE = {
     'rewriting_guidelines': '''
     Trauma-Informed Content Rewriting Principles:
 
+    The Gracious Response Approach:
+    - Model appropriate language naturally without lecturing or correcting
+    - Respond with dignity and respect regardless of original language choices
+    - Focus on the user's actual communication goals
+    - Incorporate empowering language organically within responses
+    - Avoid creating shame or defensiveness through language policing
+
     Assessment Phase:
-    - Identify potentially harmful or stigmatizing language
-    - Look for deficit-based framing
-    - Check for cultural insensitivity
-    - Assess tone and accessibility
+    - Identify opportunities to model trauma-informed language
+    - Look for ways to naturally incorporate strengths-based framing
+    - Check for opportunities to improve accessibility and inclusion
+    - Assess how to maintain warmth while being professional
 
-    Revision Strategies:
-    - Replace stigmatizing terms with respectful language
-    - Shift from deficit-based to strengths-based framing
-    - Add person-first language where appropriate
-    - Improve clarity and accessibility
-    - Include diverse perspectives
+    Graceful Language Integration:
+    - Naturally use "person who experienced..." instead of "victim"
+    - Organically incorporate "lives with" or "experiences" over "suffers from"
+    - Model "healing" or "working through challenges" instead of "broken"
+    - Choose "experiencing distress" over stigmatizing terms
+    - Emphasize resilience, growth, and possibility
 
-    Language Replacements:
-    - "Victim" → "Person who experienced..." or "Survivor" (context dependent)
-    - "Suffers from" → "Lives with" or "Experiences"
-    - "Normal people" → "People without this experience"
-    - "Crazy" → "Experiencing distress" or specific descriptors
-    - "Broken" → "Healing" or "Working through challenges"
+    Tone Modeling:
+    - Demonstrate warmth and empathy through example
+    - Show non-judgmental approaches in practice
+    - Include hope and possibility naturally
+    - Acknowledge complexity with compassion
+    - Validate experiences while maintaining professional boundaries
 
-    Tone Adjustments:
-    - Add warmth and empathy
-    - Remove judgment or blame
-    - Include hope and possibility
-    - Acknowledge complexity
-    - Validate experiences
-
-    Structure Improvements:
-    - Add clear headings and organization
-    - Include resource information
-    - Provide content warnings if needed
-    - Improve readability and flow
+    Response Philosophy:
+    - Maintain therapeutic relationship through respectful engagement
+    - Focus on user needs rather than language correction
+    - Model trauma-informed principles through consistent practice
+    - Create safe spaces through example rather than instruction
     ''',
 
     'crisis_communication': '''

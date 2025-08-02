@@ -1,20 +1,18 @@
-
-
 /* Harbor (Vibrant & Clear) Design System */
 :root {
     /* Primary Color - The New Star */
     --clearwater-teal: #32808c;
-    
+
     /* Neutrals - The Bright Foundation */
     --cloud-white: #f8f9fa;
     --vapor-gray: #e9ecef;
     --charcoal: #212529;
-    
+
     /* Accents & States - The Teal Family */
     --aqua-mist: #cce5e8;
     --deep-teal: #256069;
     --calm-sky-blue: #90b0d1;
-    
+
     /* Legacy variables for compatibility - Updated to new palette */
     --primary-color: var(--clearwater-teal);
     --coastal-sage: var(--clearwater-teal);
@@ -137,12 +135,34 @@ a:hover {
     background-color: var(--cloud-white);
 }
 
-/* Navigation */
+/* Navigation Styles */
 .navbar {
     backdrop-filter: blur(10px);
     background-color: rgba(248, 249, 250, 0.95) !important;
     border-bottom: 1px solid var(--vapor-gray);
     z-index: 1030;
+}
+
+/* Logo Styles */
+.navbar-brand img {
+    transition: all 0.3s ease;
+    filter: brightness(1) saturate(1);
+}
+
+.navbar-brand:hover img {
+    transform: scale(1.05);
+    filter: brightness(1.1) saturate(1.1);
+}
+
+/* Responsive logo sizing */
+@media (max-width: 768px) {
+    .navbar-brand img {
+        height: 28px !important;
+    }
+
+    .hero-section img {
+        height: 40px !important;
+    }
 }
 
 .navbar-brand {
@@ -469,9 +489,8 @@ a:hover {
     .navbar-brand {
         font-size: 1.1rem;
     }
-    
+
     .card {
         margin-bottom: 1rem;
     }
 }
-

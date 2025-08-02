@@ -157,7 +157,9 @@ a:hover {
 
 /* Demo Prompt Window Styles */
 .demo-prompt-container {
-    margin-top: 2rem;
+    margin-top: -300px;
+    position: relative;
+    z-index: 10;
 }
 
 .demo-prompt-card {

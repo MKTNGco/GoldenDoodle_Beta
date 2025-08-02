@@ -411,7 +411,7 @@ a:hover {
     .navbar {
         padding: 0.75rem 0;
     }
-    
+
     .demo-content-modes {
         justify-content: flex-start;
     }
@@ -425,7 +425,7 @@ a:hover {
     .navbar {
         padding: 0.5rem 0;
     }
-    
+
     .demo-prompt-container {
         margin-top: 1rem;
     }
@@ -759,4 +759,86 @@ a:hover {
     .card {
         margin-bottom: 1rem;
     }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Floating Benefits Section */
+.floating-benefits-section {
+    position: relative;
+    overflow: hidden;
+}
+
+.benefits-row {
+    display: flex;
+    gap: 30px;
+    position: absolute;
+    width: calc(100% + 2000px);
+    animation: floatRow 60s linear infinite;
+}
+
+.benefits-row-1 {
+    top: 50px;
+    animation-name: floatRowLeft;
+}
+
+.benefits-row-2 {
+    top: 200px;
+    animation-name: floatRowRight;
+    animation-delay: -30s;
+}
+
+@keyframes floatRowLeft {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(0%);
+    }
+}
+
+@keyframes floatRowRight {
+    0% {
+        transform: translateX(0%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+.benefit-card {
+    background: var(--cloud-white);
+    border: 1px solid var(--vapor-gray);
+    border-radius: 20px;
+    padding: 30px;
+    min-width: 380px;
+    max-width: 380px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.benefit-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+}
+
+.benefit-card h4 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: var(--clearwater-teal);
+    margin-bottom: 15px;
+    line-height: 1.3;
+}
+
+.benefit-card p {
+    font-family: 'Lora', serif;
+    color: var(--charcoal);
+    line-height: 1.6;
+    margin: 0;
+    font-size: 1rem;
 }

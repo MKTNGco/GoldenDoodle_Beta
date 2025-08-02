@@ -208,6 +208,128 @@ def generate():
         logger.error(f"Generation error: {e}")
         return jsonify({'error': 'An error occurred while generating content. Please try again.'}), 500
 
+@app.route('/account')
+@login_required
+def account():
+    """User account page"""
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login'))
+    tenant = db_manager.get_tenant_by_id(user.tenant_id)
+    if not tenant:
+        flash('Invalid tenant. Please contact support.', 'error')
+        return redirect(url_for('logout'))
+    
+    # Get brand voices
+    company_brand_voices = []
+    if tenant.tenant_type == TenantType.COMPANY:
+        company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+    
+    user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+    
+    # Determine max user voices based on subscription
+    if user.subscription_level == SubscriptionLevel.PRO:
+        max_user_voices = 10
+    elif user.subscription_level == SubscriptionLevel.SOLO:
+        max_user_voices = 1
+    elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
+        max_user_voices = 10
+    else:
+        max_user_voices = 1
+    
+    return render_template('account.html',
+                         user=user,
+                         tenant=tenant,
+                         company_brand_voices=company_brand_voices,
+                         user_brand_voices=user_brand_voices,
+                         max_user_voices=max_user_voices)
+
+@app.route('/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    """Update user profile information"""
+    try:
+        data = request.get_json()
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        email = data.get('email', '').strip().lower()
+        
+        if not all([first_name, last_name, email]):
+            return jsonify({'error': 'All fields are required'}), 400
+        
+        # Check if email is already taken by another user
+        if email != user.email:
+            existing_user = db_manager.get_user_by_email(email)
+            if existing_user:
+                return jsonify({'error': 'Email address is already in use'}), 400
+        
+        # Update user in database
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET first_name = %s, last_name = %s, email = %s
+            WHERE user_id = %s
+        """, (first_name, last_name, email, user.user_id))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Profile updated successfully'})
+    
+    except Exception as e:
+        logger.error(f"Error updating profile: {e}")
+        return jsonify({'error': 'An error occurred while updating your profile'}), 500
+
+@app.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Change user password"""
+    try:
+        data = request.get_json()
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        current_password = data.get('current_password', '')
+        new_password = data.get('new_password', '')
+        
+        if not current_password or not new_password:
+            return jsonify({'error': 'Current and new passwords are required'}), 400
+        
+        # Verify current password
+        if not db_manager.verify_password(user, current_password):
+            return jsonify({'error': 'Current password is incorrect'}), 400
+        
+        # Update password in database
+        from werkzeug.security import generate_password_hash
+        new_password_hash = generate_password_hash(new_password)
+        
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET password_hash = %s
+            WHERE user_id = %s
+        """, (new_password_hash, user.user_id))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Password changed successfully'})
+    
+    except Exception as e:
+        logger.error(f"Error changing password: {e}")
+        return jsonify({'error': 'An error occurred while changing your password'}), 500
+
 @app.route('/brand-voices')
 @login_required
 def brand_voices():

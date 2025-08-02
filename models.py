@@ -31,6 +31,7 @@ class User:
     password_hash: str
     subscription_level: SubscriptionLevel
     is_admin: bool = False
+    created_at: Optional[str] = None
     
     @property
     def name(self) -> str:

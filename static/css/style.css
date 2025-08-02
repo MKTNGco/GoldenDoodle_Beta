@@ -185,6 +185,15 @@ body {
     background-color: rgba(99, 102, 241, 0.05);
 }
 
+/* Account Page */
+.avatar-circle {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+    font-weight: bold;
+    border-radius: 50%;
+}
+
 /* Brand Voice Wizard */
 .wizard-step {
     margin-bottom: 2rem;

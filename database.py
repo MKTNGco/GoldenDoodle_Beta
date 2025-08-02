@@ -210,7 +210,7 @@ class DatabaseManager:
             conn.close()
             
             if row:
-                return User(
+                user = User(
                     user_id=str(row['user_id']),
                     tenant_id=str(row['tenant_id']),
                     first_name=row['first_name'],
@@ -220,6 +220,10 @@ class DatabaseManager:
                     subscription_level=SubscriptionLevel(row['subscription_level']),
                     is_admin=row['is_admin']
                 )
+                # Add created_at if available
+                if len(row) > 8:
+                    user.created_at = row['created_at']
+                return user
             return None
             
         except Exception as e:

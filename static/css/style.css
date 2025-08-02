@@ -775,21 +775,21 @@ a:hover {
 
 .benefits-row {
     display: flex;
-    gap: 30px;
+    gap: 50px;
     position: absolute;
-    width: calc(100% + 2000px);
-    animation: floatRow 60s linear infinite;
+    width: calc(100% + 3000px);
+    animation: floatRow 80s linear infinite;
 }
 
 .benefits-row-1 {
-    top: 0px;
+    top: 50px;
     animation-name: floatRowLeft;
 }
 
 .benefits-row-2 {
-    top: 150px;
+    top: 250px;
     animation-name: floatRowRight;
-    animation-delay: -30s;
+    animation-delay: -40s;
 }
 
 @keyframes floatRowLeft {
@@ -797,13 +797,13 @@ a:hover {
         transform: translateX(-100%);
     }
     100% {
-        transform: translateX(0%);
+        transform: translateX(100%);
     }
 }
 
 @keyframes floatRowRight {
     0% {
-        transform: translateX(0%);
+        transform: translateX(100%);
     }
     100% {
         transform: translateX(-100%);

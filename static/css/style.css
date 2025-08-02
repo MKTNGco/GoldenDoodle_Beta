@@ -155,6 +155,204 @@ a:hover {
     filter: brightness(1.1) saturate(1.1);
 }
 
+/* Demo Prompt Window Styles */
+.demo-prompt-container {
+    margin-top: 2rem;
+}
+
+.demo-prompt-card {
+    background: var(--cloud-white);
+    border-radius: 20px;
+    border: 1px solid var(--vapor-gray);
+    padding: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.demo-prompt-card:focus-within {
+    box-shadow: 0 0 0 3px rgba(50, 128, 140, 0.1);
+    border-color: var(--clearwater-teal);
+}
+
+.demo-prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.demo-brand-voice-selector {
+    position: relative;
+}
+
+.demo-brand-voice-btn {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--vapor-gray);
+    border: 1px solid var(--vapor-gray);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    color: #6b7280;
+    cursor: not-allowed;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.demo-brand-voice-btn:hover {
+    transform: scale(1.02);
+}
+
+.brand-voice-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+}
+
+.premium-icon {
+    margin-left: 6px;
+    color: #fbbf24;
+    font-size: 12px;
+}
+
+.demo-prompt-textarea {
+    width: 100%;
+    min-height: 160px;
+    max-height: 500px;
+    border: none;
+    background: transparent;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--charcoal);
+    padding: 20px 0;
+}
+
+.demo-prompt-textarea::placeholder {
+    color: #9ca3af;
+    transition: opacity 0.3s ease;
+}
+
+.demo-prompt-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.demo-attachment-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    border: none;
+    background: transparent;
+    cursor: not-allowed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: #9ca3af;
+    opacity: 0.6;
+}
+
+.demo-attachment-btn:hover {
+    background: rgba(50, 128, 140, 0.1);
+    color: var(--clearwater-teal);
+    transform: scale(1.05);
+}
+
+.demo-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    border: none;
+    background: var(--clearwater-teal);
+    color: var(--cloud-white);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.demo-send-btn:hover:not(:disabled) {
+    background: var(--deep-teal);
+    transform: scale(1.05);
+}
+
+.demo-send-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.send-icon, .attachment-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Demo Content Mode Buttons */
+.demo-content-modes {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.demo-mode-btn {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--cloud-white);
+    border: 1px solid var(--vapor-gray);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.demo-mode-btn:hover {
+    border-color: var(--clearwater-teal);
+    color: var(--clearwater-teal);
+}
+
+.demo-mode-btn.active {
+    background: var(--charcoal);
+    border-color: var(--charcoal);
+    color: white;
+}
+
+.mode-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+}
+
+/* Demo Response Area */
+.demo-response-area {
+    margin-top: 20px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.demo-response-card {
+    background: var(--cloud-white);
+    border: 1px solid var(--vapor-gray);
+    border-radius: 18px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.demo-response-content {
+    color: var(--charcoal);
+    line-height: 1.6;
+}
+
 /* Responsive logo sizing */
 @media (max-width: 768px) {
     .navbar-brand img {
@@ -168,6 +366,10 @@ a:hover {
     .navbar {
         padding: 0.75rem 0;
     }
+    
+    .demo-content-modes {
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 480px) {
@@ -177,6 +379,10 @@ a:hover {
 
     .navbar {
         padding: 0.5rem 0;
+    }
+    
+    .demo-prompt-container {
+        margin-top: 1rem;
     }
 }
 

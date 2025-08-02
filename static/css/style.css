@@ -1,25 +1,31 @@
 
-/* Harbor (Bright & Modern) Design System */
+
+/* Harbor (Vibrant & Clear) Design System */
 :root {
-    /* Primary Colors */
-    --coastal-sage: #7aa095;
+    /* Primary Color - The New Star */
+    --clearwater-teal: #32808c;
+    
+    /* Neutrals - The Bright Foundation */
     --cloud-white: #f8f9fa;
     --vapor-gray: #e9ecef;
     --charcoal: #212529;
     
-    /* Accent Colors */
-    --mint-haze: #d1e2de;
-    --deep-seafoam: #5c8078;
+    /* Accents & States - The Teal Family */
+    --aqua-mist: #cce5e8;
+    --deep-teal: #256069;
     --calm-sky-blue: #90b0d1;
     
-    /* Legacy variables for compatibility */
-    --primary-color: var(--coastal-sage);
+    /* Legacy variables for compatibility - Updated to new palette */
+    --primary-color: var(--clearwater-teal);
+    --coastal-sage: var(--clearwater-teal);
     --bg-white: var(--cloud-white);
     --bg-light: var(--vapor-gray);
     --text-dark: var(--charcoal);
     --text-muted: #6c757d;
     --border-light: var(--vapor-gray);
     --shadow-sm: 0 0.125rem 0.25rem rgba(33, 37, 41, 0.075);
+    --mint-haze: var(--aqua-mist);
+    --deep-seafoam: var(--deep-teal);
 }
 
 /* Global Styles */
@@ -39,40 +45,40 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Links */
 a {
-    color: var(--deep-seafoam);
+    color: var(--deep-teal);
     text-decoration: none;
     transition: color 0.2s ease;
 }
 
 a:hover {
-    color: var(--coastal-sage);
+    color: var(--clearwater-teal);
     text-decoration: underline;
 }
 
 /* Buttons */
 .btn-primary {
-    background-color: var(--coastal-sage);
-    border-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
     color: var(--cloud-white);
     font-weight: 500;
     transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
-    background-color: var(--deep-seafoam);
-    border-color: var(--deep-seafoam);
+    background-color: var(--deep-teal);
+    border-color: var(--deep-teal);
     color: var(--cloud-white);
 }
 
 .btn-outline-primary {
-    color: var(--coastal-sage);
-    border-color: var(--coastal-sage);
+    color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
     background-color: transparent;
 }
 
 .btn-outline-primary:hover {
-    background-color: var(--coastal-sage);
-    border-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
     color: var(--cloud-white);
 }
 
@@ -83,8 +89,8 @@ a:hover {
 }
 
 .btn-secondary:hover {
-    background-color: var(--mint-haze);
-    border-color: var(--mint-haze);
+    background-color: var(--aqua-mist);
+    border-color: var(--aqua-mist);
     color: var(--charcoal);
 }
 
@@ -97,8 +103,8 @@ a:hover {
 }
 
 .form-control:focus {
-    border-color: var(--deep-seafoam);
-    box-shadow: 0 0 0 0.2rem rgba(92, 128, 120, 0.25);
+    border-color: var(--deep-teal);
+    box-shadow: 0 0 0 0.2rem rgba(50, 128, 140, 0.25);
     background-color: var(--cloud-white);
     color: var(--charcoal);
 }
@@ -152,16 +158,16 @@ a:hover {
 }
 
 .nav-link:hover {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 .nav-link.active {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 /* Text Colors */
 .text-primary {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 .text-muted {
@@ -183,14 +189,14 @@ a:hover {
 
 /* Alerts */
 .alert-info {
-    background-color: var(--mint-haze);
-    border-color: var(--coastal-sage);
+    background-color: var(--aqua-mist);
+    border-color: var(--clearwater-teal);
     color: var(--charcoal);
 }
 
 .alert-success {
-    background-color: var(--mint-haze);
-    border-color: var(--coastal-sage);
+    background-color: var(--aqua-mist);
+    border-color: var(--clearwater-teal);
     color: var(--charcoal);
 }
 
@@ -217,14 +223,14 @@ a:hover {
 
 .account-type-card:hover,
 .subscription-card:hover {
-    border-color: var(--coastal-sage);
+    border-color: var(--clearwater-teal);
     box-shadow: var(--shadow-sm);
 }
 
 .account-type-card.selected,
 .subscription-card.selected {
-    border-color: var(--coastal-sage);
-    background-color: var(--mint-haze);
+    border-color: var(--clearwater-teal);
+    background-color: var(--aqua-mist);
 }
 
 /* Account Page */
@@ -234,47 +240,47 @@ a:hover {
     font-size: 2rem;
     font-weight: bold;
     border-radius: 50%;
-    background-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
     color: var(--cloud-white);
 }
 
 /* Account status and icon colors */
 .text-info, .text-cyan {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 .fas.fa-calendar,
 .fas.fa-tree,
 .fas.fa-building-user,
 .fas.fa-check-circle {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 /* Pro plan badge */
 .badge-info, .badge-primary.bg-primary {
-    background-color: var(--coastal-sage) !important;
-    border-color: var(--coastal-sage) !important;
+    background-color: var(--clearwater-teal) !important;
+    border-color: var(--clearwater-teal) !important;
 }
 
-/* Quick action buttons with coastal sage accents */
+/* Quick action buttons with clearwater teal accents */
 .btn-outline-info {
-    color: var(--coastal-sage);
-    border-color: var(--coastal-sage);
+    color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
 }
 
 .btn-outline-info:hover {
-    background-color: var(--coastal-sage);
-    border-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
     color: var(--cloud-white);
 }
 
 /* Account status active indicator */
 .text-warning {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 .fas.fa-circle-check {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 /* Brand Voice Wizard */
@@ -290,7 +296,7 @@ a:hover {
     justify-content: center;
     font-size: 0.9rem;
     font-weight: 600;
-    background-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
     color: var(--cloud-white);
 }
 
@@ -305,15 +311,15 @@ a:hover {
 
 .tone-card:hover,
 .style-card:hover {
-    border-color: var(--coastal-sage);
+    border-color: var(--clearwater-teal);
     transform: translateY(-2px);
     box-shadow: 0 0.5rem 1rem rgba(33, 37, 41, 0.15);
 }
 
 .tone-card.selected,
 .style-card.selected {
-    border-color: var(--coastal-sage);
-    background-color: var(--mint-haze);
+    border-color: var(--clearwater-teal);
+    background-color: var(--aqua-mist);
 }
 
 /* Chat Interface */
@@ -327,7 +333,7 @@ a:hover {
 }
 
 .message-user {
-    background-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
     color: var(--cloud-white);
 }
 
@@ -354,7 +360,7 @@ a:hover {
 
 /* Badges */
 .badge-primary {
-    background-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
     color: var(--cloud-white);
 }
 
@@ -371,11 +377,11 @@ a:hover {
 
 .nav-tabs .nav-link:hover {
     border-color: var(--vapor-gray);
-    color: var(--coastal-sage);
+    color: var(--clearwater-teal);
 }
 
 .nav-tabs .nav-link.active {
-    color: var(--coastal-sage);
+    color: var(--clearwater-teal);
     background-color: var(--cloud-white);
     border-color: var(--vapor-gray) var(--vapor-gray) var(--cloud-white);
 }
@@ -396,7 +402,7 @@ a:hover {
 }
 
 .dropdown-item:hover {
-    background-color: var(--mint-haze);
+    background-color: var(--aqua-mist);
     color: var(--charcoal);
 }
 
@@ -408,21 +414,21 @@ a:hover {
 .text-primary .fas,
 .text-primary .far,
 .text-primary .fab {
-    color: var(--coastal-sage);
+    color: var(--clearwater-teal);
 }
 
 /* Success states */
 .text-success {
-    color: var(--coastal-sage) !important;
+    color: var(--clearwater-teal) !important;
 }
 
 .bg-success {
-    background-color: var(--mint-haze) !important;
+    background-color: var(--aqua-mist) !important;
 }
 
 /* Loading states */
 .spinner-border-primary {
-    color: var(--coastal-sage);
+    color: var(--clearwater-teal);
 }
 
 /* Progress bars */
@@ -431,7 +437,7 @@ a:hover {
 }
 
 .progress-bar {
-    background-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
 }
 
 /* List groups */
@@ -442,12 +448,12 @@ a:hover {
 }
 
 .list-group-item:hover {
-    background-color: var(--mint-haze);
+    background-color: var(--aqua-mist);
 }
 
 .list-group-item.active {
-    background-color: var(--coastal-sage);
-    border-color: var(--coastal-sage);
+    background-color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
     color: var(--cloud-white);
 }
 
@@ -468,3 +474,4 @@ a:hover {
         margin-bottom: 1rem;
     }
 }
+

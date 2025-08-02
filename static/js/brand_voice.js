@@ -1,13 +1,18 @@
+
 // GoldenDoodleLM Brand Voice Wizard
 class BrandVoiceWizard {
     constructor() {
         this.currentStep = 1;
-        this.totalSteps = 4;
+        this.totalSteps = 6;
         this.isSubmitting = false;
+        this.autoSaveTimeout = null;
+        this.profileId = null;
         this.initializeElements();
         this.bindEvents();
         this.updateStepVisibility();
         this.updateNavigationButtons();
+        this.updateProgress();
+        this.loadExistingData();
     }
 
     initializeElements() {
@@ -16,68 +21,150 @@ class BrandVoiceWizard {
         this.prevBtn = document.getElementById('prevBtn');
         this.nextBtn = document.getElementById('nextBtn');
         this.submitBtn = document.getElementById('submitBtn');
-        this.voiceNameInput = document.getElementById('voiceName');
-        this.toneCards = document.querySelectorAll('.tone-card');
-        this.styleCards = document.querySelectorAll('.style-card');
-        this.selectedToneInput = document.getElementById('selectedTone');
-        this.selectedStyleInput = document.getElementById('selectedStyle');
-        this.audienceSelect = document.getElementById('audience');
-        this.valuesCheckboxes = document.querySelectorAll('.values-container input[type="checkbox"]');
+        this.currentStepNumber = document.getElementById('currentStepNumber');
+        this.wizardProgress = document.getElementById('wizardProgress');
+        
+        // Step 1 required fields
+        this.companyNameInput = document.getElementById('companyName');
+        this.companyUrlInput = document.getElementById('companyUrl');
+        this.voiceShortNameInput = document.getElementById('voiceShortName');
+        
+        // All form inputs for auto-save
+        this.allInputs = this.form.querySelectorAll('input, textarea, select');
     }
 
     bindEvents() {
         // Form submission
         this.form.addEventListener('submit', (e) => this.handleSubmit(e));
 
-        // Tone selection
-        this.toneCards.forEach(card => {
-            card.addEventListener('click', () => this.selectTone(card));
+        // Required field validation for step 1
+        [this.companyNameInput, this.companyUrlInput, this.voiceShortNameInput].forEach(input => {
+            input.addEventListener('input', () => this.validateStep1());
         });
-
-        // Style selection
-        this.styleCards.forEach(card => {
-            card.addEventListener('click', () => this.selectStyle(card));
-        });
-
-        // Voice name input validation
-        this.voiceNameInput.addEventListener('input', () => this.validateStep1());
 
         // Navigation buttons
         this.prevBtn.addEventListener('click', () => this.changeStep(-1));
         this.nextBtn.addEventListener('click', () => this.changeStep(1));
 
-        // Values validation
-        this.valuesCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => this.validateStep3());
+        // Auto-save functionality
+        this.allInputs.forEach(input => {
+            input.addEventListener('input', () => this.scheduleAutoSave());
+            input.addEventListener('change', () => this.scheduleAutoSave());
+        });
+
+        // Prevent form submission on Enter key (except for submit button)
+        this.form.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.type !== 'submit') {
+                e.preventDefault();
+            }
         });
     }
 
-    selectTone(selectedCard) {
-        // Remove selection from all tone cards
-        this.toneCards.forEach(card => card.classList.remove('selected'));
+    scheduleAutoSave() {
+        // Clear existing timeout
+        if (this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout);
+        }
         
-        // Add selection to clicked card
-        selectedCard.classList.add('selected');
-        
-        // Update hidden input
-        this.selectedToneInput.value = selectedCard.dataset.value;
-        
-        // Validate step
-        this.validateStep2();
+        // Schedule auto-save after 2 seconds of inactivity
+        this.autoSaveTimeout = setTimeout(() => {
+            this.autoSave();
+        }, 2000);
     }
 
-    selectStyle(selectedCard) {
-        // Remove selection from all style cards
-        this.styleCards.forEach(card => card.classList.remove('selected'));
+    async autoSave() {
+        // Only auto-save if we have the required fields from step 1
+        if (!this.validateStep1()) {
+            return;
+        }
+
+        try {
+            const formData = this.collectFormData();
+            formData.auto_save = true;
+            formData.profile_id = this.profileId;
+
+            const response = await fetch('/auto-save-brand-voice', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.profileId = result.profile_id;
+                
+                // Show subtle save indicator
+                this.showSaveIndicator('saved');
+            }
+        } catch (error) {
+            console.error('Auto-save error:', error);
+            this.showSaveIndicator('error');
+        }
+    }
+
+    showSaveIndicator(status) {
+        // Remove existing indicators
+        const existingIndicator = document.querySelector('.save-indicator');
+        if (existingIndicator) {
+            existingIndicator.remove();
+        }
+
+        // Create new indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'save-indicator position-fixed top-0 end-0 m-3 p-2 rounded';
         
-        // Add selection to clicked card
-        selectedCard.classList.add('selected');
+        if (status === 'saved') {
+            indicator.className += ' bg-success text-white';
+            indicator.innerHTML = '<i class="fas fa-check me-1"></i>Saved';
+        } else {
+            indicator.className += ' bg-warning text-dark';
+            indicator.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Save Error';
+        }
         
-        // Update hidden input
-        this.selectedStyleInput.value = selectedCard.dataset.value;
+        indicator.style.zIndex = '9999';
+        document.body.appendChild(indicator);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (indicator.parentNode) {
+                indicator.remove();
+            }
+        }, 3000);
+    }
+
+    async loadExistingData() {
+        // Check if we're editing an existing profile
+        const urlParams = new URLSearchParams(window.location.search);
+        const editProfileId = urlParams.get('edit');
         
-        // Validate step
-        this.validateStep2();
+        if (editProfileId) {
+            try {
+                const response = await fetch(`/get-brand-voice/${editProfileId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.populateForm(data);
+                    this.profileId = editProfileId;
+                }
+            } catch (error) {
+                console.error('Error loading existing data:', error);
+            }
+        }
+    }
+
+    populateForm(data) {
+        Object.keys(data).forEach(key => {
+            const input = this.form.querySelector(`[name="${key}"]`);
+            if (input) {
+                if (input.type === 'radio') {
+                    const radioInput = this.form.querySelector(`[name="${key}"][value="${data[key]}"]`);
+                    if (radioInput) radioInput.checked = true;
+                } else {
+                    input.value = data[key] || '';
+                }
+            }
+        });
     }
 
     changeStep(direction) {
@@ -95,6 +182,7 @@ class BrandVoiceWizard {
         this.currentStep = newStep;
         this.updateStepVisibility();
         this.updateNavigationButtons();
+        this.updateProgress();
         
         // Scroll to top of form
         this.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -129,42 +217,32 @@ class BrandVoiceWizard {
         this.nextBtn.disabled = !this.validateCurrentStep();
     }
 
+    updateProgress() {
+        const progressPercent = (this.currentStep / this.totalSteps) * 100;
+        this.wizardProgress.style.width = `${progressPercent}%`;
+        this.currentStepNumber.textContent = this.currentStep;
+    }
+
     validateCurrentStep() {
         switch (this.currentStep) {
             case 1:
                 return this.validateStep1();
-            case 2:
-                return this.validateStep2();
-            case 3:
-                return this.validateStep3();
-            case 4:
-                return this.validateStep4();
             default:
-                return true;
+                return true; // All other steps are optional
         }
     }
 
     validateStep1() {
-        const isValid = this.voiceNameInput.value.trim().length > 0;
-        this.updateValidationUI(this.voiceNameInput, isValid);
-        return isValid;
-    }
-
-    validateStep2() {
-        const hasTone = this.selectedToneInput.value.length > 0;
-        const hasStyle = this.selectedStyleInput.value.length > 0;
-        return hasTone && hasStyle;
-    }
-
-    validateStep3() {
-        const hasAudience = this.audienceSelect.value.length > 0;
-        const hasValues = Array.from(this.valuesCheckboxes).some(cb => cb.checked);
-        return hasAudience && hasValues;
-    }
-
-    validateStep4() {
-        const keyMessages = this.getKeyMessages();
-        return keyMessages.length > 0;
+        const hasCompanyName = this.companyNameInput.value.trim().length > 0;
+        const hasCompanyUrl = this.companyUrlInput.value.trim().length > 0;
+        const hasVoiceShortName = this.voiceShortNameInput.value.trim().length > 0;
+        
+        // Update validation UI
+        this.updateValidationUI(this.companyNameInput, hasCompanyName);
+        this.updateValidationUI(this.companyUrlInput, hasCompanyUrl);
+        this.updateValidationUI(this.voiceShortNameInput, hasVoiceShortName);
+        
+        return hasCompanyName && hasCompanyUrl && hasVoiceShortName;
     }
 
     updateValidationUI(element, isValid) {
@@ -177,51 +255,27 @@ class BrandVoiceWizard {
         }
     }
 
-    getKeyMessages() {
-        const messageInputs = document.querySelectorAll('#keyMessagesContainer input[type="text"]');
-        const messages = [];
+    collectFormData() {
+        const formData = {};
         
-        messageInputs.forEach(input => {
-            const value = input.value.trim();
-            if (value) {
-                messages.push(value);
+        // Get all form data
+        const formDataObj = new FormData(this.form);
+        for (let [key, value] of formDataObj.entries()) {
+            formData[key] = value;
+        }
+        
+        // Handle radio buttons that might not be selected
+        const radioGroups = ['punctuation_contractions', 'punctuation_oxford_comma'];
+        radioGroups.forEach(group => {
+            const checkedRadio = this.form.querySelector(`input[name="${group}"]:checked`);
+            if (checkedRadio) {
+                formData[group] = checkedRadio.value === 'true';
+            } else {
+                formData[group] = null;
             }
         });
-        
-        return messages;
-    }
 
-    getTerminology() {
-        const terminologyRows = document.querySelectorAll('#terminologyContainer .row');
-        const terminology = {};
-        
-        terminologyRows.forEach(row => {
-            const avoidInput = row.querySelector('.avoid-term');
-            const preferInput = row.querySelector('.prefer-term');
-            
-            if (avoidInput && preferInput) {
-                const avoid = avoidInput.value.trim();
-                const prefer = preferInput.value.trim();
-                
-                if (avoid && prefer) {
-                    terminology[avoid] = prefer;
-                }
-            }
-        });
-        
-        return terminology;
-    }
-
-    getSelectedValues() {
-        const selectedValues = [];
-        
-        this.valuesCheckboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-                selectedValues.push(checkbox.value);
-            }
-        });
-        
-        return selectedValues;
+        return formData;
     }
 
     async handleSubmit(event) {
@@ -232,8 +286,12 @@ class BrandVoiceWizard {
         }
 
         // Final validation
-        if (!this.validateCurrentStep()) {
-            this.showAlert('Please complete all required fields.', 'danger');
+        if (!this.validateStep1()) {
+            this.showAlert('Please complete all required fields in Step 1.', 'danger');
+            this.currentStep = 1;
+            this.updateStepVisibility();
+            this.updateNavigationButtons();
+            this.updateProgress();
             return;
         }
 
@@ -241,19 +299,9 @@ class BrandVoiceWizard {
         this.updateSubmitButton();
 
         try {
-            // Collect form data
-            const formData = {
-                name: this.voiceNameInput.value.trim(),
-                voice_type: this.form.voice_type.value,
-                tone: this.selectedToneInput.value,
-                style: this.selectedStyleInput.value,
-                audience: this.audienceSelect.value,
-                values: this.getSelectedValues(),
-                key_messages: this.getKeyMessages(),
-                terminology: this.getTerminology()
-            };
+            const formData = this.collectFormData();
+            formData.profile_id = this.profileId;
 
-            // Submit to backend
             const response = await fetch('/create-brand-voice', {
                 method: 'POST',
                 headers: {
@@ -297,7 +345,11 @@ class BrandVoiceWizard {
     showAlert(message, type) {
         // Remove existing alerts
         const existingAlerts = document.querySelectorAll('.alert');
-        existingAlerts.forEach(alert => alert.remove());
+        existingAlerts.forEach(alert => {
+            if (!alert.classList.contains('alert-info')) { // Keep the info alert
+                alert.remove();
+            }
+        });
 
         // Create new alert
         const alertDiv = document.createElement('div');
@@ -324,86 +376,44 @@ class BrandVoiceWizard {
     }
 }
 
-// Key Messages Management
-function addKeyMessage() {
-    const container = document.getElementById('keyMessagesContainer');
-    const newMessage = document.createElement('div');
-    newMessage.className = 'input-group mb-2';
-    newMessage.innerHTML = `
-        <input type="text" class="form-control" placeholder="e.g., Healing is possible for everyone">
-        <button class="btn btn-outline-danger" type="button" onclick="removeKeyMessage(this)">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    container.appendChild(newMessage);
-    
-    // Focus on the new input
-    newMessage.querySelector('input').focus();
-}
-
-function removeKeyMessage(button) {
-    const container = document.getElementById('keyMessagesContainer');
-    const messageGroups = container.querySelectorAll('.input-group');
-    
-    // Don't remove if it's the last one
-    if (messageGroups.length > 1) {
-        button.closest('.input-group').remove();
-    } else {
-        // Clear the input instead
-        button.closest('.input-group').querySelector('input').value = '';
-    }
-}
-
-// Terminology Management
-function addTerminology() {
-    const container = document.getElementById('terminologyContainer');
-    const newTerminology = document.createElement('div');
-    newTerminology.className = 'row mb-2';
-    newTerminology.innerHTML = `
-        <div class="col-5">
-            <input type="text" class="form-control avoid-term" placeholder="Avoid this term">
-        </div>
-        <div class="col-2 text-center">
-            <i class="fas fa-arrow-right text-muted mt-2"></i>
-        </div>
-        <div class="col-4">
-            <input type="text" class="form-control prefer-term" placeholder="Use this instead">
-        </div>
-        <div class="col-1">
-            <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeTerminology(this)">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    container.appendChild(newTerminology);
-    
-    // Focus on the first input
-    newTerminology.querySelector('.avoid-term').focus();
-}
-
-function removeTerminology(button) {
-    const container = document.getElementById('terminologyContainer');
-    const terminologyRows = container.querySelectorAll('.row');
-    
-    // Don't remove if it's the last one
-    if (terminologyRows.length > 1) {
-        button.closest('.row').remove();
-    } else {
-        // Clear the inputs instead
-        const row = button.closest('.row');
-        row.querySelector('.avoid-term').value = '';
-        row.querySelector('.prefer-term').value = '';
-    }
-}
-
-// Global functions for step navigation (called from template)
-function changeStep(direction) {
-    if (window.brandVoiceWizard) {
-        window.brandVoiceWizard.changeStep(direction);
-    }
-}
-
 // Initialize wizard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     window.brandVoiceWizard = new BrandVoiceWizard();
 });
+
+// Add some CSS for the fade-in animation and save indicator
+const style = document.createElement('style');
+style.textContent = `
+    .wizard-step {
+        display: none;
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .slider-container {
+        margin-bottom: 1rem;
+    }
+    
+    .form-range {
+        margin: 0.5rem 0;
+    }
+    
+    .save-indicator {
+        font-size: 0.875rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(100%); }
+        to { transform: translateX(0); }
+    }
+`;
+document.head.appendChild(style);

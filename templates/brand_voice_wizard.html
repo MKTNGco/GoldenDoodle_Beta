@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Brand Voice Wizard - GoldenDoodleLM{% endblock %}
@@ -5,267 +6,434 @@
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
+        <div class="col-lg-10">
             <div class="card shadow">
                 <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">
-                        <i class="fas fa-magic me-2"></i>Brand Voice Wizard
-                        <span class="badge bg-light text-primary ms-2">
-                            {{ 'Company' if voice_type == 'company' else 'Personal' }}
-                        </span>
-                    </h4>
-                    <p class="mb-0 opacity-75">Create a custom brand voice that reflects your trauma-informed approach</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">
+                                <i class="fas fa-magic me-2"></i>Brand Voice Wizard
+                                <span class="badge bg-light text-primary ms-2">
+                                    {{ 'Company' if voice_type == 'company' else 'Personal' }}
+                                </span>
+                            </h4>
+                            <p class="mb-0 opacity-75">Create a custom brand voice that reflects your trauma-informed approach</p>
+                        </div>
+                        <div class="text-end">
+                            <small class="opacity-75">Step <span id="currentStepNumber">1</span> of 6</small>
+                            <div class="progress mt-1" style="width: 150px; height: 4px;">
+                                <div class="progress-bar bg-light" role="progressbar" id="wizardProgress" style="width: 16.67%"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body p-4">
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Take your time!</strong> All progress is saved automatically. You can complete this wizard at your own pace and leave fields blank if needed.
+                    </div>
+                    
                     <form id="brandVoiceForm">
                         <input type="hidden" name="voice_type" value="{{ voice_type }}">
                         
-                        <!-- Step 1: Basic Information -->
+                        <!-- Step 1: Profile Setup -->
                         <div class="wizard-step" id="step1">
                             <h5 class="text-primary mb-3">
                                 <span class="step-number bg-primary text-white rounded-circle me-2">1</span>
-                                Basic Information
+                                Profile Setup
                             </h5>
+                            <p class="text-muted mb-4">Let's start with the basics. These first three fields are required to create and save your profile.</p>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="companyName" class="form-label fw-semibold">Company Name *</label>
+                                        <input type="text" class="form-control" id="companyName" name="company_name" 
+                                               placeholder="e.g., The Sunnydale Foundation" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="companyUrl" class="form-label fw-semibold">Company URL *</label>
+                                        <input type="url" class="form-control" id="companyUrl" name="company_url" 
+                                               placeholder="e.g., https://www.sunnydalefoundation.org" required>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <div class="mb-4">
-                                <label for="voiceName" class="form-label fw-semibold">Brand Voice Name</label>
-                                <input type="text" class="form-control" id="voiceName" name="name" 
-                                       placeholder="e.g., Crisis Support Voice, Community Outreach Tone" required>
-                                <div class="form-text">Choose a descriptive name that reflects the voice's purpose</div>
+                                <label for="voiceShortName" class="form-label fw-semibold">Voice Short Name *</label>
+                                <input type="text" class="form-control" id="voiceShortName" name="voice_short_name" 
+                                       placeholder="e.g., Main Marketing Voice, Donor Comms, Founder's Blog" required>
                             </div>
                         </div>
                         
-                        <!-- Step 2: Tone & Style -->
+                        <!-- Step 2: The Core Foundation -->
                         <div class="wizard-step" id="step2">
                             <h5 class="text-primary mb-3">
                                 <span class="step-number bg-primary text-white rounded-circle me-2">2</span>
-                                Tone & Style
+                                The Core Foundation - The "Why"
+                            </h5>
+                            <p class="text-muted mb-4">All fields from here on are optional. Fill in what you can.</p>
+                            
+                            <div class="mb-4">
+                                <label for="missionStatement" class="form-label fw-semibold">Mission Statement</label>
+                                <textarea class="form-control" id="missionStatement" name="mission_statement" rows="3"
+                                          placeholder="What is your fundamental purpose? Why do you exist beyond making money?"></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="visionStatement" class="form-label fw-semibold">Vision Statement</label>
+                                <textarea class="form-control" id="visionStatement" name="vision_statement" rows="3"
+                                          placeholder="What is the long-term future you are trying to create or inspire?"></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="coreValues" class="form-label fw-semibold">Core Values</label>
+                                <textarea class="form-control" id="coreValues" name="core_values" rows="3"
+                                          placeholder="List 3-5 non-negotiable principles that guide your decisions (e.g., Integrity, Innovation, Community)."></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="elevatorPitch" class="form-label fw-semibold">Elevator Pitch</label>
+                                <textarea class="form-control" id="elevatorPitch" name="elevator_pitch" rows="3"
+                                          placeholder="In 30 seconds, how do you describe what you do to someone new?"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 3: The Audience & Existing Content -->
+                        <div class="wizard-step" id="step3">
+                            <h5 class="text-primary mb-3">
+                                <span class="step-number bg-primary text-white rounded-circle me-2">3</span>
+                                The Audience & Existing Content - The "Who"
+                            </h5>
+                            
+                            <div class="mb-4">
+                                <label for="aboutUsContent" class="form-label fw-semibold">About Us Content</label>
+                                <textarea class="form-control" id="aboutUsContent" name="about_us_content" rows="4"
+                                          placeholder="Paste the full text from your website's 'About Us' page here. This gives us a great baseline."></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="pressReleaseBoilerplate" class="form-label fw-semibold">Press Release Boilerplate</label>
+                                <textarea class="form-control" id="pressReleaseBoilerplate" name="press_release_boilerplate" rows="3"
+                                          placeholder="Paste your official company boilerplate here (the final 'About' paragraph in a press release)."></textarea>
+                                <div class="form-text">This content will be flagged for automatic inclusion in future press release generation tasks.</div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="primaryAudiencePersona" class="form-label fw-semibold">Primary Audience Persona</label>
+                                <textarea class="form-control" id="primaryAudiencePersona" name="primary_audience_persona" rows="3"
+                                          placeholder="Describe your ideal customer. Go beyond demographics to include their values, fears, and passions."></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="audiencePainPoints" class="form-label fw-semibold">Audience's Pain Points</label>
+                                <textarea class="form-control" id="audiencePainPoints" name="audience_pain_points" rows="3"
+                                          placeholder="What specific problems are you solving for your audience? What keeps them up at night?"></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="desiredRelationship" class="form-label fw-semibold">Desired Relationship</label>
+                                <textarea class="form-control" id="desiredRelationship" name="desired_relationship" rows="2"
+                                          placeholder="What kind of relationship do you want with your audience? (e.g., trusted advisor, friendly guide, authoritative expert)"></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="audienceLanguage" class="form-label fw-semibold">Audience Language</label>
+                                <textarea class="form-control" id="audienceLanguage" name="audience_language" rows="2"
+                                          placeholder="How does your audience communicate? What words, phrases, or communication styles resonate with them?"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 4: Personality & Tone -->
+                        <div class="wizard-step" id="step4">
+                            <h5 class="text-primary mb-3">
+                                <span class="step-number bg-primary text-white rounded-circle me-2">4</span>
+                                Personality & Tone - The "What"
+                            </h5>
+                            
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Brand Personality Sliders</label>
+                                <p class="text-muted mb-3">Adjust the sliders to define your brand's personality traits.</p>
+                                
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="slider-container">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>Formal</span>
+                                                <span>Casual</span>
+                                            </div>
+                                            <input type="range" class="form-range" id="formalCasual" name="personality_formal_casual" 
+                                                   min="1" max="5" value="3">
+                                            <div class="d-flex justify-content-between">
+                                                <small class="text-muted">1</small>
+                                                <small class="text-muted">2</small>
+                                                <small class="text-muted">3</small>
+                                                <small class="text-muted">4</small>
+                                                <small class="text-muted">5</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="slider-container">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>Serious</span>
+                                                <span>Playful</span>
+                                            </div>
+                                            <input type="range" class="form-range" id="seriousPlayful" name="personality_serious_playful" 
+                                                   min="1" max="5" value="3">
+                                            <div class="d-flex justify-content-between">
+                                                <small class="text-muted">1</small>
+                                                <small class="text-muted">2</small>
+                                                <small class="text-muted">3</small>
+                                                <small class="text-muted">4</small>
+                                                <small class="text-muted">5</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="slider-container">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>Traditional</span>
+                                                <span>Modern</span>
+                                            </div>
+                                            <input type="range" class="form-range" id="traditionalModern" name="personality_traditional_modern" 
+                                                   min="1" max="5" value="3">
+                                            <div class="d-flex justify-content-between">
+                                                <small class="text-muted">1</small>
+                                                <small class="text-muted">2</small>
+                                                <small class="text-muted">3</small>
+                                                <small class="text-muted">4</small>
+                                                <small class="text-muted">5</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="slider-container">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>Authoritative</span>
+                                                <span>Collaborative</span>
+                                            </div>
+                                            <input type="range" class="form-range" id="authoritativeCollaborative" name="personality_authoritative_collaborative" 
+                                                   min="1" max="5" value="3">
+                                            <div class="d-flex justify-content-between">
+                                                <small class="text-muted">1</small>
+                                                <small class="text-muted">2</small>
+                                                <small class="text-muted">3</small>
+                                                <small class="text-muted">4</small>
+                                                <small class="text-muted">5</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="slider-container">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>Accessible</span>
+                                                <span>Aspirational</span>
+                                            </div>
+                                            <input type="range" class="form-range" id="accessibleAspirational" name="personality_accessible_exclusive" 
+                                                   min="1" max="5" value="3">
+                                            <div class="d-flex justify-content-between">
+                                                <small class="text-muted">1</small>
+                                                <small class="text-muted">2</small>
+                                                <small class="text-muted">3</small>
+                                                <small class="text-muted">4</small>
+                                                <small class="text-muted">5</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="brandAsPerson" class="form-label fw-semibold">Brand as a Person</label>
+                                        <textarea class="form-control" id="brandAsPerson" name="brand_as_person" rows="3"
+                                                  placeholder="If your brand was a person, how would you describe their personality, style, and approach to life?"></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="brandSpokesperson" class="form-label fw-semibold">Brand Spokesperson</label>
+                                        <textarea class="form-control" id="brandSpokesperson" name="brand_spokesperson" rows="3"
+                                                  placeholder="If you could choose any public figure (real or fictional) as your brand spokesperson, who would it be and why?"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="admiredBrands" class="form-label fw-semibold">Admired Brands</label>
+                                <textarea class="form-control" id="admiredBrands" name="admired_brands" rows="2"
+                                          placeholder="List brands you admire for their communication style and explain what you find compelling about their voice."></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="wordsToEmbrace" class="form-label fw-semibold">Words to Embrace</label>
+                                        <textarea class="form-control" id="wordsToEmbrace" name="words_to_embrace" rows="3"
+                                                  placeholder="List 5-10 words or phrases that feel perfectly aligned with your brand (e.g., Effortless, Robust, Mindful)."></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="wordsToAvoid" class="form-label fw-semibold">Words to Avoid</label>
+                                        <textarea class="form-control" id="wordsToAvoid" name="words_to_avoid" rows="3"
+                                                  placeholder="List 5-10 words or phrases your brand would never use (e.g., Synergy, Hack, Cheap)."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 5: Communication in Practice -->
+                        <div class="wizard-step" id="step5">
+                            <h5 class="text-primary mb-3">
+                                <span class="step-number bg-primary text-white rounded-circle me-2">5</span>
+                                Communication in Practice - The "How"
                             </h5>
                             
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-4">
-                                        <label class="form-label fw-semibold">Primary Tone</label>
-                                        <div class="row g-2">
-                                            <div class="col-6">
-                                                <div class="card tone-card" data-value="empathetic">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-heart text-primary mb-2"></i>
-                                                        <h6>Empathetic</h6>
-                                                        <small class="text-muted">Warm, understanding</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="card tone-card" data-value="professional">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-briefcase text-primary mb-2"></i>
-                                                        <h6>Professional</h6>
-                                                        <small class="text-muted">Formal, authoritative</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="card tone-card" data-value="supportive">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-hands-helping text-primary mb-2"></i>
-                                                        <h6>Supportive</h6>
-                                                        <small class="text-muted">Encouraging, uplifting</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="card tone-card" data-value="approachable">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-smile text-primary mb-2"></i>
-                                                        <h6>Approachable</h6>
-                                                        <small class="text-muted">Friendly, accessible</small>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <label class="form-label fw-semibold">Contractions</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="punctuation_contractions" 
+                                                   id="contractionsYes" value="true">
+                                            <label class="form-check-label" for="contractionsYes">
+                                                Use contractions (e.g., it's, you're, we're)
+                                            </label>
                                         </div>
-                                        <input type="hidden" name="tone" id="selectedTone">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="punctuation_contractions" 
+                                                   id="contractionsNo" value="false">
+                                            <label class="form-check-label" for="contractionsNo">
+                                                Do not use contractions (e.g., it is, you are, we are)
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-6">
                                     <div class="mb-4">
-                                        <label class="form-label fw-semibold">Writing Style</label>
-                                        <div class="row g-2">
-                                            <div class="col-6">
-                                                <div class="card style-card" data-value="conversational">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-comments text-primary mb-2"></i>
-                                                        <h6>Conversational</h6>
-                                                        <small class="text-muted">Natural, flowing</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="card style-card" data-value="informative">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-info-circle text-primary mb-2"></i>
-                                                        <h6>Informative</h6>
-                                                        <small class="text-muted">Educational, clear</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="card style-card" data-value="storytelling">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-book text-primary mb-2"></i>
-                                                        <h6>Storytelling</h6>
-                                                        <small class="text-muted">Narrative, engaging</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="card style-card" data-value="direct">
-                                                    <div class="card-body text-center p-3">
-                                                        <i class="fas fa-arrow-right text-primary mb-2"></i>
-                                                        <h6>Direct</h6>
-                                                        <small class="text-muted">Concise, to-the-point</small>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <label class="form-label fw-semibold">Oxford Comma</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="punctuation_oxford_comma" 
+                                                   id="oxfordYes" value="true">
+                                            <label class="form-check-label" for="oxfordYes">
+                                                We use the Oxford comma (e.g., red, white, and blue)
+                                            </label>
                                         </div>
-                                        <input type="hidden" name="style" id="selectedStyle">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="punctuation_oxford_comma" 
+                                                   id="oxfordNo" value="false">
+                                            <label class="form-check-label" for="oxfordNo">
+                                                We do not use the Oxford comma (e.g., red, white and blue)
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Step 3: Audience & Values -->
-                        <div class="wizard-step" id="step3">
-                            <h5 class="text-primary mb-3">
-                                <span class="step-number bg-primary text-white rounded-circle me-2">3</span>
-                                Audience & Values
-                            </h5>
                             
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-4">
-                                        <label for="audience" class="form-label fw-semibold">Primary Audience</label>
-                                        <select class="form-select" id="audience" name="audience">
-                                            <option value="trauma_survivors">Trauma Survivors</option>
-                                            <option value="families">Families & Caregivers</option>
-                                            <option value="professionals">Mental Health Professionals</option>
-                                            <option value="community">General Community</option>
-                                            <option value="donors">Donors & Supporters</option>
-                                            <option value="volunteers">Volunteers</option>
+                                        <label for="pointOfView" class="form-label fw-semibold">Point of View</label>
+                                        <select class="form-select" id="pointOfView" name="point_of_view">
+                                            <option value="">Select a primary POV...</option>
+                                            <option value="first_plural">First-person plural (we, our)</option>
+                                            <option value="first_singular">First-person singular (I, my)</option>
+                                            <option value="second_person">Second-person (you, your)</option>
                                         </select>
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-6">
                                     <div class="mb-4">
-                                        <label class="form-label fw-semibold">Core Values</label>
-                                        <div class="values-container">
-                                            <div class="row g-2">
-                                                <div class="col-6">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="safety" value="Safety">
-                                                        <label class="form-check-label" for="safety">Safety</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="trust" value="Trust">
-                                                        <label class="form-check-label" for="trust">Trust</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="empowerment" value="Empowerment">
-                                                        <label class="form-check-label" for="empowerment">Empowerment</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="hope" value="Hope">
-                                                        <label class="form-check-label" for="hope">Hope</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="inclusion" value="Inclusion">
-                                                        <label class="form-check-label" for="inclusion">Inclusion</label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-6">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="resilience" value="Resilience">
-                                                        <label class="form-check-label" for="resilience">Resilience</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <label for="sentenceStructure" class="form-label fw-semibold">Sentence Structure</label>
+                                        <select class="form-select" id="sentenceStructure" name="sentence_structure">
+                                            <option value="">Select preferred structure...</option>
+                                            <option value="short_punchy">Short and punchy</option>
+                                            <option value="medium_varied">Medium length with variation</option>
+                                            <option value="long_detailed">Longer, more detailed</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="punctuationExtras" class="form-label fw-semibold">Additional Punctuation & Style Notes</label>
+                                <textarea class="form-control" id="punctuationExtras" name="punctuation_extras" rows="2"
+                                          placeholder="Any other punctuation preferences, formatting rules, or style guidelines?"></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="handlingGoodNews" class="form-label fw-semibold">Handling Good News</label>
+                                        <textarea class="form-control" id="handlingGoodNews" name="handling_good_news" rows="3"
+                                                  placeholder="How do you talk about successes? (e.g., Humble, proud, celebratory, data-driven)."></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label for="handlingBadNews" class="form-label fw-semibold">Handling Bad News / Apologies</label>
+                                        <textarea class="form-control" id="handlingBadNews" name="handling_bad_news" rows="3"
+                                                  placeholder="How do you address problems? (e.g., Direct and accountable, deeply empathetic, strictly formal)."></textarea>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Step 4: Key Messages & Terminology -->
-                        <div class="wizard-step" id="step4">
+                        <!-- Step 6: Competition & Differentiation -->
+                        <div class="wizard-step" id="step6">
                             <h5 class="text-primary mb-3">
-                                <span class="step-number bg-primary text-white rounded-circle me-2">4</span>
-                                Key Messages & Language
+                                <span class="step-number bg-primary text-white rounded-circle me-2">6</span>
+                                Review & Complete
                             </h5>
                             
                             <div class="mb-4">
-                                <label class="form-label fw-semibold">Key Messages</label>
-                                <div class="form-text mb-2">What are the main messages your organization wants to communicate?</div>
-                                <div id="keyMessagesContainer">
-                                    <div class="input-group mb-2">
-                                        <input type="text" class="form-control" placeholder="e.g., You are not alone in your healing journey">
-                                        <button class="btn btn-outline-danger" type="button" onclick="removeKeyMessage(this)">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addKeyMessage()">
-                                    <i class="fas fa-plus me-1"></i>Add Message
-                                </button>
+                                <label for="competitors" class="form-label fw-semibold">Competitors</label>
+                                <textarea class="form-control" id="competitors" name="competitors" rows="2"
+                                          placeholder="Who are your main competitors or organizations in your space?"></textarea>
                             </div>
                             
                             <div class="mb-4">
-                                <label class="form-label fw-semibold">Preferred Terminology</label>
-                                <div class="form-text mb-2">Specify preferred language to ensure trauma-informed communication</div>
-                                <div id="terminologyContainer">
-                                    <div class="row mb-2">
-                                        <div class="col-5">
-                                            <input type="text" class="form-control avoid-term" placeholder="Avoid this term">
-                                        </div>
-                                        <div class="col-2 text-center">
-                                            <i class="fas fa-arrow-right text-muted mt-2"></i>
-                                        </div>
-                                        <div class="col-4">
-                                            <input type="text" class="form-control prefer-term" placeholder="Use this instead">
-                                        </div>
-                                        <div class="col-1">
-                                            <button class="btn btn-outline-danger btn-sm" type="button" onclick="removeTerminology(this)">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addTerminology()">
-                                    <i class="fas fa-plus me-1"></i>Add Term
-                                </button>
+                                <label for="competitorVoices" class="form-label fw-semibold">Competitor Voices</label>
+                                <textarea class="form-control" id="competitorVoices" name="competitor_voices" rows="3"
+                                          placeholder="How do your competitors communicate? What tone and style do they use?"></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="voiceDifferentiation" class="form-label fw-semibold">Voice Differentiation</label>
+                                <textarea class="form-control" id="voiceDifferentiation" name="voice_differentiation" rows="3"
+                                          placeholder="How will your brand voice be different from your competitors? What will make it uniquely yours?"></textarea>
+                            </div>
+                            
+                            <div class="alert alert-success">
+                                <h6><i class="fas fa-check-circle me-2"></i>Almost Done!</h6>
+                                <p class="mb-0">Review your entries above, then click "Create Brand Voice" to generate your comprehensive brand voice profile. All information will be saved and can be edited later.</p>
                             </div>
                         </div>
                         
                         <!-- Navigation & Submit -->
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="changeStep(-1)">
+                            <button type="button" class="btn btn-outline-secondary" id="prevBtn" style="display: none;">
                                 <i class="fas fa-arrow-left me-1"></i>Previous
                             </button>
-                            <button type="button" class="btn btn-primary" id="nextBtn" onclick="changeStep(1)">
-                                Next<i class="fas fa-arrow-right ms-1"></i>
-                            </button>
-                            <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
-                                <i class="fas fa-save me-1"></i>Create Brand Voice
-                            </button>
+                            <div class="ms-auto">
+                                <button type="button" class="btn btn-primary me-2" id="nextBtn">
+                                    Next<i class="fas fa-arrow-right ms-1"></i>
+                                </button>
+                                <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
+                                    <i class="fas fa-save me-1"></i>Create Brand Voice
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

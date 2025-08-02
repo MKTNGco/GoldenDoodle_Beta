@@ -359,6 +359,50 @@ class DatabaseManager:
             logger.error(f"Error creating brand voice: {e}")
             raise
 
+    def create_comprehensive_brand_voice(self, tenant_id: str, wizard_data: Dict[str, Any], 
+                                       markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
+        """Create a comprehensive brand voice with full wizard data"""
+        try:
+            brand_voice_id = str(uuid.uuid4())
+            name = wizard_data['voice_short_name']
+            
+            # Store the comprehensive wizard data as configuration
+            configuration = wizard_data.copy()
+            
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            if user_id:
+                # User brand voice
+                table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
+                cursor.execute(f"""
+                    INSERT INTO {table_name} (brand_voice_id, user_id, name, configuration, markdown_content)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (brand_voice_id, user_id, name, json.dumps(configuration), markdown_content))
+            else:
+                # Company brand voice
+                table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+                cursor.execute(f"""
+                    INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
+                    VALUES (%s, %s, %s, %s)
+                """, (brand_voice_id, name, json.dumps(configuration), markdown_content))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return BrandVoice(
+                brand_voice_id=brand_voice_id,
+                name=name,
+                configuration=configuration,
+                markdown_content=markdown_content,
+                user_id=user_id
+            )
+            
+        except Exception as e:
+            logger.error(f"Error creating comprehensive brand voice: {e}")
+            raise
+
 # Global database manager instance
 db_manager = DatabaseManager()
 

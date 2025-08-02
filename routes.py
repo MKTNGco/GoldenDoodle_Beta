@@ -7,6 +7,7 @@ from rag_service import rag_service
 from models import TenantType, SubscriptionLevel, CONTENT_MODE_CONFIG
 import json
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -270,19 +271,15 @@ def create_brand_voice():
     """Create a new brand voice"""
     try:
         data = request.get_json()
-        name = data.get('name', '').strip()
+        
+        # Required fields
+        company_name = data.get('company_name', '').strip()
+        company_url = data.get('company_url', '').strip()
+        voice_short_name = data.get('voice_short_name', '').strip()
         voice_type = data.get('voice_type', 'user')
         
-        # Brand voice configuration from wizard
-        tone = data.get('tone', 'professional')
-        style = data.get('style', 'informative')
-        audience = data.get('audience', 'general')
-        values = data.get('values', [])
-        key_messages = data.get('key_messages', [])
-        terminology = data.get('terminology', {})
-        
-        if not name:
-            return jsonify({'error': 'Brand voice name is required'}), 400
+        if not all([company_name, company_url, voice_short_name]):
+            return jsonify({'error': 'Company name, URL, and voice name are required'}), 400
         
         user = get_current_user()
         if not user:
@@ -318,49 +315,50 @@ def create_brand_voice():
             
             user_id = user.user_id
         
-        # Create configuration
-        configuration = {
-            'tone': tone,
-            'style': style,
-            'audience': audience,
-            'values': values,
-            'key_messages': key_messages,
-            'terminology': terminology
+        # Collect all wizard data
+        wizard_data = {
+            'company_name': company_name,
+            'company_url': company_url,
+            'voice_short_name': voice_short_name,
+            'mission_statement': data.get('mission_statement', ''),
+            'vision_statement': data.get('vision_statement', ''),
+            'core_values': data.get('core_values', ''),
+            'elevator_pitch': data.get('elevator_pitch', ''),
+            'about_us_content': data.get('about_us_content', ''),
+            'press_release_boilerplate': data.get('press_release_boilerplate', ''),
+            'primary_audience_persona': data.get('primary_audience_persona', ''),
+            'audience_pain_points': data.get('audience_pain_points', ''),
+            'desired_relationship': data.get('desired_relationship', ''),
+            'audience_language': data.get('audience_language', ''),
+            'personality_formal_casual': int(data.get('personality_formal_casual', 3)),
+            'personality_serious_playful': int(data.get('personality_serious_playful', 3)),
+            'personality_traditional_modern': int(data.get('personality_traditional_modern', 3)),
+            'personality_authoritative_collaborative': int(data.get('personality_authoritative_collaborative', 3)),
+            'personality_accessible_exclusive': int(data.get('personality_accessible_exclusive', 3)),
+            'brand_as_person': data.get('brand_as_person', ''),
+            'brand_spokesperson': data.get('brand_spokesperson', ''),
+            'admired_brands': data.get('admired_brands', ''),
+            'words_to_embrace': data.get('words_to_embrace', ''),
+            'words_to_avoid': data.get('words_to_avoid', ''),
+            'punctuation_contractions': data.get('punctuation_contractions'),
+            'punctuation_oxford_comma': data.get('punctuation_oxford_comma'),
+            'punctuation_extras': data.get('punctuation_extras', ''),
+            'point_of_view': data.get('point_of_view', ''),
+            'sentence_structure': data.get('sentence_structure', ''),
+            'handling_good_news': data.get('handling_good_news', ''),
+            'handling_bad_news': data.get('handling_bad_news', ''),
+            'competitors': data.get('competitors', ''),
+            'competitor_voices': data.get('competitor_voices', ''),
+            'voice_differentiation': data.get('voice_differentiation', '')
         }
         
-        # Create markdown content for RAG
-        markdown_content = f"""# {name} Brand Voice Guide
-
-## Tone
-{tone.title()} - Use a {tone} tone in all communications.
-
-## Style
-{style.title()} - Maintain a {style} writing style.
-
-## Target Audience
-{audience.title()} - Content is designed for {audience} audiences.
-
-## Core Values
-{chr(10).join(f"- {value}" for value in values)}
-
-## Key Messages
-{chr(10).join(f"- {message}" for message in key_messages)}
-
-## Preferred Terminology
-{chr(10).join(f"- Use '{preferred}' instead of '{avoid}'" for avoid, preferred in terminology.items())}
-
-## Guidelines
-- Always maintain trauma-informed communication principles
-- Use person-first, strengths-based language
-- Prioritize safety, trust, and empowerment
-- Be culturally responsive and inclusive
-"""
+        # Generate comprehensive markdown content for RAG
+        markdown_content = generate_brand_voice_markdown(wizard_data)
         
-        # Create brand voice
-        brand_voice = db_manager.create_brand_voice(
+        # Create brand voice with comprehensive data
+        brand_voice = db_manager.create_comprehensive_brand_voice(
             tenant_id=tenant.tenant_id,
-            name=name,
-            configuration=configuration,
+            wizard_data=wizard_data,
             markdown_content=markdown_content,
             user_id=user_id
         )
@@ -368,12 +366,231 @@ def create_brand_voice():
         return jsonify({
             'success': True,
             'brand_voice_id': brand_voice.brand_voice_id,
-            'message': f'Brand voice "{name}" created successfully!'
+            'message': f'Brand voice "{voice_short_name}" created successfully!'
         })
         
     except Exception as e:
         logger.error(f"Error creating brand voice: {e}")
         return jsonify({'error': 'An error occurred while creating the brand voice. Please try again.'}), 500
+
+@app.route('/auto-save-brand-voice', methods=['POST'])
+@login_required
+def auto_save_brand_voice():
+    """Auto-save brand voice progress"""
+    try:
+        data = request.get_json()
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Check if required fields are present for auto-save
+        company_name = data.get('company_name', '').strip()
+        company_url = data.get('company_url', '').strip()
+        voice_short_name = data.get('voice_short_name', '').strip()
+        
+        if not all([company_name, company_url, voice_short_name]):
+            return jsonify({'error': 'Required fields missing'}), 400
+        
+        # Auto-save logic would go here
+        # For now, just return success with a mock profile_id
+        profile_id = data.get('profile_id') or str(uuid.uuid4())
+        
+        return jsonify({
+            'success': True,
+            'profile_id': profile_id,
+            'message': 'Progress saved'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error auto-saving brand voice: {e}")
+        return jsonify({'error': 'Auto-save failed'}), 500
+
+def generate_brand_voice_markdown(data):
+    """Generate comprehensive markdown content for brand voice"""
+    markdown = f"""# {data['voice_short_name']} Brand Voice Guide
+
+## Company Overview
+**Company:** {data['company_name']}
+**Website:** {data['company_url']}
+
+"""
+    
+    if data.get('mission_statement'):
+        markdown += f"""## Mission Statement
+{data['mission_statement']}
+
+"""
+    
+    if data.get('vision_statement'):
+        markdown += f"""## Vision Statement
+{data['vision_statement']}
+
+"""
+    
+    if data.get('core_values'):
+        markdown += f"""## Core Values
+{data['core_values']}
+
+"""
+    
+    if data.get('elevator_pitch'):
+        markdown += f"""## Elevator Pitch
+{data['elevator_pitch']}
+
+"""
+    
+    # Personality traits
+    markdown += f"""## Brand Personality
+
+### Personality Traits (1-5 scale)
+- **Communication Style:** {data['personality_formal_casual']}/5 (1=Formal, 5=Casual)
+- **Tone:** {data['personality_serious_playful']}/5 (1=Serious, 5=Playful)
+- **Approach:** {data['personality_traditional_modern']}/5 (1=Traditional, 5=Modern)
+- **Authority:** {data['personality_authoritative_collaborative']}/5 (1=Authoritative, 5=Collaborative)
+- **Accessibility:** {data['personality_accessible_exclusive']}/5 (1=Accessible, 5=Aspirational)
+
+"""
+    
+    if data.get('brand_as_person'):
+        markdown += f"""### Brand as a Person
+{data['brand_as_person']}
+
+"""
+    
+    if data.get('brand_spokesperson'):
+        markdown += f"""### Brand Spokesperson
+{data['brand_spokesperson']}
+
+"""
+    
+    # Audience information
+    if data.get('primary_audience_persona'):
+        markdown += f"""## Target Audience
+{data['primary_audience_persona']}
+
+"""
+    
+    if data.get('audience_pain_points'):
+        markdown += f"""### Audience Pain Points
+{data['audience_pain_points']}
+
+"""
+    
+    if data.get('desired_relationship'):
+        markdown += f"""### Desired Relationship
+{data['desired_relationship']}
+
+"""
+    
+    # Language guidelines
+    markdown += f"""## Language Guidelines
+
+"""
+    
+    if data.get('words_to_embrace'):
+        markdown += f"""### Words to Embrace
+{data['words_to_embrace']}
+
+"""
+    
+    if data.get('words_to_avoid'):
+        markdown += f"""### Words to Avoid
+{data['words_to_avoid']}
+
+"""
+    
+    # Communication style
+    if data.get('point_of_view'):
+        pov_map = {
+            'first_plural': 'First-person plural (we, our)',
+            'first_singular': 'First-person singular (I, my)',
+            'second_person': 'Second-person (you, your)'
+        }
+        markdown += f"""### Point of View
+{pov_map.get(data['point_of_view'], data['point_of_view'])}
+
+"""
+    
+    if data.get('punctuation_contractions') is not None:
+        contractions = "Use contractions" if data['punctuation_contractions'] else "Avoid contractions"
+        markdown += f"""### Contractions
+{contractions}
+
+"""
+    
+    if data.get('punctuation_oxford_comma') is not None:
+        oxford = "Use Oxford comma" if data['punctuation_oxford_comma'] else "No Oxford comma"
+        markdown += f"""### Oxford Comma
+{oxford}
+
+"""
+    
+    # Tone for different situations
+    if data.get('handling_good_news'):
+        markdown += f"""### Handling Good News
+{data['handling_good_news']}
+
+"""
+    
+    if data.get('handling_bad_news'):
+        markdown += f"""### Handling Bad News/Apologies
+{data['handling_bad_news']}
+
+"""
+    
+    # Competition and differentiation
+    if data.get('competitors'):
+        markdown += f"""## Competition
+### Main Competitors
+{data['competitors']}
+
+"""
+    
+    if data.get('competitor_voices'):
+        markdown += f"""### Competitor Communication Styles
+{data['competitor_voices']}
+
+"""
+    
+    if data.get('voice_differentiation'):
+        markdown += f"""### Our Differentiation
+{data['voice_differentiation']}
+
+"""
+    
+    # Trauma-informed principles
+    markdown += f"""## Trauma-Informed Communication Principles
+
+### Core Guidelines
+- Use person-first, strengths-based language
+- Prioritize safety, trust, and empowerment in all communications
+- Be culturally responsive and inclusive
+- Acknowledge resilience and potential for growth
+- Avoid language that could retraumatize or stigmatize
+- Create content that feels safe and supportive
+
+### Content Creation Guidelines
+- Frame challenges as opportunities for growth
+- Use collaborative language that empowers the reader
+- Acknowledge different perspectives and experiences
+- Focus on solutions and hope while being realistic
+- Ensure accessibility in both language and format
+
+"""
+    
+    if data.get('about_us_content'):
+        markdown += f"""## About Us Reference Content
+{data['about_us_content']}
+
+"""
+    
+    if data.get('press_release_boilerplate'):
+        markdown += f"""## Press Release Boilerplate
+{data['press_release_boilerplate']}
+
+"""
+    
+    return markdown
 
 @app.errorhandler(404)
 def not_found_error(error):

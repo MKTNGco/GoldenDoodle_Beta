@@ -61,7 +61,8 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS users (
                     user_id UUID PRIMARY KEY,
                     tenant_id UUID REFERENCES tenants(tenant_id),
-                    name VARCHAR(255) NOT NULL,
+                    first_name VARCHAR(255) NOT NULL,
+                    last_name VARCHAR(255) NOT NULL,
                     email VARCHAR(255) NOT NULL UNIQUE,
                     password_hash VARCHAR(255) NOT NULL,
                     subscription_level subscription_level NOT NULL,
@@ -157,7 +158,7 @@ class DatabaseManager:
             logger.error(f"Error creating tenant: {e}")
             raise
 
-    def create_user(self, tenant_id: str, name: str, email: str, password: str, 
+    def create_user(self, tenant_id: str, first_name: str, last_name: str, email: str, password: str, 
                    subscription_level: SubscriptionLevel, is_admin: bool = False) -> User:
         """Create a new user"""
         try:
@@ -167,7 +168,8 @@ class DatabaseManager:
             user = User(
                 user_id=user_id,
                 tenant_id=tenant_id,
-                name=name,
+                first_name=first_name,
+                last_name=last_name,
                 email=email,
                 password_hash=password_hash,
                 subscription_level=subscription_level,
@@ -178,9 +180,9 @@ class DatabaseManager:
             cursor = conn.cursor()
             
             cursor.execute("""
-                INSERT INTO users (user_id, tenant_id, name, email, password_hash, subscription_level, is_admin)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (user.user_id, user.tenant_id, user.name, user.email, user.password_hash, 
+                INSERT INTO users (user_id, tenant_id, first_name, last_name, email, password_hash, subscription_level, is_admin)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (user.user_id, user.tenant_id, user.first_name, user.last_name, user.email, user.password_hash, 
                   user.subscription_level.value, user.is_admin))
             
             conn.commit()
@@ -211,7 +213,8 @@ class DatabaseManager:
                 return User(
                     user_id=str(row['user_id']),
                     tenant_id=str(row['tenant_id']),
-                    name=row['name'],
+                    first_name=row['first_name'],
+                    last_name=row['last_name'],
                     email=row['email'],
                     password_hash=row['password_hash'],
                     subscription_level=SubscriptionLevel(row['subscription_level']),

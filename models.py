@@ -23,11 +23,17 @@ class Tenant:
 class User:
     user_id: str
     tenant_id: str
-    name: str
+    first_name: str
+    last_name: str
     email: str
     password_hash: str
     subscription_level: SubscriptionLevel
     is_admin: bool = False
+    
+    @property
+    def name(self) -> str:
+        """Full name property for backward compatibility"""
+        return f"{self.first_name} {self.last_name}".strip()
 
 @dataclass
 class BrandVoice:

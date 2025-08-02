@@ -28,11 +28,12 @@ def get_current_user() -> Optional[User]:
             return User(
                 user_id=str(row[0]),
                 tenant_id=str(row[1]),
-                name=row[2],
-                email=row[3],
-                password_hash=row[4],
-                subscription_level=SubscriptionLevel(row[5]),
-                is_admin=row[6]
+                first_name=row[2],
+                last_name=row[3],
+                email=row[4],
+                password_hash=row[5],
+                subscription_level=SubscriptionLevel(row[6]),
+                is_admin=row[7]
             )
     except Exception as e:
         print(f"Error getting current user: {e}")

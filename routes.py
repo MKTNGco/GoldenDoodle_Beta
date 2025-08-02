@@ -23,7 +23,8 @@ def register():
     """User registration"""
     if request.method == 'POST':
         try:
-            name = request.form.get('name', '').strip()
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
             email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '')
             organization_name = request.form.get('organization_name', '').strip()
@@ -31,7 +32,7 @@ def register():
             subscription_level = request.form.get('subscription_level', 'entry')
             
             # Validation
-            if not all([name, email, password]):
+            if not all([first_name, last_name, email, password]):
                 flash('All fields are required.', 'error')
                 return render_template('register.html')
             
@@ -55,7 +56,7 @@ def register():
                 is_admin = True  # First user in company is admin
             else:
                 tenant = db_manager.create_tenant(
-                    name=f"{name}'s Account",
+                    name=f"{first_name} {last_name}'s Account",
                     tenant_type=TenantType.INDEPENDENT_USER,
                     max_brand_voices=1
                 )
@@ -64,7 +65,8 @@ def register():
             # Create user
             user = db_manager.create_user(
                 tenant_id=tenant.tenant_id,
-                name=name,
+                first_name=first_name,
+                last_name=last_name,
                 email=email,
                 password=password,
                 subscription_level=SubscriptionLevel(subscription_level),

@@ -402,6 +402,11 @@ def how_to():
     """How to use GoldenDoodleLM guide page"""
     return render_template('how_to.html')
 
+@app.route('/our-story')
+def our_story():
+    """Our story page"""
+    return render_template('our_story.html')
+
 @app.route('/account')
 @login_required
 def account():

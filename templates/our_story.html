@@ -1,0 +1,105 @@
+
+{% extends "base.html" %}
+
+{% block title %}Our Story - GoldenDoodleLM{% endblock %}
+
+{% block content %}
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="text-center mb-5">
+                    <h1 class="display-4 fw-bold mb-3" style="color: var(--clearwater-teal);">Our Story</h1>
+                    <p class="lead text-muted">From a Problem of Scale to a Partnership of Purpose</p>
+                </div>
+
+                <div class="content-section">
+                    <p class="fs-5 text-muted mb-4">
+                        For years, our team at the marketing agency MKTNG had the privilege of working alongside incredible nonprofits and healthcare organizations. We saw firsthand the passion and dedication it takes to serve a community, and we were proud to help amplify their missions.
+                    </p>
+
+                    <p class="mb-4">
+                        But we repeatedly faced a heartbreaking reality: for every organization we could help, there were dozens more we couldn't, limited by our own capacity and the high cost of agency services. It was a problem of scale that left deserving organizations without the communications support they needed.
+                    </p>
+
+                    <p class="mb-4">
+                        After years of frustration, we reframed the problem. We finally accepted this wasn't just a resource issue, but a lack of imagination on our part. We asked ourselves a new, more powerful question: <strong>How can we put our decades of communications expertise into the hands of every mission-driven organization that needs it?</strong>
+                    </p>
+
+                    <div class="text-center my-5">
+                        <div class="d-inline-block px-4 py-3 bg-light rounded">
+                            <h4 class="fw-bold mb-0" style="color: var(--clearwater-teal);">Thus began the journey to build GoldenDoodleLM.</h4>
+                        </div>
+                    </div>
+
+                    <p class="mb-4">
+                        We set out to create a tool that could emulate the best practices we've honed through our own work. We knew we couldn't replicate the nuanced judgment that comes from years of human experience, but we believed we could build an AI partner that understood the fundamentals of principled, effective communication.
+                    </p>
+
+                    <p class="mb-4">
+                        To do this, we built our platform on two pillars: our own decades of practical experience, and the foundational research from leading institutions. We grounded our AI in volumes of work on effective communication from authorities including:
+                    </p>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-primary me-2"></i>
+                                    <strong>SAMHSA</strong> (Substance Abuse and Mental Health Services Administration)
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-primary me-2"></i>
+                                    <strong>American Psychiatric Association</strong> (APA)
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-primary me-2"></i>
+                                    <strong>National Child Traumatic Stress Network</strong> (NCTSN)
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-primary me-2"></i>
+                                    <strong>Philanthropic leaders</strong> like The Daniels Fund and the W.K. Kellogg Foundation
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="bg-light p-4 rounded mb-4">
+                        <h5 class="fw-bold mb-3" style="color: var(--clearwater-teal);">Why "GoldenDoodle"?</h5>
+                        <p class="mb-3">
+                            When it came time to name our creation, GoldenDoodle felt instantly right.
+                        </p>
+                        <p class="mb-0">
+                            Like the beloved therapy dog, our AI isn't designed to be the primary expert in the room. Its purpose is to be an unfailingly reliable, supportive, and calming companion. It's here to do the legwork, reduce the stress of a blank page, and provide a steady presence that frees up the human experts—you—to focus on the vital, strategic work only you can do. It's your partner, ready to help, bringing a bit of ease to a challenging day.
+                        </p>
+                    </div>
+
+                    <p class="mb-4">
+                        This entire journey is the culmination of our core belief that great work deserves great communication. GoldenDoodleLM exists to fulfill our mission:
+                    </p>
+
+                    <div class="text-center">
+                        <div class="card border-primary">
+                            <div class="card-body p-4">
+                                <h5 class="card-title fw-bold mb-3" style="color: var(--clearwater-teal);">Our Mission</h5>
+                                <p class="card-text fs-5 mb-0">
+                                    To provide communications teams in mission-driven organizations with a secure, reliable, and supportive AI partner that makes the work of creating principled content feel less daunting and more achievable.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-5">
+                        <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg px-5">
+                            <i class="fas fa-rocket me-2"></i>Join Our Mission
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

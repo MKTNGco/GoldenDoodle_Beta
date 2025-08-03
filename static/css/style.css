@@ -811,6 +811,115 @@ a:hover {
     background-color: var(--clearwater-teal);
 }
 
+/* How-to page specific styling */
+.how-to-content {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.how-to-content p {
+    font-size: 1rem;
+    color: var(--charcoal);
+}
+
+.how-to-content .text-muted {
+    font-size: 0.95rem;
+    color: #6c757d !important;
+}
+
+/* Mode badges and icons - override Bootstrap blue with our teal */
+.badge-primary,
+.bg-primary {
+    background-color: var(--clearwater-teal) !important;
+    border-color: var(--clearwater-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
+.badge-info,
+.bg-info {
+    background-color: var(--clearwater-teal) !important;
+    border-color: var(--clearwater-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
+/* Override any blue text with our teal */
+.text-info {
+    color: var(--clearwater-teal) !important;
+}
+
+/* Replace yellow/orange with our accent colors */
+.badge-warning,
+.bg-warning {
+    background-color: var(--deep-teal) !important;
+    border-color: var(--deep-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
+.text-warning {
+    color: var(--deep-teal) !important;
+}
+
+/* Content mode indicators */
+.mode-indicator {
+    background-color: var(--clearwater-teal) !important;
+    color: var(--cloud-white) !important;
+    border: 1px solid var(--clearwater-teal) !important;
+}
+
+.mode-indicator.secondary {
+    background-color: var(--deep-teal) !important;
+    border-color: var(--deep-teal) !important;
+}
+
+/* Numbered circles for principles */
+.principle-number {
+    background-color: var(--clearwater-teal) !important;
+    color: var(--cloud-white) !important;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Improve readability of content */
+.content-section p,
+.content-section li {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--charcoal);
+}
+
+.content-section h3,
+.content-section h4 {
+    color: var(--charcoal);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Small text improvements */
+.small-text {
+    font-size: 0.9rem !important;
+}
+
+/* Override any remaining Bootstrap blues */
+.btn-primary,
+.btn-info {
+    background-color: var(--clearwater-teal) !important;
+    border-color: var(--clearwater-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
+.btn-primary:hover,
+.btn-info:hover {
+    background-color: var(--deep-teal) !important;
+    border-color: var(--deep-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
 /* List groups */
 .list-group-item {
     background-color: var(--cloud-white);

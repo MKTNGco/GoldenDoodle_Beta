@@ -157,7 +157,6 @@ a:hover {
 
 /* Demo Prompt Window Styles */
 .demo-prompt-container {
-    margin-top: -450px;
     position: relative;
     z-index: 10;
 }

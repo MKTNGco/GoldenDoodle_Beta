@@ -35,61 +35,47 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    {% if not session.user_id %}
+                <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="loginDropdown" role="button" data-bs-toggle="dropdown">
-                            Login/Sign Up
+                        <a class="nav-link dropdown-toggle" href="#" id="mainMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-bars me-1"></i>Menu
                         </a>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% if not session.user_id %}
                             <li><a class="dropdown-item" href="{{ url_for('login') }}">
                                 <i class="fas fa-sign-in-alt me-2"></i>Login
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('register') }}">
                                 <i class="fas fa-user-plus me-2"></i>Sign Up
                             </a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('chat') if session.user_id else url_for('index') }}">
-                            <i class="fas fa-comments me-1"></i>Chat
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="alert('Coming soon! This page is under development.')">
-                            <i class="fas fa-question-circle me-1"></i>How to GoldenDoodleLM
-                        </a>
-                    </li>
-                    
-                    {% if session.user_id %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('brand_voices') }}">
-                            <i class="fas fa-palette me-1"></i>Brand Voices
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-
-                <ul class="navbar-nav">
-                    {% if session.user_id %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>{{ session.user_name }}
-                        </a>
-                        <ul class="dropdown-menu">
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            
+                            <li><a class="dropdown-item" href="{{ url_for('chat') if session.user_id else url_for('index') }}">
+                                <i class="fas fa-comments me-2"></i>Chat
+                            </a></li>
+                            
+                            <li><a class="dropdown-item" href="#" onclick="alert('Coming soon! This page is under development.')">
+                                <i class="fas fa-question-circle me-2"></i>How to GoldenDoodleLM
+                            </a></li>
+                            
+                            {% if session.user_id %}
+                            <li><a class="dropdown-item" href="{{ url_for('brand_voices') }}">
+                                <i class="fas fa-palette me-2"></i>Brand Voices
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            
                             <li><a class="dropdown-item" href="{{ url_for('account') }}">
                                 <i class="fas fa-user me-2"></i>Account
                             </a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                 <i class="fas fa-sign-out-alt me-2"></i>Logout
                             </a></li>
+                            {% endif %}
                         </ul>
                     </li>
-                    {% endif %}
                 </ul>
             </div>
         </div>

@@ -133,47 +133,75 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route('/chat')
-@login_required
 def chat():
-    """Main chat interface"""
+    """Main chat interface - supports both logged-in users and demo mode"""
     user = get_current_user()
-    if not user:
-        return redirect(url_for('login'))
-    tenant = db_manager.get_tenant_by_id(user.tenant_id)
-    if not tenant:
-        flash('Invalid tenant. Please contact support.', 'error')
-        return redirect(url_for('logout'))
     
-    # Get brand voices
-    company_brand_voices = []
-    if tenant.tenant_type == TenantType.COMPANY:
-        company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-    
-    user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
-    
-    return render_template('chat.html', 
-                         user=user, 
-                         tenant=tenant,
-                         company_brand_voices=company_brand_voices,
-                         user_brand_voices=user_brand_voices,
-                         content_modes=CONTENT_MODE_CONFIG)
+    if user:
+        # Logged-in user - full functionality
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        if not tenant:
+            flash('Invalid tenant. Please contact support.', 'error')
+            return redirect(url_for('logout'))
+        
+        # Get brand voices
+        company_brand_voices = []
+        if tenant.tenant_type == TenantType.COMPANY:
+            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+        
+        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        
+        return render_template('chat.html', 
+                             user=user, 
+                             tenant=tenant,
+                             company_brand_voices=company_brand_voices,
+                             user_brand_voices=user_brand_voices,
+                             content_modes=CONTENT_MODE_CONFIG,
+                             is_demo=False)
+    else:
+        # Demo mode - limited functionality
+        return render_template('chat.html', 
+                             user=None, 
+                             tenant=None,
+                             company_brand_voices=[],
+                             user_brand_voices=[],
+                             content_modes=CONTENT_MODE_CONFIG,
+                             is_demo=True)
 
 @app.route('/generate', methods=['POST'])
-@login_required
 def generate():
-    """Generate AI content"""
+    """Generate AI content - supports both logged-in users and demo mode"""
     try:
         data = request.get_json()
         prompt = data.get('prompt', '').strip()
         content_mode = data.get('content_mode')
         brand_voice_id = data.get('brand_voice_id')
+        is_demo = data.get('is_demo', False)
         
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
         
         user = get_current_user()
-        if not user:
+        
+        if not user and not is_demo:
             return jsonify({'error': 'Authentication required'}), 401
+        
+        # Demo mode - limited functionality
+        if is_demo or not user:
+            # Get trauma-informed context only
+            trauma_informed_context = rag_service.get_trauma_informed_context()
+            
+            # Generate content without brand voice
+            response = gemini_service.generate_content(
+                prompt=prompt,
+                content_mode=content_mode,
+                brand_voice_context=None,
+                trauma_informed_context=trauma_informed_context
+            )
+            
+            return jsonify({'response': response})
+        
+        # Logged-in user - full functionality
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
             return jsonify({'error': 'Invalid tenant'}), 400

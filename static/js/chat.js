@@ -8,6 +8,8 @@ class ChatInterface {
         this.selectedVoiceName = 'Neutral Voice';
         this.placeholderIndex = 0;
         this.placeholderInterval = null;
+        this.isDemoMode = window.isDemoMode || false;
+        this.isLoggedIn = window.isLoggedIn || false;
         
         this.placeholders = [
             "Write a trauma-informed email to donors...",
@@ -31,6 +33,8 @@ class ChatInterface {
         this.autoResizeTextarea();
         this.startPlaceholderRotation();
         this.updateSendButton();
+        this.handleInitialPrompt();
+        this.setupDemoMode();
     }
 
     initializeElements() {
@@ -216,7 +220,8 @@ class ChatInterface {
             const requestData = {
                 prompt: prompt,
                 content_mode: this.currentMode,
-                brand_voice_id: this.selectedBrandVoice || null
+                brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
+                is_demo: this.isDemoMode
             };
 
             const response = await fetch('/generate', {
@@ -334,7 +339,97 @@ class ChatInterface {
         }
     }
 
+    handleInitialPrompt() {
+        // Check for demo prompt from homepage
+        const demoPrompt = sessionStorage.getItem('demoPrompt');
+        const demoMode = sessionStorage.getItem('demoMode');
+        
+        if (demoPrompt) {
+            // Clear the session storage
+            sessionStorage.removeItem('demoPrompt');
+            sessionStorage.removeItem('demoMode');
+            
+            // Set the prompt in the textarea
+            this.chatInput.value = demoPrompt;
+            this.autoResizeTextarea();
+            this.updateSendButton();
+            
+            // Set the mode if available
+            if (demoMode) {
+                const modeButton = document.querySelector(`[data-mode="${demoMode}"]`);
+                if (modeButton) {
+                    this.selectMode(modeButton);
+                }
+            }
+            
+            // Auto-send the message after a brief delay
+            setTimeout(() => {
+                this.sendMessage();
+            }, 500);
+        }
+    }
+
+    setupDemoMode() {
+        if (this.isDemoMode) {
+            // Disable brand voice dropdown if it exists
+            if (this.brandVoiceBtn) {
+                this.brandVoiceBtn.style.cursor = 'not-allowed';
+                this.brandVoiceBtn.style.opacity = '0.7';
+            }
+            
+            // Disable attachment button
+            const attachmentBtn = document.querySelector('.attachment-btn');
+            if (attachmentBtn) {
+                attachmentBtn.style.cursor = 'not-allowed';
+                attachmentBtn.style.opacity = '0.6';
+                attachmentBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.showPremiumMessage();
+                });
+            }
+            
+            // Update welcome screen message for demo users
+            const welcomeScreen = document.querySelector('.welcome-screen');
+            if (welcomeScreen && !this.isLoggedIn) {
+                const heading = welcomeScreen.querySelector('h1');
+                const paragraph = welcomeScreen.querySelector('p');
+                
+                if (heading) heading.textContent = 'Try GoldenDoodleLM';
+                if (paragraph) paragraph.innerHTML = 'Experience trauma-informed AI communication. <a href="/register" class="text-primary">Sign up</a> for full features including brand voice and chat history.';
+            }
+        }
+    }
+
+    showPremiumMessage() {
+        // Show a tooltip-like message for premium features
+        const tooltip = document.createElement('div');
+        tooltip.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--charcoal); color: var(--cloud-white); padding: 16px 20px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                <i class="fas fa-crown" style="color: #fbbf24; margin-right: 8px;"></i>
+                This feature is available with a free account!
+                <div style="margin-top: 8px;">
+                    <a href="/register" style="color: var(--clearwater-teal); text-decoration: underline;">Sign up now</a>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(tooltip);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (tooltip.parentNode) {
+                tooltip.parentNode.removeChild(tooltip);
+            }
+        }, 3000);
+    }
+
     handleAttachment() {
+        // Check if in demo mode
+        if (this.isDemoMode) {
+            this.showPremiumMessage();
+            return;
+        }
+        
         // Create a hidden file input
         const fileInput = document.createElement('input');
         fileInput.type = 'file';

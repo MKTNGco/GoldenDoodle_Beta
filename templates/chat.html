@@ -504,6 +504,7 @@ body {
             <div class="prompt-container">
                 <div class="prompt-card">
                     <div class="prompt-header">
+                        {% if not is_demo %}
                         <div class="brand-voice-selector">
                             <button class="brand-voice-btn" id="brandVoiceBtn">
                                 <svg class="brand-voice-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -525,6 +526,17 @@ body {
                                 {% endif %}
                             </div>
                         </div>
+                        {% else %}
+                        <div class="demo-brand-voice-selector">
+                            <button class="demo-brand-voice-btn" style="cursor: not-allowed; opacity: 0.7;">
+                                <svg class="brand-voice-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z"/>
+                                </svg>
+                                <span>Brand Voice</span>
+                                <i class="fas fa-crown premium-icon"></i>
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <textarea 
@@ -534,7 +546,7 @@ body {
                         rows="1"></textarea>
 
                     <div class="prompt-controls">
-                        <button class="attachment-btn" title="Attach file">
+                        <button class="attachment-btn" title="{% if is_demo %}Attach file (Premium feature){% else %}Attach file{% endif %}" {% if is_demo %}style="cursor: not-allowed; opacity: 0.6;"{% endif %}>
                             <svg class="attachment-icon" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.31 2.69 6 6 6s6-2.69 6-6V6h-2.5z"/>
                             </svg>
@@ -606,5 +618,10 @@ body {
     </div>
 </div>
 
+<script>
+// Pass demo mode and user status to JavaScript
+window.isDemoMode = {{ 'true' if is_demo else 'false' }};
+window.isLoggedIn = {{ 'true' if user else 'false' }};
+</script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

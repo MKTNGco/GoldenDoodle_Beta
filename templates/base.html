@@ -43,35 +43,35 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             {% if not session.user_id %}
                             <li><a class="dropdown-item" href="{{ url_for('login') }}">
-                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                                Login
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('register') }}">
-                                <i class="fas fa-user-plus me-2"></i>Sign Up
+                                Sign Up
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             
                             <li><a class="dropdown-item" href="{{ url_for('chat') if session.user_id else url_for('index') }}">
-                                <i class="fas fa-comments me-2"></i>Chat
+                                Chat
                             </a></li>
                             
                             <li><a class="dropdown-item" href="#" onclick="alert('Coming soon! This page is under development.')">
-                                <i class="fas fa-question-circle me-2"></i>How to GoldenDoodleLM
+                                How to GoldenDoodleLM
                             </a></li>
                             
                             {% if session.user_id %}
                             <li><a class="dropdown-item" href="{{ url_for('brand_voices') }}">
-                                <i class="fas fa-palette me-2"></i>Brand Voices
+                                Brand Voices
                             </a></li>
                             
                             <li><hr class="dropdown-divider"></li>
                             
                             <li><a class="dropdown-item" href="{{ url_for('account') }}">
-                                <i class="fas fa-user me-2"></i>Account
+                                Account
                             </a></li>
                             
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">
-                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                Logout
                             </a></li>
                             {% endif %}
                         </ul>

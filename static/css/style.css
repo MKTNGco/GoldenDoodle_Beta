@@ -828,6 +828,40 @@ a:hover {
     color: var(--cloud-white);
 }
 
+/* CTA Section */
+.cta-section {
+    background: linear-gradient(135deg, var(--clearwater-teal) 0%, var(--deep-teal) 100%);
+    color: var(--cloud-white);
+}
+
+.cta-section h2 {
+    color: var(--cloud-white) !important;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+}
+
+.cta-section .lead {
+    color: rgba(248, 249, 250, 0.8);
+}
+
+.cta-section .btn-light {
+    background-color: var(--cloud-white);
+    border-color: var(--cloud-white);
+    color: var(--clearwater-teal);
+    font-weight: 600;
+    padding: 0.75rem 2rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.cta-section .btn-light:hover {
+    background-color: var(--vapor-gray);
+    border-color: var(--vapor-gray);
+    color: var(--deep-teal);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 /* Footer */
 .footer {
     background-color: var(--vapor-gray);

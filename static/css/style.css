@@ -415,6 +415,21 @@ a:hover {
     .demo-content-modes {
         justify-content: flex-start;
     }
+
+    /* Fix mobile header overlap and adjust positioning */
+    .hero-section .container .row {
+        padding-top: 80px;
+        min-height: calc(100vh - 80px);
+    }
+
+    .hero-section .col-12.text-center.mb-5 {
+        transform: translateY(0px) !important;
+        margin-bottom: 2rem !important;
+    }
+
+    .demo-prompt-container {
+        margin-top: -200px !important;
+    }
 }
 
 @media (max-width: 480px) {
@@ -426,8 +441,23 @@ a:hover {
         padding: 0.5rem 0;
     }
 
+    /* More aggressive mobile fixes for very small screens */
+    .hero-section .container .row {
+        padding-top: 100px !important;
+        min-height: calc(100vh - 100px) !important;
+    }
+
+    .hero-section .col-12.text-center.mb-5 {
+        transform: translateY(0px) !important;
+        margin-bottom: 1.5rem !important;
+    }
+
     .demo-prompt-container {
-        margin-top: 1rem;
+        margin-top: -150px !important;
+    }
+
+    .hero-section h1 {
+        font-size: 1.8rem !important;
     }
 }
 

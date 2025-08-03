@@ -26,7 +26,7 @@ class DatabaseManager:
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             # Create enums
             cursor.execute("""
                 DO $$ BEGIN
@@ -35,7 +35,7 @@ class DatabaseManager:
                     WHEN duplicate_object THEN null;
                 END $$;
             """)
-            
+
             cursor.execute("""
                 DO $$ BEGIN
                     CREATE TYPE subscription_level AS ENUM ('solo', 'pro', 'team', 'enterprise');
@@ -43,7 +43,7 @@ class DatabaseManager:
                     WHEN duplicate_object THEN null;
                 END $$;
             """)
-            
+
             # Create tenants table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tenants (
@@ -55,27 +55,54 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            
+
             # Create users table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     user_id UUID PRIMARY KEY,
-                    tenant_id UUID REFERENCES tenants(tenant_id),
+                    tenant_id UUID NOT NULL,
                     first_name VARCHAR(255) NOT NULL,
                     last_name VARCHAR(255) NOT NULL,
-                    email VARCHAR(255) NOT NULL UNIQUE,
+                    email VARCHAR(255) UNIQUE NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
                     subscription_level subscription_level NOT NULL,
                     is_admin BOOLEAN DEFAULT FALSE,
+                    email_verified BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            
+
+            # Create email verification tokens table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS email_verification_tokens (
+                    token_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id UUID NOT NULL,
+                    token_hash VARCHAR(255) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    used BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """)
+
+            # Create password reset tokens table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                    token_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id UUID NOT NULL,
+                    token_hash VARCHAR(255) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    used BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """)
+
             conn.commit()
             cursor.close()
             conn.close()
             logger.info("Main database initialized successfully")
-            
+
         except Exception as e:
             logger.error(f"Error initializing main database: {e}")
             raise
@@ -86,10 +113,10 @@ class DatabaseManager:
             # Note: In a real Neon setup, you would create a separate database
             # For this implementation, we'll create tenant-specific tables in the main database
             # with tenant_id prefixes to simulate separate databases
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             # Create company brand voices table if it's a company tenant
             if tenant.tenant_type == TenantType.COMPANY:
                 cursor.execute(f"""
@@ -101,7 +128,7 @@ class DatabaseManager:
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
                 """)
-            
+
             # Create user brand voices table
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS user_brand_voices_{tenant.tenant_id.replace('-', '_')} (
@@ -113,12 +140,12 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            
+
             conn.commit()
             cursor.close()
             conn.close()
             logger.info(f"Tenant database created for {tenant.tenant_id}")
-            
+
         except Exception as e:
             logger.error(f"Error creating tenant database: {e}")
             raise
@@ -128,7 +155,7 @@ class DatabaseManager:
         try:
             tenant_id = str(uuid.uuid4())
             database_name = f"tenant_{tenant_id.replace('-', '_')}"
-            
+
             tenant = Tenant(
                 tenant_id=tenant_id,
                 tenant_type=tenant_type,
@@ -136,24 +163,24 @@ class DatabaseManager:
                 database_name=database_name,
                 max_brand_voices=max_brand_voices
             )
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 INSERT INTO tenants (tenant_id, tenant_type, name, database_name, max_brand_voices)
                 VALUES (%s, %s, %s, %s, %s)
             """, (tenant.tenant_id, tenant.tenant_type.value, tenant.name, tenant.database_name, tenant.max_brand_voices))
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             # Create tenant-specific tables
             self.create_tenant_database(tenant)
-            
+
             return tenant
-            
+
         except Exception as e:
             logger.error(f"Error creating tenant: {e}")
             raise
@@ -164,7 +191,7 @@ class DatabaseManager:
         try:
             user_id = str(uuid.uuid4())
             password_hash = generate_password_hash(password)
-            
+
             user = User(
                 user_id=user_id,
                 tenant_id=tenant_id,
@@ -175,22 +202,22 @@ class DatabaseManager:
                 subscription_level=subscription_level,
                 is_admin=is_admin
             )
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             cursor.execute("""
-                INSERT INTO users (user_id, tenant_id, first_name, last_name, email, password_hash, subscription_level, is_admin)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO users (user_id, tenant_id, first_name, last_name, email, password_hash, subscription_level, is_admin, email_verified)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (user.user_id, user.tenant_id, user.first_name, user.last_name, user.email, user.password_hash, 
-                  user.subscription_level.value, user.is_admin))
-            
+                  user.subscription_level.value, user.is_admin, False)) # Set email_verified to False initially
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             return user
-            
+
         except Exception as e:
             logger.error(f"Error creating user: {e}")
             raise
@@ -200,15 +227,15 @@ class DatabaseManager:
         try:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            
+
             cursor.execute("""
                 SELECT * FROM users WHERE email = %s
             """, (email,))
-            
+
             row = cursor.fetchone()
             cursor.close()
             conn.close()
-            
+
             if row:
                 user = User(
                     user_id=str(row['user_id']),
@@ -220,12 +247,13 @@ class DatabaseManager:
                     subscription_level=SubscriptionLevel(row['subscription_level']),
                     is_admin=row['is_admin']
                 )
+                user.email_verified = row['email_verified']  # Add email_verified
                 # Add created_at if available
                 if len(row) > 8:
                     user.created_at = row['created_at']
                 return user
             return None
-            
+
         except Exception as e:
             logger.error(f"Error getting user by email: {e}")
             return None
@@ -235,15 +263,15 @@ class DatabaseManager:
         try:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            
+
             cursor.execute("""
                 SELECT * FROM tenants WHERE tenant_id = %s
             """, (tenant_id,))
-            
+
             row = cursor.fetchone()
             cursor.close()
             conn.close()
-            
+
             if row:
                 return Tenant(
                     tenant_id=str(row['tenant_id']),
@@ -253,30 +281,197 @@ class DatabaseManager:
                     max_brand_voices=row['max_brand_voices']
                 )
             return None
-            
+
         except Exception as e:
             logger.error(f"Error getting tenant by ID: {e}")
             return None
 
     def verify_password(self, user: User, password: str) -> bool:
-        """Verify user password"""
-        return check_password_hash(user.password_hash, password)
+        """Verify a user's password"""
+        try:
+            return check_password_hash(user.password_hash, password)
+        except Exception as e:
+            logger.error(f"Error verifying password: {e}")
+            return False
+
+    def create_verification_token(self, user_id: str, token_hash: str) -> bool:
+        """Create email verification token"""
+        try:
+            from datetime import datetime, timedelta
+            expires_at = datetime.utcnow() + timedelta(hours=24)
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+                VALUES (%s, %s, %s)
+            """, (user_id, token_hash, expires_at))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error creating verification token: {e}")
+            return False
+
+    def verify_email_token(self, token_hash: str) -> Optional[str]:
+        """Verify email token and return user_id if valid"""
+        try:
+            from datetime import datetime
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT user_id FROM email_verification_tokens 
+                WHERE token_hash = %s AND expires_at > %s AND used = FALSE
+            """, (token_hash, datetime.utcnow()))
+
+            row = cursor.fetchone()
+
+            if row:
+                user_id = str(row[0])
+
+                # Mark token as used
+                cursor.execute("""
+                    UPDATE email_verification_tokens 
+                    SET used = TRUE 
+                    WHERE token_hash = %s
+                """, (token_hash,))
+
+                # Mark user email as verified
+                cursor.execute("""
+                    UPDATE users 
+                    SET email_verified = TRUE 
+                    WHERE user_id = %s
+                """, (user_id,))
+
+                conn.commit()
+                cursor.close()
+                conn.close()
+                return user_id
+
+            cursor.close()
+            conn.close()
+            return None
+
+        except Exception as e:
+            logger.error(f"Error verifying email token: {e}")
+            return None
+
+    def create_password_reset_token(self, user_id: str, token_hash: str) -> bool:
+        """Create password reset token"""
+        try:
+            from datetime import datetime, timedelta
+            expires_at = datetime.utcnow() + timedelta(hours=1)
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Delete any existing tokens for this user
+            cursor.execute("""
+                DELETE FROM password_reset_tokens 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            cursor.execute("""
+                INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+                VALUES (%s, %s, %s)
+            """, (user_id, token_hash, expires_at))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error creating password reset token: {e}")
+            return False
+
+    def verify_password_reset_token(self, token_hash: str) -> Optional[str]:
+        """Verify password reset token and return user_id if valid"""
+        try:
+            from datetime import datetime
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT user_id FROM password_reset_tokens 
+                WHERE token_hash = %s AND expires_at > %s AND used = FALSE
+            """, (token_hash, datetime.utcnow()))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                return str(row[0])
+            return None
+
+        except Exception as e:
+            logger.error(f"Error verifying password reset token: {e}")
+            return None
+
+    def use_password_reset_token(self, token_hash: str) -> bool:
+        """Mark password reset token as used"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE password_reset_tokens 
+                SET used = TRUE 
+                WHERE token_hash = %s
+            """, (token_hash,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error marking password reset token as used: {e}")
+            return False
+
+    def resend_verification_email(self, user_id: str) -> bool:
+        """Delete existing verification tokens for user"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                DELETE FROM email_verification_tokens 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error deleting verification tokens: {e}")
+            return False
 
     def get_company_brand_voices(self, tenant_id: str) -> List[BrandVoice]:
         """Get company brand voices for a tenant"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            
+
             table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
             cursor.execute(f"""
                 SELECT * FROM {table_name} ORDER BY name
             """)
-            
+
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            
+
             brand_voices = []
             for row in rows:
                 brand_voices.append(BrandVoice(
@@ -285,9 +480,9 @@ class DatabaseManager:
                     configuration=row['configuration'],
                     markdown_content=row['markdown_content']
                 ))
-            
+
             return brand_voices
-            
+
         except Exception as e:
             logger.error(f"Error getting company brand voices: {e}")
             return []
@@ -297,16 +492,16 @@ class DatabaseManager:
         try:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            
+
             table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
             cursor.execute(f"""
                 SELECT * FROM {table_name} WHERE user_id = %s ORDER BY name
             """, (user_id,))
-            
+
             rows = cursor.fetchall()
             cursor.close()
             conn.close()
-            
+
             brand_voices = []
             for row in rows:
                 brand_voices.append(BrandVoice(
@@ -316,9 +511,9 @@ class DatabaseManager:
                     markdown_content=row['markdown_content'],
                     user_id=str(row['user_id'])
                 ))
-            
+
             return brand_voices
-            
+
         except Exception as e:
             logger.error(f"Error getting user brand voices: {e}")
             return []
@@ -328,10 +523,10 @@ class DatabaseManager:
         """Create a new brand voice"""
         try:
             brand_voice_id = str(uuid.uuid4())
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             if user_id:
                 # User brand voice
                 table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
@@ -346,11 +541,11 @@ class DatabaseManager:
                     INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s)
                 """, (brand_voice_id, name, json.dumps(configuration), markdown_content))
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             return BrandVoice(
                 brand_voice_id=brand_voice_id,
                 name=name,
@@ -358,7 +553,7 @@ class DatabaseManager:
                 markdown_content=markdown_content,
                 user_id=user_id
             )
-            
+
         except Exception as e:
             logger.error(f"Error creating brand voice: {e}")
             raise
@@ -369,10 +564,10 @@ class DatabaseManager:
         try:
             name = wizard_data['voice_short_name']
             configuration = wizard_data.copy()
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             if user_id:
                 # User brand voice
                 table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
@@ -389,14 +584,14 @@ class DatabaseManager:
                     SET name = %s, configuration = %s, markdown_content = %s
                     WHERE brand_voice_id = %s
                 """, (name, json.dumps(configuration), markdown_content, brand_voice_id))
-            
+
             if cursor.rowcount == 0:
                 raise Exception("Brand voice not found or permission denied")
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             return BrandVoice(
                 brand_voice_id=brand_voice_id,
                 name=name,
@@ -404,7 +599,7 @@ class DatabaseManager:
                 markdown_content=markdown_content,
                 user_id=user_id
             )
-            
+
         except Exception as e:
             logger.error(f"Error updating brand voice: {e}")
             raise
@@ -415,13 +610,13 @@ class DatabaseManager:
         try:
             brand_voice_id = str(uuid.uuid4())
             name = wizard_data['voice_short_name']
-            
+
             # Store the comprehensive wizard data as configuration
             configuration = wizard_data.copy()
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             if user_id:
                 # User brand voice
                 table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
@@ -436,11 +631,11 @@ class DatabaseManager:
                     INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s)
                 """, (brand_voice_id, name, json.dumps(configuration), markdown_content))
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             return BrandVoice(
                 brand_voice_id=brand_voice_id,
                 name=name,
@@ -448,7 +643,7 @@ class DatabaseManager:
                 markdown_content=markdown_content,
                 user_id=user_id
             )
-            
+
         except Exception as e:
             logger.error(f"Error creating comprehensive brand voice: {e}")
             raise

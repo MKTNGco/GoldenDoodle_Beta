@@ -5,6 +5,7 @@ from database import db_manager
 from gemini_service import gemini_service
 from rag_service import rag_service
 from models import TenantType, SubscriptionLevel, CONTENT_MODE_CONFIG
+from email_service import email_service, generate_verification_token, hash_token
 import json
 import logging
 import uuid
@@ -92,10 +93,20 @@ def register():
                 is_admin=is_admin
             )
             
-            # Log in user
-            login_user(user)
-            flash('Account created successfully! Welcome to GoldenDoodleLM.', 'success')
-            return redirect(url_for('chat'))
+            # Generate and send verification email
+            verification_token = generate_verification_token()
+            token_hash = hash_token(verification_token)
+            
+            if db_manager.create_verification_token(user.user_id, token_hash):
+                if email_service.send_verification_email(email, verification_token, first_name):
+                    flash('Account created successfully! Please check your email to verify your account before signing in.', 'success')
+                    return redirect(url_for('login'))
+                else:
+                    flash('Account created, but we couldn\'t send the verification email. Please contact support.', 'warning')
+                    return redirect(url_for('login'))
+            else:
+                flash('Account created, but there was an issue with email verification. Please contact support.', 'warning')
+                return redirect(url_for('login'))
             
         except Exception as e:
             logger.error(f"Registration error: {e}")
@@ -116,6 +127,10 @@ def login():
         
         user = db_manager.get_user_by_email(email)
         if user and db_manager.verify_password(user, password):
+            if not user.email_verified:
+                flash('Please verify your email address before signing in. Check your inbox for the verification link.', 'warning')
+                return render_template('login.html', show_resend=True, email=email)
+            
             login_user(user)
             flash('Welcome back!', 'success')
             next_page = request.args.get('next')
@@ -131,6 +146,152 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
+
+@app.route('/verify-email')
+def verify_email():
+    """Email verification endpoint"""
+    token = request.args.get('token')
+    if not token:
+        flash('Invalid verification link.', 'error')
+        return redirect(url_for('login'))
+    
+    token_hash = hash_token(token)
+    user_id = db_manager.verify_email_token(token_hash)
+    
+    if user_id:
+        flash('Email verified successfully! You can now sign in.', 'success')
+        return redirect(url_for('login'))
+    else:
+        flash('Invalid or expired verification link.', 'error')
+        return redirect(url_for('login'))
+
+@app.route('/resend-verification', methods=['POST'])
+def resend_verification():
+    """Resend verification email"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        user = db_manager.get_user_by_email(email)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        if user.email_verified:
+            return jsonify({'error': 'Email is already verified'}), 400
+        
+        # Delete existing tokens and create new one
+        db_manager.resend_verification_email(user.user_id)
+        
+        verification_token = generate_verification_token()
+        token_hash = hash_token(verification_token)
+        
+        if db_manager.create_verification_token(user.user_id, token_hash):
+            if email_service.send_verification_email(email, verification_token, user.first_name):
+                return jsonify({'success': True, 'message': 'Verification email sent successfully'})
+            else:
+                return jsonify({'error': 'Failed to send verification email'}), 500
+        else:
+            return jsonify({'error': 'Failed to create verification token'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error resending verification: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Forgot password page"""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Email address is required.', 'error')
+            return render_template('forgot_password.html')
+        
+        user = db_manager.get_user_by_email(email)
+        if user:
+            # Generate password reset token
+            reset_token = generate_verification_token()
+            token_hash = hash_token(reset_token)
+            
+            if db_manager.create_password_reset_token(user.user_id, token_hash):
+                if email_service.send_password_reset_email(email, reset_token, user.first_name):
+                    flash('Password reset link sent to your email address.', 'success')
+                else:
+                    flash('Failed to send password reset email. Please try again.', 'error')
+            else:
+                flash('Failed to generate password reset link. Please try again.', 'error')
+        else:
+            # Don't reveal if email exists or not
+            flash('If an account with that email exists, a password reset link has been sent.', 'info')
+        
+        return redirect(url_for('login'))
+    
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    """Reset password page"""
+    token = request.args.get('token')
+    if not token:
+        flash('Invalid reset link.', 'error')
+        return redirect(url_for('login'))
+    
+    token_hash = hash_token(token)
+    user_id = db_manager.verify_password_reset_token(token_hash)
+    
+    if not user_id:
+        flash('Invalid or expired reset link.', 'error')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not password or not confirm_password:
+            flash('Password and confirmation are required.', 'error')
+            return render_template('reset_password.html', token=token)
+        
+        if password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return render_template('reset_password.html', token=token)
+        
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long.', 'error')
+            return render_template('reset_password.html', token=token)
+        
+        # Update password
+        from werkzeug.security import generate_password_hash
+        new_password_hash = generate_password_hash(password)
+        
+        try:
+            conn = db_manager.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                UPDATE users 
+                SET password_hash = %s
+                WHERE user_id = %s
+            """, (new_password_hash, user_id))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            # Mark token as used
+            db_manager.use_password_reset_token(token_hash)
+            
+            flash('Password reset successfully! You can now sign in.', 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            logger.error(f"Error resetting password: {e}")
+            flash('An error occurred while resetting your password.', 'error')
+            return render_template('reset_password.html', token=token)
+    
+    return render_template('reset_password.html', token=token)
 
 @app.route('/chat')
 def chat():

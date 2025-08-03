@@ -33,7 +33,8 @@ def get_current_user() -> Optional[User]:
                 email=row[4],
                 password_hash=row[5],
                 subscription_level=SubscriptionLevel(row[6]),
-                is_admin=row[7]
+                is_admin=row[7],
+                email_verified=row[8] if len(row) > 8 else False
             )
     except Exception as e:
         print(f"Error getting current user: {e}")

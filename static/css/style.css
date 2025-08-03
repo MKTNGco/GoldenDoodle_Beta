@@ -923,3 +923,27 @@ a:hover {
     margin: 0;
     font-size: 0.875rem;
 }
+
+/* Mission-Driven Communication Section */
+.mission-heart-container {
+    position: relative;
+}
+
+.mission-heart-graphic {
+    width: 120px;
+    height: 120px;
+    background-color: var(--clearwater-teal);
+    box-shadow: 0 10px 25px -3px rgba(50, 128, 140, 0.3);
+    transition: all 0.3s ease;
+}
+
+.mission-heart-graphic:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px -3px rgba(50, 128, 140, 0.4);
+}
+
+@media (max-width: 991px) {
+    .mission-heart-container {
+        margin-top: 3rem;
+    }
+}

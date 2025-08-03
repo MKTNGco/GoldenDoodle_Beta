@@ -868,15 +868,15 @@ a:hover {
 
 .benefits-row-1 {
     top: 20px;
-    animation-name: floatRowLeft;
+    animation-name: slide-left;
 }
 
 .benefits-row-2 {
     top: 200px;
-    animation-name: floatRowRight;
+    animation-name: slide-right;
 }
 
-@keyframes floatRowLeft {
+@keyframes slide-left {
     0% {
         transform: translateX(-100%);
     }
@@ -885,7 +885,7 @@ a:hover {
     }
 }
 
-@keyframes floatRowRight {
+@keyframes slide-right {
     0% {
         transform: translateX(100%);
     }

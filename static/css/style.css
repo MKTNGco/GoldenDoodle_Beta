@@ -860,10 +860,14 @@ a:hover {
 
 .benefits-row {
     display: flex;
-    gap: 40px;
+    gap: 50px;
     position: absolute;
     width: calc(100% + 300px);
-    animation: floatRow 100s linear infinite;
+    animation: floatRow 114s linear infinite;
+}
+
+.benefits-row:hover {
+    animation-play-state: paused;
 }
 
 .benefits-row-1 {

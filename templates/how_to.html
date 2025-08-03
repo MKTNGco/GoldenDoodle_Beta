@@ -1,0 +1,370 @@
+
+{% extends "base.html" %}
+
+{% block title %}How to GoldenDoodleLM - Guide{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Hero Section -->
+    <div class="text-center mb-5">
+        <h1 class="fw-bold text-primary mb-3" style="font-family: 'Poppins', sans-serif;">Using GoldenDoodleLM Effectively</h1>
+        <p class="lead text-muted">A comprehensive guide to getting the most from your trauma-informed AI assistant</p>
+    </div>
+
+    <!-- Content Mode Guide -->
+    <section class="mb-5">
+        <h2 class="fw-bold text-primary mb-4" style="font-family: 'Poppins', sans-serif;">Content Mode Guide</h2>
+        <p class="text-muted mb-4">GoldenDoodleLM offers specialized content modes, each optimized for different communication needs. Simply click the appropriate button before sending your message.</p>
+        
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-envelope text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Email</h5>
+                        </div>
+                        <p class="text-muted mb-2">Professional, warm email composition with proper formatting and signatures.</p>
+                        <small class="text-muted">Temperature: 0.5 (Professional consistency)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-file-alt text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Article</h5>
+                        </div>
+                        <p class="text-muted mb-2">Structured blog posts and articles with clear headings and engaging content.</p>
+                        <small class="text-muted">Temperature: 0.7 (Balanced creativity)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-share-alt text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Social Media</h5>
+                        </div>
+                        <p class="text-muted mb-2">Platform-appropriate, engaging content designed for social sharing.</p>
+                        <small class="text-muted">Temperature: 0.8 (Creative engagement)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-edit text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Rewrite</h5>
+                        </div>
+                        <p class="text-muted mb-2">Improve existing content while preserving original meaning and intent.</p>
+                        <small class="text-muted">Temperature: 0.4 (Preserves meaning)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-list text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Summarize</h5>
+                        </div>
+                        <p class="text-muted mb-2">Clear, concise summaries highlighting key points from your content.</p>
+                        <small class="text-muted">Temperature: 0.3 (Factual consistency)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-lightbulb text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Brainstorm</h5>
+                        </div>
+                        <p class="text-muted mb-2">Creative idea generation with diverse, thoughtful suggestions.</p>
+                        <small class="text-muted">Temperature: 0.9 (Maximum creativity)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-chart-bar text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Analyze</h5>
+                        </div>
+                        <p class="text-muted mb-2">Thoughtful analysis with insights and detailed observations.</p>
+                        <small class="text-muted">Temperature: 0.4 (Analytical consistency)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3" style="width: 40px; height: 40px; background-color: var(--clearwater-teal); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-comments text-white"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">General</h5>
+                        </div>
+                        <p class="text-muted mb-2">Natural conversation without specific formatting - still trauma-informed.</p>
+                        <small class="text-muted">Temperature: 0.7 (Conversational balance)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <strong>No Selection = General Mode:</strong> When no content mode is selected, GoldenDoodleLM defaults to general conversational mode, providing helpful responses while maintaining trauma-informed principles.
+        </div>
+    </section>
+
+    <!-- Adaptive AI Temperature -->
+    <section class="mb-5">
+        <h2 class="fw-bold text-primary mb-4" style="font-family: 'Poppins', sans-serif;">Adaptive AI Temperature</h2>
+        <p class="text-muted mb-4">GoldenDoodleLM automatically adjusts its creativity level based on your selected content mode:</p>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-0" style="background-color: #e8f5e8;">
+                    <div class="card-body text-center">
+                        <h5 class="fw-bold text-success mb-3">Creative Modes</h5>
+                        <div class="mb-2">
+                            <span class="badge bg-success me-2">💡</span>
+                            <span>Brainstorm (0.9)</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="badge bg-success me-2">📱</span>
+                            <span>Social Media (0.8)</span>
+                        </div>
+                        <small class="text-muted">Higher creativity for diverse ideas</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-0" style="background-color: #e3f2fd;">
+                    <div class="card-body text-center">
+                        <h5 class="fw-bold text-primary mb-3">Balanced Modes</h5>
+                        <div class="mb-2">
+                            <span class="badge bg-primary me-2">📄</span>
+                            <span>Article (0.7)</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="badge bg-primary me-2">💬</span>
+                            <span>General (0.7)</span>
+                        </div>
+                        <small class="text-muted">Natural, engaging responses</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-0" style="background-color: #fff3e0;">
+                    <div class="card-body text-center">
+                        <h5 class="fw-bold text-warning mb-3">Consistent Modes</h5>
+                        <div class="mb-1" style="font-size: 0.9rem;">
+                            <span class="badge bg-warning me-2">📧</span>
+                            <span>Email (0.5)</span>
+                        </div>
+                        <div class="mb-1" style="font-size: 0.9rem;">
+                            <span class="badge bg-warning me-2">✏️</span>
+                            <span>Rewrite (0.4)</span>
+                        </div>
+                        <div class="mb-1" style="font-size: 0.9rem;">
+                            <span class="badge bg-warning me-2">📊</span>
+                            <span>Analyze (0.4)</span>
+                        </div>
+                        <div class="mb-3" style="font-size: 0.9rem;">
+                            <span class="badge bg-warning me-2">📋</span>
+                            <span>Summarize (0.3)</span>
+                        </div>
+                        <small class="text-muted">Professional reliability</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trauma-Informed AI Principles -->
+    <section class="mb-5">
+        <h2 class="fw-bold text-primary mb-4" style="font-family: 'Poppins', sans-serif;">Trauma-Informed AI Principles</h2>
+        <p class="text-muted mb-4">GoldenDoodleLM is specifically designed to respond with compassion and understanding, regardless of your input. Our AI maintains trauma-informed principles in every interaction:</p>
+        
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="me-3 text-center" style="min-width: 40px;">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-weight: bold;">1</div>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-2">Non-Judgmental Response</h5>
+                                <p class="text-muted mb-0">No matter what you share, GoldenDoodleLM responds courteously without judgment or criticism.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="me-3 text-center" style="min-width: 40px;">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-weight: bold;">2</div>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-2">Person-First Language</h5>
+                                <p class="text-muted mb-0">Uses respectful, empowering language that focuses on strengths and possibilities.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="me-3 text-center" style="min-width: 40px;">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-weight: bold;">3</div>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-2">Cultural Sensitivity</h5>
+                                <p class="text-muted mb-0">Maintains inclusive, culturally aware communication across all interactions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="me-3 text-center" style="min-width: 40px;">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-weight: bold;">4</div>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-2">Empowering Communication</h5>
+                                <p class="text-muted mb-0">Chooses words that build confidence rather than using deficit-based language.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert" style="background-color: var(--aqua-mist); border-color: var(--clearwater-teal); color: var(--charcoal);">
+            <h5 class="fw-bold text-primary">Safe Space Promise</h5>
+            <p class="mb-0">GoldenDoodleLM is trained to be a safe space for all communication. Whether you're drafting sensitive content, working through difficult topics, or need support with challenging conversations, the AI responds with consistent warmth and understanding.</p>
+        </div>
+    </section>
+
+    <!-- File Upload Capabilities -->
+    <section class="mb-5">
+        <h2 class="fw-bold text-primary mb-4" style="font-family: 'Poppins', sans-serif;">File Upload Capabilities</h2>
+        <p class="text-muted mb-4">Upload documents to enhance your prompts with context:</p>
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3 text-primary">Supported Formats:</h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-file-alt text-primary me-2"></i>Text files (.txt)</li>
+                            <li class="mb-2"><i class="fas fa-file-csv text-primary me-2"></i>CSV spreadsheets (.csv)</li>
+                            <li class="mb-2"><i class="fas fa-file-pdf text-primary me-2"></i>PDF documents (.pdf)</li>
+                            <li class="mb-2"><i class="fas fa-file-word text-primary me-2"></i>Word documents (.docx)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3 text-primary">Best Practices:</h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Use with Summarize mode for document analysis</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Combine with Analyze mode for insights</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Perfect for content review and improvement</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>All content processed with trauma-informed lens</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Real-Time Information Access -->
+    <section class="mb-5">
+        <h2 class="fw-bold text-primary mb-4" style="font-family: 'Poppins', sans-serif;">Real-Time Information Access</h2>
+        <p class="text-muted mb-4">GoldenDoodleLM automatically detects when you need current information and accesses live data:</p>
+        
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3 text-primary">Triggers for Live Data:</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-cloud-sun text-primary me-2"></i>Weather updates</li>
+                            <li class="mb-2"><i class="fas fa-newspaper text-primary me-2"></i>Current news</li>
+                            <li class="mb-2"><i class="fas fa-chart-line text-primary me-2"></i>Stock prices</li>
+                            <li class="mb-2"><i class="fas fa-trophy text-primary me-2"></i>Sports scores</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-calendar-day text-primary me-2"></i>Recent events</li>
+                            <li class="mb-2"><i class="fas fa-clock text-primary me-2"></i>Today's information</li>
+                            <li class="mb-2"><i class="fas fa-rocket text-primary me-2"></i>Latest releases</li>
+                            <li class="mb-2"><i class="fas fa-chart-bar text-primary me-2"></i>Market updates</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section text-center py-5 rounded-3">
+        <div class="container">
+            <h2 class="fw-bold mb-3">Ready to Experience Trauma-Informed AI?</h2>
+            <p class="lead mb-4">Start creating compassionate, effective content with GoldenDoodleLM today.</p>
+            {% if not session.user_id %}
+            <a href="{{ url_for('register') }}" class="btn btn-light btn-lg me-3">Get Started</a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">Sign In</a>
+            {% else %}
+            <a href="{{ url_for('chat') }}" class="btn btn-light btn-lg">Start Chatting</a>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

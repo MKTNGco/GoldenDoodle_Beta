@@ -208,6 +208,11 @@ def generate():
         logger.error(f"Generation error: {e}")
         return jsonify({'error': 'An error occurred while generating content. Please try again.'}), 500
 
+@app.route('/how-to')
+def how_to():
+    """How to use GoldenDoodleLM guide page"""
+    return render_template('how_to.html')
+
 @app.route('/account')
 @login_required
 def account():

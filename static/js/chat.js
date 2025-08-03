@@ -28,13 +28,15 @@ class ChatInterface {
             "Fetch me an article about community impact..."
         ];
         
-        this.initializeElements();
-        this.bindEvents();
-        this.autoResizeTextarea();
-        this.startPlaceholderRotation();
-        this.updateSendButton();
-        this.handleInitialPrompt();
-        this.setupDemoMode();
+        // Only initialize if we're on the chat page
+        if (this.initializeElements()) {
+            this.bindEvents();
+            this.autoResizeTextarea();
+            this.startPlaceholderRotation();
+            this.updateSendButton();
+            this.handleInitialPrompt();
+            this.setupDemoMode();
+        }
     }
 
     initializeElements() {
@@ -47,45 +49,61 @@ class ChatInterface {
         this.modeButtons = document.querySelectorAll('.mode-btn[data-mode]');
         this.moreModesBtn = document.getElementById('moreModesBtn');
         this.secondaryModes = document.getElementById('secondaryModes');
+        
+        // Check if we're on the chat page
+        if (!this.chatInput || !this.sendBtn || !this.chatMessages) {
+            console.log('Chat elements not found - not on chat page');
+            return false;
+        }
+        return true;
     }
 
     bindEvents() {
         // Textarea events
-        this.chatInput.addEventListener('input', () => {
-            this.autoResizeTextarea();
-            this.updateSendButton();
-        });
-        
-        this.chatInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
+        if (this.chatInput) {
+            this.chatInput.addEventListener('input', () => {
+                this.autoResizeTextarea();
+                this.updateSendButton();
+            });
+            
+            this.chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
 
-        this.chatInput.addEventListener('focus', () => {
-            this.stopPlaceholderRotation();
-        });
+            this.chatInput.addEventListener('focus', () => {
+                this.stopPlaceholderRotation();
+            });
 
-        this.chatInput.addEventListener('blur', () => {
-            if (!this.chatInput.value.trim()) {
-                this.startPlaceholderRotation();
-            }
-        });
+            this.chatInput.addEventListener('blur', () => {
+                if (!this.chatInput.value.trim()) {
+                    this.startPlaceholderRotation();
+                }
+            });
+        }
 
         // Send button
-        this.sendBtn.addEventListener('click', () => this.sendMessage());
+        if (this.sendBtn) {
+            this.sendBtn.addEventListener('click', () => this.sendMessage());
+        }
 
         // Attachment button
-        document.querySelector('.attachment-btn').addEventListener('click', () => {
-            this.handleAttachment();
-        });
+        const attachmentBtn = document.querySelector('.attachment-btn');
+        if (attachmentBtn) {
+            attachmentBtn.addEventListener('click', () => {
+                this.handleAttachment();
+            });
+        }
 
         // Brand voice selector
-        this.brandVoiceBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.toggleBrandVoiceDropdown();
-        });
+        if (this.brandVoiceBtn) {
+            this.brandVoiceBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleBrandVoiceDropdown();
+            });
+        }
 
         // Brand voice options
         document.querySelectorAll('.brand-voice-option').forEach(option => {
@@ -95,20 +113,28 @@ class ChatInterface {
         });
 
         // Mode buttons
-        this.modeButtons.forEach(btn => {
-            btn.addEventListener('click', () => this.selectMode(btn));
-        });
+        if (this.modeButtons) {
+            this.modeButtons.forEach(btn => {
+                btn.addEventListener('click', () => this.selectMode(btn));
+            });
+        }
 
         // More modes toggle
-        this.moreModesBtn.addEventListener('click', () => this.toggleMoreModes());
+        if (this.moreModesBtn) {
+            this.moreModesBtn.addEventListener('click', () => this.toggleMoreModes());
+        }
 
         // Global click to close dropdown
         document.addEventListener('click', () => {
-            this.closeBrandVoiceDropdown();
+            if (this.brandVoiceDropdown) {
+                this.closeBrandVoiceDropdown();
+            }
         });
     }
 
     autoResizeTextarea() {
+        if (!this.chatInput) return;
+        
         this.chatInput.style.height = 'auto';
         const scrollHeight = this.chatInput.scrollHeight;
         const maxHeight = 200; // Max height in pixels
@@ -123,7 +149,7 @@ class ChatInterface {
     }
 
     startPlaceholderRotation() {
-        if (this.placeholderInterval) return;
+        if (this.placeholderInterval || !this.chatInput) return;
         
         this.placeholderInterval = setInterval(() => {
             this.placeholderIndex = (this.placeholderIndex + 1) % this.placeholders.length;
@@ -189,6 +215,8 @@ class ChatInterface {
     }
 
     updateSendButton() {
+        if (!this.chatInput || !this.sendBtn) return;
+        
         const hasText = this.chatInput.value.trim().length > 0;
         this.sendBtn.disabled = !hasText || this.isGenerating;
     }
@@ -344,7 +372,7 @@ class ChatInterface {
         const demoPrompt = sessionStorage.getItem('demoPrompt');
         const demoMode = sessionStorage.getItem('demoMode');
         
-        if (demoPrompt) {
+        if (demoPrompt && this.chatInput) {
             // Clear the session storage
             sessionStorage.removeItem('demoPrompt');
             sessionStorage.removeItem('demoMode');

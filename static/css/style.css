@@ -860,10 +860,10 @@ a:hover {
 
 .benefits-row {
     display: flex;
-    gap: 50px;
+    gap: 40px;
     position: absolute;
     width: calc(100% + 300px);
-    animation: floatRow 114s linear infinite;
+    animation: floatRow 100s linear infinite;
 }
 
 .benefits-row-1 {
@@ -877,28 +877,20 @@ a:hover {
 }
 
 @keyframes slide-left {
-    0% {
-        transform: translateX(-100%);
-    }
-    100% {
-        transform: translateX(100%);
-    }
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
 }
 
 @keyframes slide-right {
-    0% {
-        transform: translateX(100%);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
 }
 
 .benefit-card {
     background: var(--cloud-white);
     border: 1px solid var(--vapor-gray);
-    border-radius: 10px;
-    padding: 30px;
+    border-radius: 5px;
+    padding: 20px;
     min-width: 380px;
     max-width: 380px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);

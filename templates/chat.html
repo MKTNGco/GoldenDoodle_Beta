@@ -9,8 +9,8 @@
 
 <style>
 :root {
-    --primary-color: #6366f1;
-    --primary-dark: #4338ca;
+    --primary-color: #32808c;
+    --primary-dark: #256069;
     --bg-light: #f8fafc;
     --bg-white: #ffffff;
     --text-primary: #1f2937;
@@ -22,12 +22,12 @@
     --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
 
     /* Harbor Design System Colors */
-    --clearwater-teal: #2AB8B8;
-    --deep-teal: #209292;
-    --cloud-white: #F9FAFB;
-    --aqua-mist: #EAF5F5;
-    --vapor-gray: #D1D5DB;
-    --charcoal: #374151;
+    --clearwater-teal: #32808c;
+    --deep-teal: #256069;
+    --cloud-white: #f8f9fa;
+    --aqua-mist: #cce5e8;
+    --vapor-gray: #e9ecef;
+    --charcoal: #212529;
 }
 
 body {
@@ -82,8 +82,8 @@ body {
     width: 44px;
     height: 44px;
     border-radius: 22px;
-    background: var(--primary-color);
-    color: white;
+    background: var(--clearwater-teal);
+    color: var(--cloud-white);
     border: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -96,7 +96,7 @@ body {
 
 .new-chat-btn:hover {
     transform: scale(1.05);
-    background: var(--primary-dark);
+    background: var(--deep-teal);
 }
 
 .sidebar:hover .new-chat-btn {
@@ -166,8 +166,8 @@ body {
 }
 
 .message-user .message-bubble {
-    background: var(--primary-color);
-    color: white;
+    background: var(--clearwater-teal);
+    color: var(--cloud-white);
 }
 
 .message-ai .message-bubble {
@@ -225,8 +225,8 @@ body {
 }
 
 .prompt-card:focus-within {
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(50, 128, 140, 0.1);
+    border-color: var(--clearwater-teal);
 }
 
 .prompt-header {
@@ -398,8 +398,8 @@ body {
 }
 
 .mode-btn:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+    border-color: var(--clearwater-teal);
+    color: var(--clearwater-teal);
 }
 
 .mode-btn.active {

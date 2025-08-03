@@ -72,6 +72,19 @@ class DatabaseManager:
                 );
             """)
 
+            # Add email_verified column if it doesn't exist (for existing databases)
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'email_verified'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
+                    END IF;
+                END $$;
+            """)
+
             # Create email verification tokens table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS email_verification_tokens (

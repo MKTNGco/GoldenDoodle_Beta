@@ -331,12 +331,24 @@ class BrandVoiceWizard {
         return formData;
     }
 
+    validateRequiredFields() {
+        const hasCompanyName = this.companyNameInput && this.companyNameInput.value.trim().length > 0;
+        const hasCompanyUrl = this.companyUrlInput && this.companyUrlInput.value.trim().length > 0;
+        const hasVoiceShortName = this.voiceShortNameInput && this.voiceShortNameInput.value.trim().length > 0;
+        
+        return hasCompanyName && hasCompanyUrl && hasVoiceShortName;
+    }
+
     async handleSubmit(event) {
         event.preventDefault();
 
         // Validate required fields
         if (!this.validateRequiredFields()) {
             this.showAlert('Please fill in all required fields (Company Name, Company URL, and Voice Short Name).', 'danger');
+            this.currentStep = 1; // Go back to first step
+            this.updateStepVisibility();
+            this.updateNavigationButtons();
+            this.updateProgress();
             return;
         }
 
@@ -348,14 +360,23 @@ class BrandVoiceWizard {
 
         try {
             const formData = this.collectFormData();
-            formData.profile_id = this.profileId;
-
-            // Add brand voice ID for editing
+            
+            // Don't set profile_id for creation, only for editing
             if (this.isEditing && this.profileId) {
                 formData.brand_voice_id = this.profileId;
             }
 
-            console.log('Submitting form data:', formData); // Debug log
+            // Add voice_type explicitly
+            formData.voice_type = 'company'; // Always create as company voice
+            
+            console.log('Submitting form data:', {
+                company_name: formData.company_name,
+                company_url: formData.company_url,
+                voice_short_name: formData.voice_short_name,
+                voice_type: formData.voice_type,
+                is_editing: this.isEditing,
+                profile_id: this.profileId
+            }); // Debug log (limited to avoid logging sensitive data)
 
             const response = await fetch('/create-brand-voice', {
                 method: 'POST',
@@ -365,13 +386,14 @@ class BrandVoiceWizard {
                 body: JSON.stringify(formData)
             });
 
-            console.log('Response status:', response.status); // Debug log
+            console.log('Response status:', response.status, response.statusText); // Debug log
 
             if (!response.ok) {
                 // Try to get error details from response
                 let errorMessage = 'An error occurred while creating the brand voice.';
                 try {
                     const errorResult = await response.json();
+                    console.error('Server error response:', errorResult);
                     errorMessage = errorResult.error || errorMessage;
                 } catch (parseError) {
                     console.error('Failed to parse error response:', parseError);
@@ -384,7 +406,10 @@ class BrandVoiceWizard {
             console.log('Success result:', result); // Debug log
 
             if (result.success) {
-                this.showAlert(result.message, 'success');
+                this.showAlert(`✓ ${result.message}`, 'success');
+
+                // Clear any auto-save data
+                this.profileId = null;
 
                 // Redirect to brand voices page after a short delay
                 setTimeout(() => {

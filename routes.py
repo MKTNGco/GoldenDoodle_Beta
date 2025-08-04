@@ -751,10 +751,13 @@ def create_brand_voice():
         brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
 
         logger.info(f"=== BRAND VOICE CREATION DEBUG ===")
+        logger.info(f"Request method: {request.method}")
+        logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not set')}")
+        logger.info(f"Request data received: {bool(data)}")
         logger.info(f"Creating brand voice: '{voice_short_name}' for voice_type: {voice_type}")
         logger.info(f"Company: '{company_name}', URL: '{company_url}'")
         logger.info(f"Is editing: {bool(brand_voice_id)}")
-        logger.info(f"Raw data keys: {list(data.keys())}")
+        logger.info(f"Raw data keys: {list(data.keys()) if data else 'No data'}")
 
         if not all([company_name, company_url, voice_short_name]):
             logger.error(f"Missing required fields: company_name={bool(company_name)}, company_url={bool(company_url)}, voice_short_name={bool(voice_short_name)}")
@@ -769,7 +772,8 @@ def create_brand_voice():
             logger.error(f"Invalid tenant for user {user.user_id}")
             return jsonify({'error': 'Invalid tenant'}), 400
 
-        logger.info(f"User: {user.user_id}, Tenant: {tenant.tenant_id}")
+        logger.info(f"User: {user.user_id} ({user.email}), Tenant: {tenant.tenant_id} ({tenant.name})")
+        logger.info(f"Tenant type: {tenant.tenant_type}, Max voices: {tenant.max_brand_voices}")
 
         # Determine if this is an edit or create operation
         is_editing = bool(brand_voice_id)
@@ -864,19 +868,25 @@ def create_brand_voice():
                 'message': f'Brand voice "{voice_short_name}" updated successfully!'
             })
         else:
+            logger.info(f"About to call create_comprehensive_brand_voice with:")
+            logger.info(f"  tenant_id: {tenant.tenant_id}")
+            logger.info(f"  voice_short_name: {voice_short_name}")
+            logger.info(f"  user_id: {user_id}")
+            logger.info(f"  markdown_content length: {len(markdown_content)}")
+            
             brand_voice = db_manager.create_comprehensive_brand_voice(
                 tenant_id=tenant.tenant_id,
                 wizard_data=wizard_data,
                 markdown_content=markdown_content,
                 user_id=user_id
             )
-            logger.info(f"Created brand voice: {brand_voice.brand_voice_id}")
+            logger.info(f"✓ Successfully created brand voice: {brand_voice.brand_voice_id}")
             
             # Debugging: Fetch all company voices again to see if the new one is present
             current_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            logger.info(f"Existing company voices AFTER creation: {len(current_company_voices)}/{tenant.max_brand_voices}")
+            logger.info(f"Company voices AFTER creation: {len(current_company_voices)}/{tenant.max_brand_voices}")
             for voice in current_company_voices:
-                logger.info(f"  Current voice: '{voice.name}' (ID: {voice.brand_voice_id})")
+                logger.info(f"  Voice: '{voice.name}' (ID: {voice.brand_voice_id})")
 
             return jsonify({
                 'success': True,

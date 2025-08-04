@@ -107,8 +107,10 @@ class ChatInterface {
 
         // Brand voice options
         document.querySelectorAll('.brand-voice-option').forEach(option => {
-            option.addEventListener('click', () => {
-                this.selectBrandVoice(option.dataset.value, option.textContent);
+            option.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.selectBrandVoice(option.dataset.value, option.textContent.trim());
             });
         });
 

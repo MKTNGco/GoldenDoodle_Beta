@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}Chat - GoldenDoodleLM{% endblock %}
@@ -131,7 +132,7 @@ body {
 .chat-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 2rem 1rem;
+    padding: 2rem 1rem 1rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -203,12 +204,13 @@ body {
     max-width: 600px;
 }
 
-/* Prompt Input Area */
+/* Compact Prompt Input Area */
 .prompt-area {
-    padding: 2rem 1rem;
+    padding: 0.75rem 1rem 1.5rem 1rem;
     display: flex;
     justify-content: center;
     background: var(--bg-light);
+    border-top: 1px solid var(--border-light);
 }
 
 .prompt-container {
@@ -218,100 +220,39 @@ body {
 
 .prompt-card {
     background: var(--bg-white);
-    border-radius: 20px;
+    border-radius: 24px;
     border: 1px solid var(--border-light);
-    padding: 16px;
     box-shadow: var(--shadow-sm);
     transition: all 0.2s ease;
     position: relative;
+    overflow: hidden;
 }
 
 .prompt-card:focus-within {
-    box-shadow: 0 0 0 3px rgba(50, 128, 140, 0.1);
+    box-shadow: 0 0 0 2px rgba(50, 128, 140, 0.1);
     border-color: var(--clearwater-teal);
 }
 
-.prompt-header {
+.prompt-input-container {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.brand-voice-selector {
-    position: relative;
-}
-
-.brand-voice-btn {
-    display: flex;
-    align-items: center;
-    padding: 6px 12px;
-    background: var(--bg-light);
-    border: 1px solid var(--border-light);
-    border-radius: 20px;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.brand-voice-btn:hover {
-    background: var(--border-light);
-}
-
-.brand-voice-icon {
-    width: 14px;
-    height: 14px;
-    margin-right: 6px;
-}
-
-.brand-voice-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background: var(--cloud-white);
-    border: 1px solid var(--vapor-gray);
-    border-radius: 8px;
-    box-shadow: var(--shadow-md);
-    min-width: 200px;
-    z-index: 1000;
-    display: none;
-    margin-top: 4px;
-}
-
-.brand-voice-dropdown.show {
-    display: block;
-}
-
-.brand-voice-option {
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: var(--charcoal);
-    border-bottom: 1px solid var(--vapor-gray);
-}
-
-.brand-voice-option:last-child {
-    border-bottom: none;
-}
-
-.brand-voice-option:hover {
-    background: var(--aqua-mist);
+    align-items: flex-end;
+    padding: 16px 20px;
+    gap: 12px;
 }
 
 .prompt-textarea {
-    width: 100%;
-    min-height: 160px;
-    max-height: 500px;
+    flex: 1;
+    min-height: 24px;
+    max-height: 168px; /* ~7 lines */
     border: none;
     background: transparent;
     resize: none;
     outline: none;
     font-family: inherit;
     font-size: 1rem;
-    line-height: 1.6;
+    line-height: 1.5;
     color: var(--text-primary);
-    padding: 20px 0;
+    overflow-y: auto;
 }
 
 .prompt-textarea::placeholder {
@@ -319,17 +260,29 @@ body {
     transition: opacity 0.3s ease;
 }
 
+.prompt-textarea::-webkit-scrollbar {
+    width: 4px;
+}
+
+.prompt-textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.prompt-textarea::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 2px;
+}
+
 .prompt-controls {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-top: 12px;
+    gap: 8px;
 }
 
 .attachment-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
     border: none;
     background: transparent;
     cursor: pointer;
@@ -341,19 +294,82 @@ body {
 }
 
 .attachment-btn:hover {
-    background: var(--aqua-mist);
+    background: var(--border-light);
     color: var(--clearwater-teal);
-    transform: scale(1.05);
 }
 
-.attachment-btn:active {
-    transform: scale(0.95);
+/* Brand Voice Selector (Claude-style) */
+.brand-voice-selector {
+    position: relative;
+}
+
+.brand-voice-btn {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    max-width: 150px;
+}
+
+.brand-voice-btn:hover {
+    border-color: var(--clearwater-teal);
+    color: var(--clearwater-teal);
+}
+
+.brand-voice-btn .voice-name {
+    margin-right: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brand-voice-dropdown {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: var(--cloud-white);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    min-width: 200px;
+    z-index: 1000;
+    display: none;
+    margin-bottom: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.brand-voice-dropdown.show {
+    display: block;
+}
+
+.brand-voice-option {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--charcoal);
+    border-bottom: 1px solid var(--vapor-gray);
+    transition: background-color 0.2s ease;
+}
+
+.brand-voice-option:last-child {
+    border-bottom: none;
+}
+
+.brand-voice-option:hover {
+    background: var(--aqua-mist);
 }
 
 .send-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
     border: none;
     background: var(--clearwater-teal);
     color: var(--cloud-white);
@@ -366,13 +382,11 @@ body {
 
 .send-btn:hover:not(:disabled) {
     background: var(--deep-teal);
-    transform: scale(1.05);
 }
 
 .send-btn:disabled {
     background: var(--text-muted);
     cursor: not-allowed;
-    transform: none;
 }
 
 .send-icon, .attachment-icon {
@@ -380,22 +394,22 @@ body {
     height: 16px;
 }
 
-/* Content Mode Buttons */
+/* Content Mode Buttons - Bottom of input */
 .content-modes {
     display: flex;
     gap: 8px;
-    margin-top: 16px;
+    padding: 8px 20px 16px 20px;
     flex-wrap: wrap;
-    justify-content: center;
+    align-items: center;
 }
 
 .mode-btn {
     display: flex;
     align-items: center;
-    padding: 8px 16px;
-    background: var(--bg-white);
-    border: 1px solid var(--border-light);
-    border-radius: 20px;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 16px;
     font-size: 0.875rem;
     color: var(--text-secondary);
     cursor: pointer;
@@ -404,13 +418,12 @@ body {
 }
 
 .mode-btn:hover {
-    border-color: var(--clearwater-teal);
+    background: var(--border-light);
     color: var(--clearwater-teal);
 }
 
 .mode-btn.active {
     background: var(--text-primary);
-    border-color: var(--text-primary);
     color: white;
 }
 
@@ -428,8 +441,10 @@ body {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    justify-content: center;
+    align-items: center;
     margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
 }
 
 /* Loading spinner */
@@ -519,7 +534,7 @@ body {
     }
 
     .prompt-area {
-        padding: 1rem;
+        padding: 0.5rem;
     }
 
     .content-modes {
@@ -530,14 +545,17 @@ body {
         font-size: 2rem;
     }
 
-    /* Make action buttons more touch-friendly on mobile */
     .action-btn {
         width: 32px;
         height: 32px;
     }
 
     .message-actions {
-        opacity: 1; /* Always show on mobile since there's no hover */
+        opacity: 1;
+    }
+
+    .brand-voice-btn {
+        max-width: 120px;
     }
 }
 </style>
@@ -567,119 +585,117 @@ body {
             </div>
         </div>
 
-        <!-- Prompt Input Area -->
+        <!-- Compact Prompt Input Area -->
         <div class="prompt-area">
             <div class="prompt-container">
                 <div class="prompt-card">
-                    <div class="prompt-header">
-                        {% if not is_demo %}
-                        <div class="brand-voice-selector">
-                            <button class="brand-voice-btn" id="brandVoiceBtn">
-                                <svg class="brand-voice-icon" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z"/>
-                                </svg>
-                                <span id="selectedVoiceName">Neutral Voice</span>
-                            </button>
-                            <div class="brand-voice-dropdown" id="brandVoiceDropdown">
-                                <div class="brand-voice-option" data-value="">Neutral (No brand voice)</div>
-                                {% if company_brand_voices %}
-                                {% for voice in company_brand_voices %}
-                                <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
-                                {% endfor %}
-                                {% endif %}
-                                {% if user_brand_voices %}
-                                {% for voice in user_brand_voices %}
-                                <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
-                                {% endfor %}
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="demo-brand-voice-selector">
-                            <button class="demo-brand-voice-btn" style="cursor: not-allowed; opacity: 0.7;">
-                                <svg class="brand-voice-icon" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z"/>
-                                </svg>
-                                <span>Brand Voice</span>
-                                <i class="fas fa-crown premium-icon"></i>
-                            </button>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <textarea 
-                        class="prompt-textarea" 
-                        id="chatInput"
-                        placeholder="Write a trauma-informed email to donors..."
-                        rows="1"></textarea>
-
-                    <div class="prompt-controls">
+                    <div class="prompt-input-container">
                         <button class="attachment-btn" title="{% if is_demo %}Attach file (Premium feature){% else %}Attach file{% endif %}" {% if is_demo %}style="cursor: not-allowed; opacity: 0.6;"{% endif %}>
                             <svg class="attachment-icon" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.31 2.69 6 6 6s6-2.69 6-6V6h-2.5z"/>
                             </svg>
                         </button>
-                        <button class="send-btn" id="sendBtn" disabled>
-                            <svg class="send-icon" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                            </svg>
-                        </button>
+
+                        <textarea 
+                            class="prompt-textarea" 
+                            id="chatInput"
+                            placeholder="Message GoldenDoodleLM..."
+                            rows="1"></textarea>
+
+                        <div class="prompt-controls">
+                            {% if not is_demo %}
+                            <div class="brand-voice-selector">
+                                <button class="brand-voice-btn" id="brandVoiceBtn">
+                                    <span class="voice-name" id="selectedVoiceName">Neutral</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M7 10l5 5 5-5z"/>
+                                    </svg>
+                                </button>
+                                <div class="brand-voice-dropdown" id="brandVoiceDropdown">
+                                    <div class="brand-voice-option" data-value="">Neutral (No brand voice)</div>
+                                    {% if company_brand_voices %}
+                                    {% for voice in company_brand_voices %}
+                                    <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
+                                    {% endfor %}
+                                    {% endif %}
+                                    {% if user_brand_voices %}
+                                    {% for voice in user_brand_voices %}
+                                    <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
+                                    {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="demo-brand-voice-selector">
+                                <button class="brand-voice-btn" style="cursor: not-allowed; opacity: 0.7;">
+                                    <span class="voice-name">Brand Voice</span>
+                                    <i class="fas fa-crown premium-icon" style="color: #fbbf24; font-size: 10px; margin-left: 4px;"></i>
+                                </button>
+                            </div>
+                            {% endif %}
+
+                            <button class="send-btn" id="sendBtn" disabled>
+                                <svg class="send-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Content Mode Buttons -->
-                <div class="content-modes">
-                    <button class="mode-btn" data-mode="email">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.89 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-                        </svg>
-                        Email
-                    </button>
-                    <button class="mode-btn" data-mode="article">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-                        </svg>
-                        Article
-                    </button>
-                    <button class="mode-btn" data-mode="social_media">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
-                        </svg>
-                        Social
-                    </button>
-                    <button class="mode-btn" data-mode="rewrite">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                        </svg>
-                        Rewrite
-                    </button>
-                    <button class="mode-btn" id="moreModesBtn">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-                        </svg>
-                        More
-                    </button>
-                </div>
+                    <!-- Content Mode Buttons at Bottom -->
+                    <div class="content-modes">
+                        <button class="mode-btn" data-mode="email">
+                            <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.89 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                            </svg>
+                            Email
+                        </button>
+                        <button class="mode-btn" data-mode="article">
+                            <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                            </svg>
+                            Article
+                        </button>
+                        <button class="mode-btn" data-mode="social_media">
+                            <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            Social
+                        </button>
+                        <button class="mode-btn" data-mode="rewrite">
+                            <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Rewrite
+                        </button>
+                        <button class="mode-btn" id="moreModesBtn">
+                            <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                            </svg>
+                            More
+                        </button>
 
-                <div class="secondary-modes" id="secondaryModes">
-                    <button class="mode-btn" data-mode="summarize">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/>
-                        </svg>
-                        Summarize
-                    </button>
-                    <button class="mode-btn" data-mode="brainstorm">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/>
-                        </svg>
-                        Brainstorm
-                    </button>
-                    <button class="mode-btn" data-mode="analyze">
-                        <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-                        </svg>
-                        Analyze
-                    </button>
+                        <div class="secondary-modes" id="secondaryModes">
+                            <button class="mode-btn" data-mode="summarize">
+                                <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/>
+                                </svg>
+                                Summarize
+                            </button>
+                            <button class="mode-btn" data-mode="brainstorm">
+                                <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/>
+                                </svg>
+                                Brainstorm
+                            </button>
+                            <button class="mode-btn" data-mode="analyze">
+                                <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                                </svg>
+                                Analyze
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

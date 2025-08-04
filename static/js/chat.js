@@ -11,20 +11,15 @@ class ChatInterface {
         this.isLoggedIn = window.isLoggedIn || false;
 
         this.placeholders = [
-            "Write a trauma-informed email to donors...",
-            "Create a compassionate program announcement...",
-            "Draft sensitive client communication...",
-            "Play with GoldenDoodleLM - try any prompt!",
-            "Brainstorm inclusive fundraising ideas...",
-            "Speak with GoldenDoodleLM about your needs...",
-            "Analyze survey data with privacy protection...",
-            "Fetch me a social media post for our cause...",
-            "Rewrite this content with trauma awareness...",
-            "Summarize this report for our board...",
+            "Message GoldenDoodleLM...",
+            "Write a trauma-informed email...",
+            "Create compassionate content...",
+            "Draft sensitive communication...",
+            "Brainstorm inclusive ideas...",
+            "Analyze with privacy protection...",
             "Generate healing-centered messaging...",
-            "Create accessible program materials...",
-            "Draft culturally responsive outreach...",
-            "Fetch me an article about community impact..."
+            "Create accessible materials...",
+            "Draft culturally responsive outreach..."
         ];
 
         // Only initialize if we're on the chat page
@@ -138,13 +133,13 @@ class ChatInterface {
 
         this.chatInput.style.height = 'auto';
         const scrollHeight = this.chatInput.scrollHeight;
-        const maxHeight = 200; // Max height in pixels
+        const maxHeight = 168; // Max height for ~7 lines
 
         if (scrollHeight > maxHeight) {
             this.chatInput.style.height = maxHeight + 'px';
             this.chatInput.style.overflowY = 'auto';
         } else {
-            this.chatInput.style.height = Math.max(scrollHeight, 40) + 'px';
+            this.chatInput.style.height = Math.max(scrollHeight, 24) + 'px';
             this.chatInput.style.overflowY = 'hidden';
         }
     }
@@ -212,7 +207,7 @@ class ChatInterface {
             this.secondaryModes.classList.add('show');
             this.moreModesBtn.innerHTML = `
                 <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                    <path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>
                 </svg>
                 Less
             `;

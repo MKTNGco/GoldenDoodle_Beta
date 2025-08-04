@@ -51,30 +51,30 @@
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
-                            
+
                             <li><a class="dropdown-item" href="{{ url_for('chat') if session.user_id else url_for('index') }}">
                                 Chat
                             </a></li>
-                            
+
                             <li><a class="dropdown-item" href="{{ url_for('how_to') }}">
                                 How to GoldenDoodleLM
                             </a></li>
-                            
+
                             <li><a class="dropdown-item" href="{{ url_for('our_story') }}">
                                 Our Story
                             </a></li>
-                            
+
                             {% if session.user_id %}
                             <li><a class="dropdown-item" href="{{ url_for('brand_voices') }}">
                                 Brand Voices
                             </a></li>
-                            
+
                             <li><hr class="dropdown-divider"></li>
-                            
+
                             <li><a class="dropdown-item" href="{{ url_for('account') }}">
                                 Account
                             </a></li>
-                            
+
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                 Logout
                             </a></li>

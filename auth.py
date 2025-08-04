@@ -63,14 +63,30 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def super_admin_required(f):
+    """Decorator to require super admin access for a route"""
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if user is None:
+            return redirect(url_for('login', next=request.url))
+        # Check if user is super admin (you can modify this logic)
+        if not (user.email == 'sunny@goldendoodlelm.ai' or user.is_admin):
+            flash('Super admin access required.', 'error')
+            return redirect(url_for('chat'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def login_user(user: User):
     """Log in a user by setting session data"""
     session['user_id'] = user.user_id
     session['user_name'] = user.name
+    session['user_email'] = user.email
     session['tenant_id'] = user.tenant_id
 
 def logout_user():
     """Log out the current user"""
     session.pop('user_id', None)
     session.pop('user_name', None)
+    session.pop('user_email', None)
     session.pop('tenant_id', None)

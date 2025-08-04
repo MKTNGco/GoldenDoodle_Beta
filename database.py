@@ -661,6 +661,154 @@ class DatabaseManager:
             logger.error(f"Error creating comprehensive brand voice: {e}")
             raise
 
+    def get_all_tenants(self) -> List[Tenant]:
+        """Get all tenants for admin management"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT tenant_id, tenant_type, name, database_name, max_brand_voices
+                FROM tenants 
+                ORDER BY name
+            """)
+
+            tenants = []
+            for row in cursor.fetchall():
+                tenants.append(Tenant(
+                    tenant_id=str(row[0]),
+                    tenant_type=TenantType(row[1]),
+                    name=row[2],
+                    database_name=row[3],
+                    max_brand_voices=row[4]
+                ))
+
+            cursor.close()
+            conn.close()
+            return tenants
+        except Exception as e:
+            logger.error(f"Error getting all tenants: {e}")
+            return []
+
+    def get_all_users(self) -> List[tuple]:
+        """Get all users with tenant info for admin management"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT u.user_id, u.tenant_id, u.first_name, u.last_name, u.email, 
+                       u.subscription_level, u.is_admin, u.email_verified, u.created_at,
+                       t.name as tenant_name, t.tenant_type
+                FROM users u
+                JOIN tenants t ON u.tenant_id = t.tenant_id
+                ORDER BY u.created_at DESC
+            """)
+
+            users = []
+            for row in cursor.fetchall():
+                user = User(
+                    user_id=str(row[0]),
+                    tenant_id=str(row[1]),
+                    first_name=row[2],
+                    last_name=row[3],
+                    email=row[4],
+                    password_hash="",  # Don't include password hash
+                    subscription_level=SubscriptionLevel(row[5]),
+                    is_admin=row[6],
+                    email_verified=row[7],
+                    created_at=str(row[8]) if row[8] else None
+                )
+                tenant_name = row[9]
+                tenant_type = row[10]
+                users.append((user, tenant_name, tenant_type))
+
+            cursor.close()
+            conn.close()
+            return users
+        except Exception as e:
+            logger.error(f"Error getting all users: {e}")
+            return []
+
+    def delete_user(self, user_id: str) -> bool:
+        """Delete a user account"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Delete user's brand voices first
+            cursor.execute("DELETE FROM brand_voices WHERE user_id = %s", (user_id,))
+
+            # Delete verification tokens
+            cursor.execute("DELETE FROM email_verification_tokens WHERE user_id = %s", (user_id,))
+
+            # Delete password reset tokens
+            cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+
+            # Delete the user
+            cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting user: {e}")
+            return False
+
+    def delete_tenant(self, tenant_id: str) -> bool:
+        """Delete a tenant and all associated data"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Get all users in this tenant
+            cursor.execute("SELECT user_id FROM users WHERE tenant_id = %s", (tenant_id,))
+            user_ids = [row[0] for row in cursor.fetchall()]
+
+            # Delete all user data
+            for user_id in user_ids:
+                cursor.execute("DELETE FROM brand_voices WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM email_verification_tokens WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+
+            # Delete company brand voices
+            cursor.execute("DELETE FROM brand_voices WHERE tenant_id = %s AND user_id IS NULL", (tenant_id,))
+
+            # Delete all users
+            cursor.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id,))
+
+            # Delete the tenant
+            cursor.execute("DELETE FROM tenants WHERE tenant_id = %s", (tenant_id,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting tenant: {e}")
+            return False
+
+    def update_user_subscription(self, user_id: str, subscription_level: str) -> bool:
+        """Update user's subscription level"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET subscription_level = %s
+                WHERE user_id = %s
+            """, (subscription_level, user_id))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating user subscription: {e}")
+            return False
+
 # Global database manager instance
 db_manager = DatabaseManager()
 

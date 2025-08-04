@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from app import app
-from auth import login_required, admin_required, get_current_user, login_user, logout_user
+from auth import login_required, admin_required, super_admin_required, get_current_user, login_user, logout_user
 from database import db_manager
 from gemini_service import gemini_service
 from rag_service import rag_service
@@ -1020,6 +1020,65 @@ def generate_brand_voice_markdown(data):
 """
     
     return markdown
+
+@app.route('/platform-admin')
+@super_admin_required
+def platform_admin():
+    """Platform admin dashboard"""
+    users = db_manager.get_all_users()
+    tenants = db_manager.get_all_tenants()
+    
+    return render_template('platform_admin.html', users=users, tenants=tenants)
+
+@app.route('/admin/delete-user/<user_id>', methods=['POST'])
+@super_admin_required
+def admin_delete_user(user_id):
+    """Delete a user account"""
+    try:
+        if db_manager.delete_user(user_id):
+            flash('User deleted successfully.', 'success')
+        else:
+            flash('Failed to delete user.', 'error')
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}")
+        flash('An error occurred while deleting the user.', 'error')
+    
+    return redirect(url_for('platform_admin'))
+
+@app.route('/admin/delete-tenant/<tenant_id>', methods=['POST'])
+@super_admin_required
+def admin_delete_tenant(tenant_id):
+    """Delete a tenant and all associated data"""
+    try:
+        if db_manager.delete_tenant(tenant_id):
+            flash('Organization deleted successfully.', 'success')
+        else:
+            flash('Failed to delete organization.', 'error')
+    except Exception as e:
+        logger.error(f"Error deleting tenant: {e}")
+        flash('An error occurred while deleting the organization.', 'error')
+    
+    return redirect(url_for('platform_admin'))
+
+@app.route('/admin/update-subscription', methods=['POST'])
+@super_admin_required
+def admin_update_subscription():
+    """Update user subscription level"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        subscription_level = data.get('subscription_level')
+        
+        if not user_id or not subscription_level:
+            return jsonify({'error': 'User ID and subscription level are required'}), 400
+        
+        if db_manager.update_user_subscription(user_id, subscription_level):
+            return jsonify({'success': True, 'message': 'Subscription updated successfully'})
+        else:
+            return jsonify({'error': 'Failed to update subscription'}), 500
+    except Exception as e:
+        logger.error(f"Error updating subscription: {e}")
+        return jsonify({'error': 'An error occurred while updating subscription'}), 500
 
 @app.errorhandler(404)
 def not_found_error(error):

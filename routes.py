@@ -750,7 +750,11 @@ def create_brand_voice():
         voice_type = data.get('voice_type', 'user')
         brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
 
-        logger.info(f"Creating brand voice: {voice_short_name} for voice_type: {voice_type}")
+        logger.info(f"=== BRAND VOICE CREATION DEBUG ===")
+        logger.info(f"Creating brand voice: '{voice_short_name}' for voice_type: {voice_type}")
+        logger.info(f"Company: '{company_name}', URL: '{company_url}'")
+        logger.info(f"Is editing: {bool(brand_voice_id)}")
+        logger.info(f"Raw data keys: {list(data.keys())}")
 
         if not all([company_name, company_url, voice_short_name]):
             logger.error(f"Missing required fields: company_name={bool(company_name)}, company_url={bool(company_url)}, voice_short_name={bool(voice_short_name)}")
@@ -765,6 +769,8 @@ def create_brand_voice():
             logger.error(f"Invalid tenant for user {user.user_id}")
             return jsonify({'error': 'Invalid tenant'}), 400
 
+        logger.info(f"User: {user.user_id}, Tenant: {tenant.tenant_id}")
+
         # Determine if this is an edit or create operation
         is_editing = bool(brand_voice_id)
 
@@ -773,7 +779,9 @@ def create_brand_voice():
 
         if not is_editing:
             existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            logger.info(f"Existing company voices: {len(existing_company_voices)}/{tenant.max_brand_voices}")
+            logger.info(f"Existing company voices BEFORE creation: {len(existing_company_voices)}/{tenant.max_brand_voices}")
+            for voice in existing_company_voices:
+                logger.info(f"  Existing voice: '{voice.name}' (ID: {voice.brand_voice_id})")
 
             # Use a more generous limit for individuals to ensure they can create voices
             max_allowed = max(tenant.max_brand_voices, 10)  # Allow at least 10 voices
@@ -824,6 +832,7 @@ def create_brand_voice():
 
         # Generate comprehensive markdown content for RAG
         markdown_content = generate_brand_voice_markdown(wizard_data)
+        logger.info(f"Generated markdown content length: {len(markdown_content)}")
 
         # Create or update brand voice with comprehensive data
         if is_editing:
@@ -837,6 +846,7 @@ def create_brand_voice():
             # Check if the brand voice exists and user has permission
             voice_exists = any(bv.brand_voice_id == brand_voice_id for bv in existing_voices)
             if not voice_exists:
+                logger.error(f"Brand voice {brand_voice_id} not found or permission denied for user {user.user_id}")
                 return jsonify({'error': 'Brand voice not found or permission denied'}), 404
 
             brand_voice = db_manager.update_brand_voice(
@@ -846,6 +856,7 @@ def create_brand_voice():
                 markdown_content=markdown_content,
                 user_id=user_id
             )
+            logger.info(f"Updated brand voice: {brand_voice.brand_voice_id}")
 
             return jsonify({
                 'success': True,
@@ -859,6 +870,13 @@ def create_brand_voice():
                 markdown_content=markdown_content,
                 user_id=user_id
             )
+            logger.info(f"Created brand voice: {brand_voice.brand_voice_id}")
+            
+            # Debugging: Fetch all company voices again to see if the new one is present
+            current_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            logger.info(f"Existing company voices AFTER creation: {len(current_company_voices)}/{tenant.max_brand_voices}")
+            for voice in current_company_voices:
+                logger.info(f"  Current voice: '{voice.name}' (ID: {voice.brand_voice_id})")
 
             return jsonify({
                 'success': True,
@@ -893,19 +911,23 @@ def get_brand_voice(brand_voice_id):
         selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == brand_voice_id), None)
 
         if not selected_brand_voice:
+            logger.warning(f"Brand voice {brand_voice_id} not found for user {user.user_id}")
             return jsonify({'error': 'Brand voice not found'}), 404
 
         # Check permissions
         if selected_brand_voice.user_id and selected_brand_voice.user_id != user.user_id:
+            logger.warning(f"Permission denied for user {user.user_id} to access brand voice {brand_voice_id} owned by {selected_brand_voice.user_id}")
             return jsonify({'error': 'Permission denied'}), 403
 
         if not selected_brand_voice.user_id and not user.is_admin:
+            logger.warning(f"Permission denied for non-admin user {user.user_id} to access company brand voice {brand_voice_id}")
             return jsonify({'error': 'Permission denied'}), 403
-
+        
+        logger.info(f"Successfully retrieved brand voice {brand_voice_id} for user {user.user_id}")
         return jsonify(selected_brand_voice.configuration)
 
     except Exception as e:
-        logger.error(f"Error getting brand voice: {e}")
+        logger.error(f"Error getting brand voice {brand_voice_id}: {e}")
         return jsonify({'error': 'An error occurred while loading the brand voice'}), 500
 
 @app.route('/auto-save-brand-voice', methods=['POST'])
@@ -916,6 +938,7 @@ def auto_save_brand_voice():
         data = request.get_json()
         user = get_current_user()
         if not user:
+            logger.error("Auto-save failed: No authenticated user")
             return jsonify({'error': 'Authentication required'}), 401
 
         # Check if required fields are present for auto-save
@@ -924,11 +947,15 @@ def auto_save_brand_voice():
         voice_short_name = data.get('voice_short_name', '').strip()
 
         if not all([company_name, company_url, voice_short_name]):
+            logger.warning("Auto-save failed: Missing required fields")
             return jsonify({'error': 'Required fields missing'}), 400
+
+        logger.info(f"Attempting auto-save for brand voice: '{voice_short_name}' by user {user.user_id}")
 
         # Auto-save logic would go here
         # For now, just return success with a mock profile_id
         profile_id = data.get('profile_id') or str(uuid.uuid4())
+        logger.info(f"Auto-save successful for '{voice_short_name}' (Profile ID: {profile_id})")
 
         return jsonify({
             'success': True,
@@ -1131,8 +1158,10 @@ def generate_brand_voice_markdown(data):
 @super_admin_required
 def platform_admin():
     """Platform admin dashboard"""
+    logger.info("Accessing platform admin dashboard")
     users = db_manager.get_all_users()
     tenants = db_manager.get_all_tenants()
+    logger.info(f"Found {len(users)} users and {len(tenants)} tenants.")
 
     return render_template('platform_admin.html', users=users, tenants=tenants)
 
@@ -1141,12 +1170,15 @@ def platform_admin():
 def admin_delete_user(user_id):
     """Delete a user account"""
     try:
+        logger.info(f"Admin deleting user with ID: {user_id}")
         if db_manager.delete_user(user_id):
             flash('User deleted successfully.', 'success')
+            logger.info(f"User {user_id} deleted successfully.")
         else:
             flash('Failed to delete user.', 'error')
+            logger.warning(f"Failed to delete user {user_id}.")
     except Exception as e:
-        logger.error(f"Error deleting user: {e}")
+        logger.error(f"Error deleting user {user_id}: {e}")
         flash('An error occurred while deleting the user.', 'error')
 
     return redirect(url_for('platform_admin'))
@@ -1156,12 +1188,15 @@ def admin_delete_user(user_id):
 def admin_delete_tenant(tenant_id):
     """Delete a tenant and all associated data"""
     try:
+        logger.info(f"Admin deleting tenant with ID: {tenant_id}")
         if db_manager.delete_tenant(tenant_id):
             flash('Organization deleted successfully.', 'success')
+            logger.info(f"Tenant {tenant_id} deleted successfully.")
         else:
             flash('Failed to delete organization.', 'error')
+            logger.warning(f"Failed to delete tenant {tenant_id}.")
     except Exception as e:
-        logger.error(f"Error deleting tenant: {e}")
+        logger.error(f"Error deleting tenant {tenant_id}: {e}")
         flash('An error occurred while deleting the organization.', 'error')
 
     return redirect(url_for('platform_admin'))
@@ -1171,19 +1206,22 @@ def admin_delete_tenant(tenant_id):
 def admin_organization_details(tenant_id):
     """View organization details and members"""
     try:
+        logger.info(f"Admin viewing details for tenant ID: {tenant_id}")
         tenant = db_manager.get_tenant_by_id(tenant_id)
         if not tenant:
             flash('Organization not found.', 'error')
+            logger.warning(f"Tenant {tenant_id} not found.")
             return redirect(url_for('platform_admin'))
 
         # Get organization members
         organization_users = db_manager.get_organization_users(tenant_id)
+        logger.info(f"Found {len(organization_users)} members for tenant {tenant_id}.")
 
         return render_template('admin_organization_details.html', 
                              tenant=tenant, 
                              organization_users=organization_users)
     except Exception as e:
-        logger.error(f"Error loading organization details: {e}")
+        logger.error(f"Error loading organization details for tenant {tenant_id}: {e}")
         flash('An error occurred while loading organization details.', 'error')
         return redirect(url_for('platform_admin'))
 
@@ -1197,14 +1235,18 @@ def admin_update_subscription():
         subscription_level = data.get('subscription_level')
 
         if not user_id or not subscription_level:
+            logger.warning("Admin update subscription failed: Missing user_id or subscription_level")
             return jsonify({'error': 'User ID and subscription level are required'}), 400
 
+        logger.info(f"Admin updating subscription for user {user_id} to {subscription_level}")
         if db_manager.update_user_subscription(user_id, subscription_level):
+            logger.info(f"Subscription updated successfully for user {user_id}")
             return jsonify({'success': True, 'message': 'Subscription updated successfully'})
         else:
+            logger.warning(f"Failed to update subscription for user {user_id}")
             return jsonify({'error': 'Failed to update subscription'}), 500
     except Exception as e:
-        logger.error(f"Error updating subscription: {e}")
+        logger.error(f"Error updating subscription for user {user_id}: {e}")
         return jsonify({'error': 'An error occurred while updating subscription'}), 500
 
 @app.route('/send-organization-invite', methods=['POST'])
@@ -1216,19 +1258,23 @@ def send_organization_invite():
         email = data.get('email', '').strip().lower()
 
         if not email:
+            logger.warning("Send organization invite failed: Email is required.")
             return jsonify({'error': 'Email address is required'}), 400
 
         user = get_current_user()
         if not user or not user.is_admin:
+            logger.warning("Send organization invite failed: User is not an admin.")
             return jsonify({'error': 'Admin access required'}), 403
 
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant or tenant.tenant_type != TenantType.COMPANY:
+            logger.warning("Send organization invite failed: Tenant is not a company or not found.")
             return jsonify({'error': 'Organization account required'}), 400
 
         # Check if user already exists in this organization
         existing_user = db_manager.get_user_by_email(email)
         if existing_user and existing_user.tenant_id == user.tenant_id:
+            logger.warning(f"Send organization invite failed: User {email} already in organization {tenant.name}.")
             return jsonify({'error': 'User is already a member of this organization'}), 400
 
         # Generate invite token
@@ -1238,6 +1284,7 @@ def send_organization_invite():
 
         # Create invite in database
         if db_manager.create_organization_invite(user.tenant_id, user.user_id, email, token_hash):
+            logger.info(f"Organization invite created for {email} to tenant {tenant.name}.")
             # Send invite email
             if email_service.send_organization_invite_email(
                 email, 
@@ -1245,17 +1292,20 @@ def send_organization_invite():
                 tenant.name, 
                 f"{user.first_name} {user.last_name}"
             ):
+                logger.info(f"Invitation email sent successfully to {email}.")
                 return jsonify({
                     'success': True, 
                     'message': f'Invitation sent to {email} successfully'
                 })
             else:
+                logger.error(f"Failed to send invitation email to {email}.")
                 return jsonify({'error': 'Failed to send invitation email'}), 500
         else:
+            logger.error(f"Failed to create organization invite in database for {email}.")
             return jsonify({'error': 'Failed to create invitation'}), 500
 
     except Exception as e:
-        logger.error(f"Error sending organization invite: {e}")
+        logger.error(f"Error sending organization invite for email {email}: {e}")
         return jsonify({'error': 'An error occurred while sending the invitation'}), 500
 
 @app.route('/join-organization')
@@ -1263,6 +1313,7 @@ def join_organization():
     """Handle organization invite acceptance"""
     token = request.args.get('token')
     if not token:
+        logger.warning("Join organization failed: No token provided.")
         flash('Invalid invitation link.', 'error')
         return redirect(url_for('login'))
 
@@ -1271,6 +1322,7 @@ def join_organization():
     invite_data = db_manager.verify_organization_invite_token(token_hash)
 
     if not invite_data:
+        logger.warning(f"Join organization failed: Invalid or expired token hash: {token_hash}")
         flash('Invalid or expired invitation link.', 'error')
         return redirect(url_for('login'))
 
@@ -1278,17 +1330,22 @@ def join_organization():
     tenant = db_manager.get_tenant_by_id(tenant_id)
 
     if not tenant:
+        logger.error(f"Join organization failed: Tenant {tenant_id} not found for token hash {token_hash}.")
         flash('Organization not found.', 'error')
         return redirect(url_for('login'))
+
+    logger.info(f"Processing invite for email {email} to organization {tenant.name} (Tenant ID: {tenant_id})")
 
     # Check if user already exists
     existing_user = db_manager.get_user_by_email(email)
 
     if existing_user:
         if existing_user.tenant_id == tenant_id:
+            logger.info(f"User {email} is already a member of organization {tenant.name}.")
             flash('You are already a member of this organization.', 'info')
             return redirect(url_for('login'))
         else:
+            logger.warning(f"User {email} exists but is in a different organization (Tenant ID: {existing_user.tenant_id}). Cannot join {tenant.name}.")
             flash('This email is already associated with another account. Please contact support.', 'error')
             return redirect(url_for('login'))
 
@@ -1299,6 +1356,7 @@ def join_organization():
         'email': email,
         'organization_name': tenant.name
     }
+    logger.info(f"Storing organization invite details in session for {email}.")
 
     return redirect(url_for('register', invite='organization'))
 
@@ -1309,19 +1367,24 @@ def get_pending_invites(tenant_id):
     try:
         user = get_current_user()
         if not user or not user.is_admin or user.tenant_id != tenant_id:
+            logger.warning(f"Permission denied for user {user.user_id} to get pending invites for tenant {tenant_id}.")
             return jsonify({'error': 'Permission denied'}), 403
 
+        logger.info(f"Fetching pending invites for tenant {tenant_id} by admin user {user.user_id}.")
         invites = db_manager.get_pending_invites(tenant_id)
+        logger.info(f"Found {len(invites)} pending invites for tenant {tenant_id}.")
         return jsonify({'invites': invites})
 
     except Exception as e:
-        logger.error(f"Error getting pending invites: {e}")
+        logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
 @app.errorhandler(404)
 def not_found_error(error):
+    logger.warning(f"404 Not Found: {error}")
     return render_template('404.html'), 404
 
 @app.errorhandler(500)
 def internal_error(error):
+    logger.error(f"500 Internal Server Error: {error}")
     return render_template('500.html'), 500

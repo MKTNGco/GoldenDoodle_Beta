@@ -53,13 +53,10 @@
                                     </div>
                                     <div class="mb-2">
                                         <small class="text-muted d-block">
-                                            <strong>Tone:</strong> {{ voice.configuration.get('tone', 'N/A').title() }}
+                                            <strong>Company:</strong> {{ voice.configuration.get('company_name', 'N/A') }}
                                         </small>
                                         <small class="text-muted d-block">
-                                            <strong>Style:</strong> {{ voice.configuration.get('style', 'N/A').title() }}
-                                        </small>
-                                        <small class="text-muted d-block">
-                                            <strong>Audience:</strong> {{ voice.configuration.get('audience', 'N/A').title() }}
+                                            <strong>Website:</strong> {{ voice.configuration.get('company_url', 'N/A') }}
                                         </small>
                                     </div>
                                     {% if voice.configuration.get('values') %}

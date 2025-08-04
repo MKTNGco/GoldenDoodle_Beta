@@ -38,7 +38,8 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="mainMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-bars me-1"></i>Menu
+                            <span class="d-none d-md-inline">Menu</span>
+                            <i class="fas fa-bars d-md-none"></i>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             {% if not session.user_id %}

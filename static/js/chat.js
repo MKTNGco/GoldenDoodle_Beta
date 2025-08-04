@@ -174,6 +174,11 @@ class ChatInterface {
             
             // Toggle this dropdown
             if (!isCurrentlyShown) {
+                // Position the dropdown relative to the button
+                const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
+                this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
+                this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
+                
                 this.brandVoiceDropdown.classList.add('show');
                 console.log('Brand voice dropdown shown');
             }

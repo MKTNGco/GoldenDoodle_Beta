@@ -330,17 +330,14 @@ body {
 }
 
 .brand-voice-dropdown {
-    position: absolute;
-    bottom: 100%;
-    right: 0;
+    position: fixed;
     background: var(--bg-white);
     border: 1px solid var(--border-light);
     border-radius: 12px;
     box-shadow: var(--shadow-lg);
     min-width: 200px;
-    z-index: 10000;
+    z-index: 999999;
     display: none;
-    margin-bottom: 8px;
     max-height: 200px;
     overflow-y: auto;
 }

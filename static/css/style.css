@@ -998,7 +998,7 @@ a:hover {
 .floating-benefits-section {
     position: relative;
     overflow: hidden;
-    height: 600px;
+    height: 400px;
 }
 
 .benefits-row {
@@ -1006,7 +1006,7 @@ a:hover {
     gap: 50px;
     position: absolute;
     width: calc(100% + 300px);
-    animation: floatRow 114s linear infinite;
+    animation: floatRow 50s linear infinite;
 }
 
 .benefits-row:hover {

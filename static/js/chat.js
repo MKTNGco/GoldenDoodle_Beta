@@ -1,4 +1,3 @@
-
 // GoldenDoodleLM Modern Chat Interface
 class ChatInterface {
     constructor() {
@@ -10,7 +9,7 @@ class ChatInterface {
         this.placeholderInterval = null;
         this.isDemoMode = window.isDemoMode || false;
         this.isLoggedIn = window.isLoggedIn || false;
-        
+
         this.placeholders = [
             "Write a trauma-informed email to donors...",
             "Create a compassionate program announcement...",
@@ -27,7 +26,7 @@ class ChatInterface {
             "Draft culturally responsive outreach...",
             "Fetch me an article about community impact..."
         ];
-        
+
         // Only initialize if we're on the chat page
         if (this.initializeElements()) {
             this.bindEvents();
@@ -49,7 +48,7 @@ class ChatInterface {
         this.modeButtons = document.querySelectorAll('.mode-btn[data-mode]');
         this.moreModesBtn = document.getElementById('moreModesBtn');
         this.secondaryModes = document.getElementById('secondaryModes');
-        
+
         // Check if we're on the chat page
         if (!this.chatInput || !this.sendBtn || !this.chatMessages) {
             console.log('Chat elements not found - not on chat page');
@@ -65,7 +64,7 @@ class ChatInterface {
                 this.autoResizeTextarea();
                 this.updateSendButton();
             });
-            
+
             this.chatInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -136,11 +135,11 @@ class ChatInterface {
 
     autoResizeTextarea() {
         if (!this.chatInput) return;
-        
+
         this.chatInput.style.height = 'auto';
         const scrollHeight = this.chatInput.scrollHeight;
         const maxHeight = 200; // Max height in pixels
-        
+
         if (scrollHeight > maxHeight) {
             this.chatInput.style.height = maxHeight + 'px';
             this.chatInput.style.overflowY = 'auto';
@@ -152,7 +151,7 @@ class ChatInterface {
 
     startPlaceholderRotation() {
         if (this.placeholderInterval || !this.chatInput) return;
-        
+
         this.placeholderInterval = setInterval(() => {
             this.placeholderIndex = (this.placeholderIndex + 1) % this.placeholders.length;
             this.chatInput.placeholder = this.placeholders[this.placeholderIndex];
@@ -187,7 +186,7 @@ class ChatInterface {
 
     selectMode(button) {
         const mode = button.dataset.mode;
-        
+
         if (this.currentMode === mode) {
             this.currentMode = null;
             button.classList.remove('active');
@@ -200,7 +199,7 @@ class ChatInterface {
 
     toggleMoreModes() {
         const isVisible = this.secondaryModes.classList.contains('show');
-        
+
         if (isVisible) {
             this.secondaryModes.classList.remove('show');
             this.moreModesBtn.innerHTML = `
@@ -222,14 +221,14 @@ class ChatInterface {
 
     updateSendButton() {
         if (!this.chatInput || !this.sendBtn) return;
-        
+
         const hasText = this.chatInput.value.trim().length > 0;
         this.sendBtn.disabled = !hasText || this.isGenerating;
     }
 
     async sendMessage() {
         const prompt = this.chatInput.value.trim();
-        
+
         if (!prompt || this.isGenerating) {
             return;
         }
@@ -301,10 +300,10 @@ class ChatInterface {
 
         const bubbleDiv = document.createElement('div');
         bubbleDiv.className = `message-bubble ${isError ? 'error' : ''}`;
-        
+
         if (sender === 'ai') {
             bubbleDiv.innerHTML = this.formatMessage(content);
-            
+
             // Add action buttons for AI responses (not for errors)
             if (!isError) {
                 this.addActionButtons(bubbleDiv, content);
@@ -314,7 +313,7 @@ class ChatInterface {
         }
 
         messageDiv.appendChild(bubbleDiv);
-        
+
         // Add to chat content
         let chatContent = this.chatMessages.querySelector('.chat-content');
         if (!chatContent) {
@@ -322,7 +321,7 @@ class ChatInterface {
             chatContent.className = 'chat-content';
             this.chatMessages.appendChild(chatContent);
         }
-        
+
         chatContent.appendChild(messageDiv);
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
 
@@ -332,7 +331,7 @@ class ChatInterface {
     addActionButtons(bubbleDiv, content) {
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'message-actions';
-        
+
         const copyBtn = document.createElement('button');
         copyBtn.className = 'action-btn copy-btn';
         copyBtn.innerHTML = `
@@ -342,7 +341,7 @@ class ChatInterface {
         `;
         copyBtn.title = 'Copy response';
         copyBtn.addEventListener('click', () => this.copyToClipboard(content));
-        
+
         const regenerateBtn = document.createElement('button');
         regenerateBtn.className = 'action-btn regenerate-btn';
         regenerateBtn.innerHTML = `
@@ -352,10 +351,10 @@ class ChatInterface {
         `;
         regenerateBtn.title = 'Regenerate response';
         regenerateBtn.addEventListener('click', () => this.regenerateResponse());
-        
+
         actionsDiv.appendChild(copyBtn);
         actionsDiv.appendChild(regenerateBtn);
-        
+
         bubbleDiv.style.position = 'relative';
         bubbleDiv.appendChild(actionsDiv);
     }
@@ -366,9 +365,9 @@ class ChatInterface {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = content;
             const plainText = tempDiv.textContent || tempDiv.innerText || '';
-            
+
             await navigator.clipboard.writeText(plainText);
-            
+
             // Show success feedback
             this.showCopyFeedback();
         } catch (err) {
@@ -382,20 +381,20 @@ class ChatInterface {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = content;
         const plainText = tempDiv.textContent || tempDiv.innerText || '';
-        
+
         const textArea = document.createElement('textarea');
         textArea.value = plainText;
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        
+
         try {
             document.execCommand('copy');
             this.showCopyFeedback();
         } catch (err) {
             console.error('Fallback: Oops, unable to copy', err);
         }
-        
+
         document.body.removeChild(textArea);
     }
 
@@ -407,9 +406,9 @@ class ChatInterface {
                 Response copied to clipboard!
             </div>
         `;
-        
+
         document.body.appendChild(feedback);
-        
+
         setTimeout(() => {
             if (feedback.parentNode) {
                 feedback.parentNode.removeChild(feedback);
@@ -425,7 +424,7 @@ class ChatInterface {
         // Get the last user message to regenerate response
         const messages = this.chatMessages.querySelectorAll('.message');
         let lastUserMessage = null;
-        
+
         for (let i = messages.length - 1; i >= 0; i--) {
             if (messages[i].classList.contains('message-user')) {
                 const bubble = messages[i].querySelector('.message-bubble');
@@ -435,7 +434,7 @@ class ChatInterface {
                 }
             }
         }
-        
+
         if (!lastUserMessage) {
             console.error('No user message found to regenerate response');
             return;
@@ -505,14 +504,14 @@ class ChatInterface {
         bubbleDiv.innerHTML = '<span class="loading-dots">Thinking...</span>';
 
         messageDiv.appendChild(bubbleDiv);
-        
+
         let chatContent = this.chatMessages.querySelector('.chat-content');
         if (!chatContent) {
             chatContent = document.createElement('div');
             chatContent.className = 'chat-content';
             this.chatMessages.appendChild(chatContent);
         }
-        
+
         chatContent.appendChild(messageDiv);
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
 
@@ -547,17 +546,17 @@ class ChatInterface {
         // Check for demo prompt from homepage
         const demoPrompt = sessionStorage.getItem('demoPrompt');
         const demoMode = sessionStorage.getItem('demoMode');
-        
+
         if (demoPrompt && this.chatInput) {
             // Clear the session storage
             sessionStorage.removeItem('demoPrompt');
             sessionStorage.removeItem('demoMode');
-            
+
             // Set the prompt in the textarea
             this.chatInput.value = demoPrompt;
             this.autoResizeTextarea();
             this.updateSendButton();
-            
+
             // Set the mode if available
             if (demoMode) {
                 const modeButton = document.querySelector(`[data-mode="${demoMode}"]`);
@@ -565,7 +564,7 @@ class ChatInterface {
                     this.selectMode(modeButton);
                 }
             }
-            
+
             // Auto-send the message after a brief delay
             setTimeout(() => {
                 this.sendMessage();
@@ -580,7 +579,7 @@ class ChatInterface {
                 this.brandVoiceBtn.style.cursor = 'not-allowed';
                 this.brandVoiceBtn.style.opacity = '0.7';
             }
-            
+
             // Disable attachment button
             const attachmentBtn = document.querySelector('.attachment-btn');
             if (attachmentBtn) {
@@ -591,13 +590,13 @@ class ChatInterface {
                     this.showPremiumMessage();
                 });
             }
-            
+
             // Update welcome screen message for demo users
             const welcomeScreen = document.querySelector('.welcome-screen');
             if (welcomeScreen && !this.isLoggedIn) {
                 const heading = welcomeScreen.querySelector('h1');
                 const paragraph = welcomeScreen.querySelector('p');
-                
+
                 if (heading) heading.textContent = 'Try GoldenDoodleLM';
                 if (paragraph) paragraph.innerHTML = 'Experience trauma-informed AI communication. <a href="/register" class="text-primary">Sign up</a> for full features including brand voice and chat history.';
             }
@@ -616,9 +615,9 @@ class ChatInterface {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(tooltip);
-        
+
         // Remove after 3 seconds
         setTimeout(() => {
             if (tooltip.parentNode) {
@@ -633,20 +632,20 @@ class ChatInterface {
             this.showPremiumMessage();
             return;
         }
-        
+
         // Create a hidden file input
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.txt,.pdf,.doc,.docx,.md';
         fileInput.style.display = 'none';
-        
+
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 this.processAttachment(file);
             }
         });
-        
+
         document.body.appendChild(fileInput);
         fileInput.click();
         document.body.removeChild(fileInput);
@@ -662,17 +661,17 @@ class ChatInterface {
         try {
             const text = await this.readFileAsText(file);
             const truncatedText = text.substring(0, 2000); // Limit to first 2000 characters
-            
+
             // Add the file content to the chat input
             const currentText = this.chatInput.value;
             const newText = currentText + (currentText ? '\n\n' : '') + 
                            `[Attached file: ${file.name}]\n${truncatedText}${text.length > 2000 ? '\n...(truncated)' : ''}`;
-            
+
             this.chatInput.value = newText;
             this.autoResizeTextarea();
             this.updateSendButton();
             this.chatInput.focus();
-            
+
         } catch (error) {
             console.error('Error reading file:', error);
             alert('Error reading file. Please try again.');
@@ -712,7 +711,7 @@ function startNewChat() {
             </div>
         </div>
     `;
-    
+
     // Focus on the input
     document.getElementById('chatInput').focus();
 }

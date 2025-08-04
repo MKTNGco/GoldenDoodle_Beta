@@ -522,6 +522,8 @@ class DatabaseManager:
 
             table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
             
+            logger.info(f"Getting company brand voices from table: {table_name}")
+            
             # First, ensure the table exists
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {table_name} (
@@ -541,11 +543,14 @@ class DatabaseManager:
             """)
 
             rows = cursor.fetchall()
+            logger.info(f"Found {len(rows)} brand voices in {table_name}")
+            
             cursor.close()
             conn.close()
 
             brand_voices = []
             for row in rows:
+                logger.info(f"Processing brand voice: {row['name']} (ID: {row['brand_voice_id']})")
                 brand_voices.append(BrandVoice(
                     brand_voice_id=str(row['brand_voice_id']),
                     name=row['name'],
@@ -553,10 +558,11 @@ class DatabaseManager:
                     markdown_content=row['markdown_content']
                 ))
 
+            logger.info(f"Returning {len(brand_voices)} brand voices")
             return brand_voices
 
         except Exception as e:
-            logger.error(f"Error getting company brand voices: {e}")
+            logger.error(f"Error getting company brand voices for tenant {tenant_id}: {e}")
             return []
 
     def get_user_brand_voices(self, tenant_id: str, user_id: str) -> List[BrandVoice]:

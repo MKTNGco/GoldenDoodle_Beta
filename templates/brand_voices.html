@@ -37,6 +37,10 @@
                 </div>
                 <div class="card-body">
                     {% set all_voices = company_brand_voices + user_brand_voices %}
+                    <!-- Debug info -->
+                    <div class="alert alert-info">
+                        <small>Debug: Company voices: {{ company_brand_voices|length }}, User voices: {{ user_brand_voices|length }}, Total: {{ all_voices|length }}</small>
+                    </div>
                     {% if all_voices %}
                     <div class="row g-3">
                         {% for voice in all_voices %}

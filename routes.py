@@ -4,11 +4,12 @@ from auth import login_required, admin_required, super_admin_required, get_curre
 from database import db_manager
 from gemini_service import gemini_service
 from rag_service import rag_service
-from models import TenantType, SubscriptionLevel, CONTENT_MODE_CONFIG
+from models import TenantType, SubscriptionLevel, CONTENT_MODE_CONFIG, BrandVoice
 from email_service import email_service, generate_verification_token, hash_token
 import json
 import logging
 import uuid
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ def register():
     # Check if this is an organization invite
     is_organization_invite = request.args.get('invite') == 'organization'
     organization_invite = session.get('organization_invite') if is_organization_invite else None
-    
+
     if request.method == 'POST':
         try:
             first_name = request.form.get('first_name', '').strip()
@@ -36,14 +37,14 @@ def register():
             organization_name = request.form.get('organization_name', '').strip()
             user_type = request.form.get('user_type', 'independent')
             subscription_level = request.form.get('subscription_level', 'entry')
-            
+
             # Validation
             if not all([first_name, last_name, email, password]):
                 flash('All fields are required.', 'error')
                 return render_template('register.html', 
                                      is_organization_invite=is_organization_invite,
                                      organization_invite=organization_invite)
-            
+
             # Handle organization invite registration
             if organization_invite:
                 if email != organization_invite['email']:
@@ -51,7 +52,7 @@ def register():
                     return render_template('register.html', 
                                          is_organization_invite=is_organization_invite,
                                          organization_invite=organization_invite)
-                
+
                 # Check if user already exists
                 existing_user = db_manager.get_user_by_email(email)
                 if existing_user:
@@ -59,7 +60,7 @@ def register():
                     return render_template('register.html', 
                                          is_organization_invite=is_organization_invite,
                                          organization_invite=organization_invite)
-                
+
                 # Create user as organization member
                 user = db_manager.create_user(
                     tenant_id=organization_invite['tenant_id'],
@@ -70,17 +71,17 @@ def register():
                     subscription_level=SubscriptionLevel.TEAM,  # Default for organization members
                     is_admin=False
                 )
-                
+
                 # Mark invite as used
                 db_manager.use_organization_invite_token(organization_invite['token_hash'])
-                
+
                 # Clear invite from session
                 session.pop('organization_invite', None)
-                
+
                 # Generate and send verification email
                 verification_token = generate_verification_token()
                 token_hash = hash_token(verification_token)
-                
+
                 if db_manager.create_verification_token(user.user_id, token_hash):
                     if email_service.send_verification_email(email, verification_token, first_name):
                         flash(f'Account created successfully! You\'ve been added to {organization_invite["organization_name"]}. Please check your email to verify your account before signing in.', 'success')
@@ -91,14 +92,14 @@ def register():
                 else:
                     flash('Account created, but there was an issue with email verification. Please contact support.', 'warning')
                     return redirect(url_for('login'))
-            
+
             # Regular registration flow
             if user_type == 'company' and not organization_name:
                 flash('Organization name is required for company accounts.', 'error')
                 return render_template('register.html', 
                                      is_organization_invite=is_organization_invite,
                                      organization_invite=organization_invite)
-            
+
             # Check if user already exists
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
@@ -106,10 +107,10 @@ def register():
                 return render_template('register.html', 
                                      is_organization_invite=is_organization_invite,
                                      organization_invite=organization_invite)
-            
+
             # Create tenant and determine brand voice limits
             subscription_enum = SubscriptionLevel(subscription_level)
-            
+
             if user_type == 'company':
                 # Team or Enterprise plans
                 if subscription_enum == SubscriptionLevel.TEAM:
@@ -118,7 +119,7 @@ def register():
                     max_brand_voices = 10  # Higher limit for enterprise
                 else:
                     max_brand_voices = 3  # Default for team plans
-                
+
                 tenant = db_manager.create_tenant(
                     name=organization_name,
                     tenant_type=TenantType.COMPANY,
@@ -133,14 +134,14 @@ def register():
                     max_brand_voices = 10
                 else:
                     max_brand_voices = 1  # Default
-                
+
                 tenant = db_manager.create_tenant(
                     name=f"{first_name} {last_name}'s Account",
                     tenant_type=TenantType.INDEPENDENT_USER,
                     max_brand_voices=max_brand_voices
                 )
                 is_admin = False
-            
+
             # Create user
             user = db_manager.create_user(
                 tenant_id=tenant.tenant_id,
@@ -151,11 +152,11 @@ def register():
                 subscription_level=SubscriptionLevel(subscription_level),
                 is_admin=is_admin
             )
-            
+
             # Generate and send verification email
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
-            
+
             if db_manager.create_verification_token(user.user_id, token_hash):
                 if email_service.send_verification_email(email, verification_token, first_name):
                     flash('Account created successfully! Please check your email to verify your account before signing in.', 'success')
@@ -166,11 +167,11 @@ def register():
             else:
                 flash('Account created, but there was an issue with email verification. Please contact support.', 'warning')
                 return redirect(url_for('login'))
-            
+
         except Exception as e:
             logger.error(f"Registration error: {e}")
             flash('An error occurred during registration. Please try again.', 'error')
-    
+
     return render_template('register.html', 
                          is_organization_invite=is_organization_invite,
                          organization_invite=organization_invite)
@@ -181,24 +182,24 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        
+
         if not email or not password:
             flash('Email and password are required.', 'error')
             return render_template('login.html')
-        
+
         user = db_manager.get_user_by_email(email)
         if user and db_manager.verify_password(user, password):
             if not user.email_verified:
                 flash('Please verify your email address before signing in. Check your inbox for the verification link.', 'warning')
                 return render_template('login.html', show_resend=True, email=email)
-            
+
             login_user(user)
             flash('Welcome back!', 'success')
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('chat'))
         else:
             flash('Invalid email or password.', 'error')
-    
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -215,10 +216,10 @@ def verify_email():
     if not token:
         flash('Invalid verification link.', 'error')
         return redirect(url_for('login'))
-    
+
     token_hash = hash_token(token)
     user_id = db_manager.verify_email_token(token_hash)
-    
+
     if user_id:
         flash('Email verified successfully! You can now sign in.', 'success')
         return redirect(url_for('login'))
@@ -232,23 +233,23 @@ def resend_verification():
     try:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
-        
+
         if not email:
             return jsonify({'error': 'Email is required'}), 400
-        
+
         user = db_manager.get_user_by_email(email)
         if not user:
             return jsonify({'error': 'User not found'}), 404
-        
+
         if user.email_verified:
             return jsonify({'error': 'Email is already verified'}), 400
-        
+
         # Delete existing tokens and create new one
         db_manager.resend_verification_email(user.user_id)
-        
+
         verification_token = generate_verification_token()
         token_hash = hash_token(verification_token)
-        
+
         if db_manager.create_verification_token(user.user_id, token_hash):
             if email_service.send_verification_email(email, verification_token, user.first_name):
                 return jsonify({'success': True, 'message': 'Verification email sent successfully'})
@@ -256,7 +257,7 @@ def resend_verification():
                 return jsonify({'error': 'Failed to send verification email'}), 500
         else:
             return jsonify({'error': 'Failed to create verification token'}), 500
-            
+
     except Exception as e:
         logger.error(f"Error resending verification: {e}")
         return jsonify({'error': 'An error occurred'}), 500
@@ -266,17 +267,17 @@ def forgot_password():
     """Forgot password page"""
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
-        
+
         if not email:
             flash('Email address is required.', 'error')
             return render_template('forgot_password.html')
-        
+
         user = db_manager.get_user_by_email(email)
         if user:
             # Generate password reset token
             reset_token = generate_verification_token()
             token_hash = hash_token(reset_token)
-            
+
             if db_manager.create_password_reset_token(user.user_id, token_hash):
                 if email_service.send_password_reset_email(email, reset_token, user.first_name):
                     flash('Password reset link sent to your email address.', 'success')
@@ -287,9 +288,9 @@ def forgot_password():
         else:
             # Don't reveal if email exists or not
             flash('If an account with that email exists, a password reset link has been sent.', 'info')
-        
+
         return redirect(url_for('login'))
-    
+
     return render_template('forgot_password.html')
 
 @app.route('/reset-password', methods=['GET', 'POST'])
@@ -299,77 +300,77 @@ def reset_password():
     if not token:
         flash('Invalid reset link.', 'error')
         return redirect(url_for('login'))
-    
+
     token_hash = hash_token(token)
     user_id = db_manager.verify_password_reset_token(token_hash)
-    
+
     if not user_id:
         flash('Invalid or expired reset link.', 'error')
         return redirect(url_for('login'))
-    
+
     if request.method == 'POST':
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
-        
+
         if not password or not confirm_password:
             flash('Password and confirmation are required.', 'error')
             return render_template('reset_password.html', token=token)
-        
+
         if password != confirm_password:
             flash('Passwords do not match.', 'error')
             return render_template('reset_password.html', token=token)
-        
+
         if len(password) < 8:
             flash('Password must be at least 8 characters long.', 'error')
             return render_template('reset_password.html', token=token)
-        
+
         # Update password
         from werkzeug.security import generate_password_hash
         new_password_hash = generate_password_hash(password)
-        
+
         try:
             conn = db_manager.get_connection()
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 UPDATE users 
                 SET password_hash = %s
                 WHERE user_id = %s
             """, (new_password_hash, user_id))
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             # Mark token as used
             db_manager.use_password_reset_token(token_hash)
-            
+
             flash('Password reset successfully! You can now sign in.', 'success')
             return redirect(url_for('login'))
-            
+
         except Exception as e:
             logger.error(f"Error resetting password: {e}")
             flash('An error occurred while resetting your password.', 'error')
             return render_template('reset_password.html', token=token)
-    
+
     return render_template('reset_password.html', token=token)
 
 @app.route('/chat')
 def chat():
     """Main chat interface - supports both logged-in users and demo mode"""
     user = get_current_user()
-    
+
     if user:
         # Logged-in user - full functionality
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
             flash('Invalid tenant. Please contact support.', 'error')
             return redirect(url_for('logout'))
-        
+
         # Get brand voices - all voices are treated as company voices now
         company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
         user_brand_voices = []  # No longer using user-specific brand voices
-        
+
         return render_template('chat.html', 
                              user=user, 
                              tenant=tenant,
@@ -396,20 +397,20 @@ def generate():
         content_mode = data.get('content_mode')
         brand_voice_id = data.get('brand_voice_id')
         is_demo = data.get('is_demo', False)
-        
+
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
-        
+
         user = get_current_user()
-        
+
         if not user and not is_demo:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         # Demo mode - limited functionality
         if is_demo or not user:
             # Get trauma-informed context only
             trauma_informed_context = rag_service.get_trauma_informed_context()
-            
+
             # Generate content without brand voice
             response = gemini_service.generate_content(
                 prompt=prompt,
@@ -417,27 +418,27 @@ def generate():
                 brand_voice_context=None,
                 trauma_informed_context=trauma_informed_context
             )
-            
+
             return jsonify({'response': response})
-        
+
         # Logged-in user - full functionality
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
             return jsonify({'error': 'Invalid tenant'}), 400
-        
+
         # Get brand voice context if specified
         brand_voice_context = None
         if brand_voice_id:
             # Get brand voice from database - all voices are company voices now
             company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
             selected_brand_voice = next((bv for bv in company_brand_voices if bv.brand_voice_id == brand_voice_id), None)
-            
+
             if selected_brand_voice:
                 brand_voice_context = rag_service.get_brand_voice_context(selected_brand_voice.markdown_content)
-        
+
         # Get trauma-informed context
         trauma_informed_context = rag_service.get_trauma_informed_context()
-        
+
         # Generate content
         response = gemini_service.generate_content(
             prompt=prompt,
@@ -445,9 +446,9 @@ def generate():
             brand_voice_context=brand_voice_context,
             trauma_informed_context=trauma_informed_context
         )
-        
+
         return jsonify({'response': response})
-        
+
     except Exception as e:
         logger.error(f"Generation error: {e}")
         return jsonify({'error': 'An error occurred while generating content. Please try again.'}), 500
@@ -473,11 +474,11 @@ def account():
     if not tenant:
         flash('Invalid tenant. Please contact support.', 'error')
         return redirect(url_for('logout'))
-    
+
     # Get brand voices - all voices are treated as company voices now
     company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
     user_brand_voices = []  # No longer using user-specific brand voices
-    
+
     # Determine max user voices based on subscription
     if user.subscription_level == SubscriptionLevel.PRO:
         max_user_voices = 10
@@ -487,7 +488,7 @@ def account():
         max_user_voices = 10
     else:
         max_user_voices = 1
-    
+
     return render_template('account.html',
                          user=user,
                          tenant=tenant,
@@ -504,36 +505,36 @@ def update_profile():
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         first_name = data.get('first_name', '').strip()
         last_name = data.get('last_name', '').strip()
         email = data.get('email', '').strip().lower()
-        
+
         if not all([first_name, last_name, email]):
             return jsonify({'error': 'All fields are required'}), 400
-        
+
         # Check if email is already taken by another user
         if email != user.email:
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
                 return jsonify({'error': 'Email address is already in use'}), 400
-        
+
         # Update user in database
         conn = db_manager.get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             UPDATE users 
             SET first_name = %s, last_name = %s, email = %s
             WHERE user_id = %s
         """, (first_name, last_name, email, user.user_id))
-        
+
         conn.commit()
         cursor.close()
         conn.close()
-        
+
         return jsonify({'success': True, 'message': 'Profile updated successfully'})
-    
+
     except Exception as e:
         logger.error(f"Error updating profile: {e}")
         return jsonify({'error': 'An error occurred while updating your profile'}), 500
@@ -547,36 +548,36 @@ def change_password():
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         current_password = data.get('current_password', '')
         new_password = data.get('new_password', '')
-        
+
         if not current_password or not new_password:
             return jsonify({'error': 'Current and new passwords are required'}), 400
-        
+
         # Verify current password
         if not db_manager.verify_password(user, current_password):
             return jsonify({'error': 'Current password is incorrect'}), 400
-        
+
         # Update password in database
         from werkzeug.security import generate_password_hash
         new_password_hash = generate_password_hash(new_password)
-        
+
         conn = db_manager.get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             UPDATE users 
             SET password_hash = %s
             WHERE user_id = %s
         """, (new_password_hash, user.user_id))
-        
+
         conn.commit()
         cursor.close()
         conn.close()
-        
+
         return jsonify({'success': True, 'message': 'Password changed successfully'})
-    
+
     except Exception as e:
         logger.error(f"Error changing password: {e}")
         return jsonify({'error': 'An error occurred while changing your password'}), 500
@@ -590,30 +591,30 @@ def delete_account():
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         confirm_email = data.get('confirm_email', '').strip().lower()
         delete_reason = data.get('delete_reason', '').strip()
-        
+
         # Verify email confirmation
         if confirm_email != user.email.lower():
             return jsonify({'error': 'Email confirmation does not match'}), 400
-        
+
         # Only allow deletion for independent users (not organization members)
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
             return jsonify({'error': 'Invalid tenant'}), 400
-        
+
         if tenant.tenant_type == TenantType.COMPANY:
             return jsonify({'error': 'Organization members cannot delete their accounts. Please contact your organization admin.'}), 400
-        
+
         # Log deletion reason if provided
         if delete_reason:
             logger.info(f"Account deletion reason for {user.email}: {delete_reason}")
-        
+
         # Delete the user and their tenant (since they're independent)
         user_deleted = db_manager.delete_user(user.user_id)
         tenant_deleted = db_manager.delete_tenant(user.tenant_id)
-        
+
         if user_deleted and tenant_deleted:
             # Log out the user
             logout_user()
@@ -622,7 +623,7 @@ def delete_account():
         else:
             logger.error(f"Failed to delete account for user: {user.email}")
             return jsonify({'error': 'Failed to delete account. Please contact support.'}), 500
-    
+
     except Exception as e:
         logger.error(f"Error deleting account: {e}")
         return jsonify({'error': 'An error occurred while deleting your account. Please contact support.'}), 500
@@ -638,11 +639,11 @@ def brand_voices():
     if not tenant:
         flash('Invalid tenant. Please contact support.', 'error')
         return redirect(url_for('logout'))
-    
+
     # Get brand voices - all voices are treated as company voices now
     company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
     user_brand_voices = []  # No longer using user-specific brand voices
-    
+
     # Check limits based on subscription level
     if user.subscription_level == SubscriptionLevel.PRO:
         max_user_voices = 10
@@ -652,12 +653,12 @@ def brand_voices():
         max_user_voices = 10  # Team members can have personal voices too
     else:
         max_user_voices = 1  # Default
-    
+
     can_create_user_voice = len(user_brand_voices) < max_user_voices
     can_create_company_voice = (user.is_admin and 
                                tenant.tenant_type == TenantType.COMPANY and 
                                len(company_brand_voices) < tenant.max_brand_voices)
-    
+
     return render_template('brand_voices.html',
                          user=user,
                          tenant=tenant,
@@ -676,56 +677,56 @@ def brand_voice_wizard():
     user = get_current_user()
     if not user:
         return redirect(url_for('login'))
-    
+
     tenant = db_manager.get_tenant_by_id(user.tenant_id)
     if not tenant:
         flash('Invalid tenant. Please contact support.', 'error')
         return redirect(url_for('logout'))
-    
+
     # Set default voice type based on tenant type and user role
     if not voice_type:
         if tenant.tenant_type == TenantType.COMPANY and user.is_admin:
             voice_type = 'company'  # Default to company for organization admins
         else:
             voice_type = 'user'
-    
+
     if voice_type == 'company' and not user.is_admin:
         flash('Admin access required to create company brand voices.', 'error')
         return redirect(url_for('brand_voices'))
-    
+
     # If editing, verify the brand voice exists and user has permission
     if edit_id:
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
             flash('Invalid tenant. Please contact support.', 'error')
             return redirect(url_for('logout'))
-        
+
         # Get brand voice to verify permission
         company_brand_voices = []
         if tenant.tenant_type == TenantType.COMPANY:
             company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-        
+
         user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
         all_brand_voices = company_brand_voices + user_brand_voices
-        
+
         selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == edit_id), None)
-        
+
         if not selected_brand_voice:
             flash('Brand voice not found.', 'error')
             return redirect(url_for('brand_voices'))
-        
+
         # Check permissions
         if selected_brand_voice.user_id and selected_brand_voice.user_id != user.user_id:
             flash('Permission denied.', 'error')
             return redirect(url_for('brand_voices'))
-        
+
         if not selected_brand_voice.user_id and not user.is_admin:
             flash('Permission denied.', 'error')
             return redirect(url_for('brand_voices'))
-        
+
         # Determine voice type based on the brand voice
         voice_type = 'company' if not selected_brand_voice.user_id else 'user'
-    
+
     return render_template('brand_voice_wizard.html', 
                          voice_type=voice_type, 
                          user=user, 
@@ -737,24 +738,24 @@ def create_brand_voice():
     """Create a new brand voice or update an existing one"""
     try:
         data = request.get_json()
-        
+
         if not data:
             logger.error("No JSON data received in brand voice creation request")
             return jsonify({'error': 'No data received'}), 400
-        
+
         # Required fields
         company_name = data.get('company_name', '').strip()
         company_url = data.get('company_url', '').strip()
         voice_short_name = data.get('voice_short_name', '').strip()
         voice_type = data.get('voice_type', 'user')
         brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
-        
+
         logger.info(f"Creating brand voice: {voice_short_name} for voice_type: {voice_type}")
-        
+
         if not all([company_name, company_url, voice_short_name]):
             logger.error(f"Missing required fields: company_name={bool(company_name)}, company_url={bool(company_url)}, voice_short_name={bool(voice_short_name)}")
             return jsonify({'error': 'Company name, URL, and voice name are required'}), 400
-        
+
         user = get_current_user()
         if not user:
             logger.error("No authenticated user found")
@@ -763,27 +764,27 @@ def create_brand_voice():
         if not tenant:
             logger.error(f"Invalid tenant for user {user.user_id}")
             return jsonify({'error': 'Invalid tenant'}), 400
-        
+
         # Determine if this is an edit or create operation
         is_editing = bool(brand_voice_id)
-        
+
         # Always create as company voice now - check limits based on company voices
         logger.info(f"Creating brand voice for tenant {tenant.tenant_id}")
-        
+
         if not is_editing:
             existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
             logger.info(f"Existing company voices: {len(existing_company_voices)}/{tenant.max_brand_voices}")
-            
+
             # Use a more generous limit for individuals to ensure they can create voices
             max_allowed = max(tenant.max_brand_voices, 10)  # Allow at least 10 voices
-            
+
             if len(existing_company_voices) >= max_allowed:
                 logger.error(f"Brand voice limit exceeded: {len(existing_company_voices)}/{max_allowed}")
                 return jsonify({'error': f'Maximum of {max_allowed} brand voices allowed'}), 400
-        
+
         # Always set user_id to None since we're treating all voices as company voices
         user_id = None
-        
+
         # Collect all wizard data
         wizard_data = {
             'company_name': company_name,
@@ -820,10 +821,10 @@ def create_brand_voice():
             'competitor_voices': data.get('competitor_voices', ''),
             'voice_differentiation': data.get('voice_differentiation', '')
         }
-        
+
         # Generate comprehensive markdown content for RAG
         markdown_content = generate_brand_voice_markdown(wizard_data)
-        
+
         # Create or update brand voice with comprehensive data
         if is_editing:
             # Verify permissions for editing
@@ -832,12 +833,12 @@ def create_brand_voice():
                 existing_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
             else:
                 existing_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
-            
+
             # Check if the brand voice exists and user has permission
             voice_exists = any(bv.brand_voice_id == brand_voice_id for bv in existing_voices)
             if not voice_exists:
                 return jsonify({'error': 'Brand voice not found or permission denied'}), 404
-            
+
             brand_voice = db_manager.update_brand_voice(
                 tenant_id=tenant.tenant_id,
                 brand_voice_id=brand_voice_id,
@@ -845,7 +846,7 @@ def create_brand_voice():
                 markdown_content=markdown_content,
                 user_id=user_id
             )
-            
+
             return jsonify({
                 'success': True,
                 'brand_voice_id': brand_voice.brand_voice_id,
@@ -858,13 +859,13 @@ def create_brand_voice():
                 markdown_content=markdown_content,
                 user_id=user_id
             )
-            
+
             return jsonify({
                 'success': True,
                 'brand_voice_id': brand_voice.brand_voice_id,
                 'message': f'Brand voice "{voice_short_name}" created successfully!'
             })
-        
+
     except Exception as e:
         logger.error(f"Error creating brand voice: {e}")
         return jsonify({'error': 'An error occurred while creating the brand voice. Please try again.'}), 500
@@ -880,29 +881,29 @@ def get_brand_voice(brand_voice_id):
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
             return jsonify({'error': 'Invalid tenant'}), 400
-        
+
         # Get brand voice from database
         company_brand_voices = []
         if tenant.tenant_type == TenantType.COMPANY:
             company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-        
+
         user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
         all_brand_voices = company_brand_voices + user_brand_voices
-        
+
         selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == brand_voice_id), None)
-        
+
         if not selected_brand_voice:
             return jsonify({'error': 'Brand voice not found'}), 404
-        
+
         # Check permissions
         if selected_brand_voice.user_id and selected_brand_voice.user_id != user.user_id:
             return jsonify({'error': 'Permission denied'}), 403
-        
+
         if not selected_brand_voice.user_id and not user.is_admin:
             return jsonify({'error': 'Permission denied'}), 403
-        
+
         return jsonify(selected_brand_voice.configuration)
-        
+
     except Exception as e:
         logger.error(f"Error getting brand voice: {e}")
         return jsonify({'error': 'An error occurred while loading the brand voice'}), 500
@@ -916,123 +917,123 @@ def auto_save_brand_voice():
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         # Check if required fields are present for auto-save
         company_name = data.get('company_name', '').strip()
         company_url = data.get('company_url', '').strip()
         voice_short_name = data.get('voice_short_name', '').strip()
-        
+
         if not all([company_name, company_url, voice_short_name]):
             return jsonify({'error': 'Required fields missing'}), 400
-        
+
         # Auto-save logic would go here
         # For now, just return success with a mock profile_id
         profile_id = data.get('profile_id') or str(uuid.uuid4())
-        
+
         return jsonify({
             'success': True,
             'profile_id': profile_id,
             'message': 'Progress saved'
         })
-        
+
     except Exception as e:
         logger.error(f"Error auto-saving brand voice: {e}")
         return jsonify({'error': 'Auto-save failed'}), 500
 
 def generate_brand_voice_markdown(data):
     """Generate comprehensive markdown content for brand voice"""
-    markdown = f"""# {data['voice_short_name']} Brand Voice Guide
+    markdown = f"""# {data.get('voice_short_name', 'Unnamed Brand Voice')} Brand Voice Guide
 
 ## Company Overview
-**Company:** {data['company_name']}
-**Website:** {data['company_url']}
+**Company:** {data.get('company_name', 'N/A')}
+**Website:** {data.get('company_url', 'N/A')}
 
 """
-    
+
     if data.get('mission_statement'):
         markdown += f"""## Mission Statement
 {data['mission_statement']}
 
 """
-    
+
     if data.get('vision_statement'):
         markdown += f"""## Vision Statement
 {data['vision_statement']}
 
 """
-    
+
     if data.get('core_values'):
         markdown += f"""## Core Values
 {data['core_values']}
 
 """
-    
+
     if data.get('elevator_pitch'):
         markdown += f"""## Elevator Pitch
 {data['elevator_pitch']}
 
 """
-    
+
     # Personality traits
     markdown += f"""## Brand Personality
 
 ### Personality Traits (1-5 scale)
-- **Communication Style:** {data['personality_formal_casual']}/5 (1=Formal, 5=Casual)
-- **Tone:** {data['personality_serious_playful']}/5 (1=Serious, 5=Playful)
-- **Approach:** {data['personality_traditional_modern']}/5 (1=Traditional, 5=Modern)
-- **Authority:** {data['personality_authoritative_collaborative']}/5 (1=Authoritative, 5=Collaborative)
-- **Accessibility:** {data['personality_accessible_exclusive']}/5 (1=Accessible, 5=Aspirational)
+- **Communication Style:** {data.get('personality_formal_casual', 3)}/5 (1=Formal, 5=Casual)
+- **Tone:** {data.get('personality_serious_playful', 3)}/5 (1=Serious, 5=Playful)
+- **Approach:** {data.get('personality_traditional_modern', 3)}/5 (1=Traditional, 5=Modern)
+- **Authority:** {data.get('personality_authoritative_collaborative', 3)}/5 (1=Authoritative, 5=Collaborative)
+- **Accessibility:** {data.get('personality_accessible_exclusive', 3)}/5 (1=Accessible, 5=Aspirational)
 
 """
-    
+
     if data.get('brand_as_person'):
         markdown += f"""### Brand as a Person
 {data['brand_as_person']}
 
 """
-    
+
     if data.get('brand_spokesperson'):
         markdown += f"""### Brand Spokesperson
 {data['brand_spokesperson']}
 
 """
-    
+
     # Audience information
     if data.get('primary_audience_persona'):
         markdown += f"""## Target Audience
 {data['primary_audience_persona']}
 
 """
-    
+
     if data.get('audience_pain_points'):
         markdown += f"""### Audience Pain Points
 {data['audience_pain_points']}
 
 """
-    
+
     if data.get('desired_relationship'):
         markdown += f"""### Desired Relationship
 {data['desired_relationship']}
 
 """
-    
+
     # Language guidelines
     markdown += f"""## Language Guidelines
 
 """
-    
+
     if data.get('words_to_embrace'):
         markdown += f"""### Words to Embrace
 {data['words_to_embrace']}
 
 """
-    
+
     if data.get('words_to_avoid'):
         markdown += f"""### Words to Avoid
 {data['words_to_avoid']}
 
 """
-    
+
     # Communication style
     if data.get('point_of_view'):
         pov_map = {
@@ -1044,34 +1045,34 @@ def generate_brand_voice_markdown(data):
 {pov_map.get(data['point_of_view'], data['point_of_view'])}
 
 """
-    
+
     if data.get('punctuation_contractions') is not None:
         contractions = "Use contractions" if data['punctuation_contractions'] else "Avoid contractions"
         markdown += f"""### Contractions
 {contractions}
 
 """
-    
+
     if data.get('punctuation_oxford_comma') is not None:
         oxford = "Use Oxford comma" if data['punctuation_oxford_comma'] else "No Oxford comma"
         markdown += f"""### Oxford Comma
 {oxford}
 
 """
-    
+
     # Tone for different situations
     if data.get('handling_good_news'):
         markdown += f"""### Handling Good News
 {data['handling_good_news']}
 
 """
-    
+
     if data.get('handling_bad_news'):
         markdown += f"""### Handling Bad News/Apologies
 {data['handling_bad_news']}
 
 """
-    
+
     # Competition and differentiation
     if data.get('competitors'):
         markdown += f"""## Competition
@@ -1079,19 +1080,19 @@ def generate_brand_voice_markdown(data):
 {data['competitors']}
 
 """
-    
+
     if data.get('competitor_voices'):
         markdown += f"""### Competitor Communication Styles
 {data['competitor_voices']}
 
 """
-    
+
     if data.get('voice_differentiation'):
         markdown += f"""### Our Differentiation
 {data['voice_differentiation']}
 
 """
-    
+
     # Trauma-informed principles
     markdown += f"""## Trauma-Informed Communication Principles
 
@@ -1111,19 +1112,19 @@ def generate_brand_voice_markdown(data):
 - Ensure accessibility in both language and format
 
 """
-    
+
     if data.get('about_us_content'):
         markdown += f"""## About Us Reference Content
 {data['about_us_content']}
 
 """
-    
+
     if data.get('press_release_boilerplate'):
         markdown += f"""## Press Release Boilerplate
 {data['press_release_boilerplate']}
 
 """
-    
+
     return markdown
 
 @app.route('/platform-admin')
@@ -1132,7 +1133,7 @@ def platform_admin():
     """Platform admin dashboard"""
     users = db_manager.get_all_users()
     tenants = db_manager.get_all_tenants()
-    
+
     return render_template('platform_admin.html', users=users, tenants=tenants)
 
 @app.route('/admin/delete-user/<user_id>', methods=['POST'])
@@ -1147,7 +1148,7 @@ def admin_delete_user(user_id):
     except Exception as e:
         logger.error(f"Error deleting user: {e}")
         flash('An error occurred while deleting the user.', 'error')
-    
+
     return redirect(url_for('platform_admin'))
 
 @app.route('/admin/delete-tenant/<tenant_id>', methods=['POST'])
@@ -1162,7 +1163,7 @@ def admin_delete_tenant(tenant_id):
     except Exception as e:
         logger.error(f"Error deleting tenant: {e}")
         flash('An error occurred while deleting the organization.', 'error')
-    
+
     return redirect(url_for('platform_admin'))
 
 @app.route('/admin/organization/<tenant_id>')
@@ -1174,10 +1175,10 @@ def admin_organization_details(tenant_id):
         if not tenant:
             flash('Organization not found.', 'error')
             return redirect(url_for('platform_admin'))
-        
+
         # Get organization members
         organization_users = db_manager.get_organization_users(tenant_id)
-        
+
         return render_template('admin_organization_details.html', 
                              tenant=tenant, 
                              organization_users=organization_users)
@@ -1194,10 +1195,10 @@ def admin_update_subscription():
         data = request.get_json()
         user_id = data.get('user_id')
         subscription_level = data.get('subscription_level')
-        
+
         if not user_id or not subscription_level:
             return jsonify({'error': 'User ID and subscription level are required'}), 400
-        
+
         if db_manager.update_user_subscription(user_id, subscription_level):
             return jsonify({'success': True, 'message': 'Subscription updated successfully'})
         else:
@@ -1213,28 +1214,28 @@ def send_organization_invite():
     try:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
-        
+
         if not email:
             return jsonify({'error': 'Email address is required'}), 400
-        
+
         user = get_current_user()
         if not user or not user.is_admin:
             return jsonify({'error': 'Admin access required'}), 403
-        
+
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant or tenant.tenant_type != TenantType.COMPANY:
             return jsonify({'error': 'Organization account required'}), 400
-        
+
         # Check if user already exists in this organization
         existing_user = db_manager.get_user_by_email(email)
         if existing_user and existing_user.tenant_id == user.tenant_id:
             return jsonify({'error': 'User is already a member of this organization'}), 400
-        
+
         # Generate invite token
         from email_service import generate_verification_token, hash_token
         invite_token = generate_verification_token()
         token_hash = hash_token(invite_token)
-        
+
         # Create invite in database
         if db_manager.create_organization_invite(user.tenant_id, user.user_id, email, token_hash):
             # Send invite email
@@ -1252,7 +1253,7 @@ def send_organization_invite():
                 return jsonify({'error': 'Failed to send invitation email'}), 500
         else:
             return jsonify({'error': 'Failed to create invitation'}), 500
-            
+
     except Exception as e:
         logger.error(f"Error sending organization invite: {e}")
         return jsonify({'error': 'An error occurred while sending the invitation'}), 500
@@ -1264,25 +1265,25 @@ def join_organization():
     if not token:
         flash('Invalid invitation link.', 'error')
         return redirect(url_for('login'))
-    
+
     from email_service import hash_token
     token_hash = hash_token(token)
     invite_data = db_manager.verify_organization_invite_token(token_hash)
-    
+
     if not invite_data:
         flash('Invalid or expired invitation link.', 'error')
         return redirect(url_for('login'))
-    
+
     tenant_id, email = invite_data
     tenant = db_manager.get_tenant_by_id(tenant_id)
-    
+
     if not tenant:
         flash('Organization not found.', 'error')
         return redirect(url_for('login'))
-    
+
     # Check if user already exists
     existing_user = db_manager.get_user_by_email(email)
-    
+
     if existing_user:
         if existing_user.tenant_id == tenant_id:
             flash('You are already a member of this organization.', 'info')
@@ -1290,7 +1291,7 @@ def join_organization():
         else:
             flash('This email is already associated with another account. Please contact support.', 'error')
             return redirect(url_for('login'))
-    
+
     # Store invite info in session for registration
     session['organization_invite'] = {
         'token_hash': token_hash,
@@ -1298,7 +1299,7 @@ def join_organization():
         'email': email,
         'organization_name': tenant.name
     }
-    
+
     return redirect(url_for('register', invite='organization'))
 
 @app.route('/get-pending-invites/<tenant_id>')
@@ -1309,10 +1310,10 @@ def get_pending_invites(tenant_id):
         user = get_current_user()
         if not user or not user.is_admin or user.tenant_id != tenant_id:
             return jsonify({'error': 'Permission denied'}), 403
-        
+
         invites = db_manager.get_pending_invites(tenant_id)
         return jsonify({'invites': invites})
-        
+
     except Exception as e:
         logger.error(f"Error getting pending invites: {e}")
         return jsonify({'error': 'An error occurred'}), 500

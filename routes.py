@@ -366,12 +366,9 @@ def chat():
             flash('Invalid tenant. Please contact support.', 'error')
             return redirect(url_for('logout'))
         
-        # Get brand voices
-        company_brand_voices = []
-        if tenant.tenant_type == TenantType.COMPANY:
-            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-        
-        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        # Get brand voices - all voices are treated as company voices now
+        company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+        user_brand_voices = []  # No longer using user-specific brand voices
         
         return render_template('chat.html', 
                              user=user, 
@@ -431,12 +428,9 @@ def generate():
         # Get brand voice context if specified
         brand_voice_context = None
         if brand_voice_id:
-            # Get brand voice from database
+            # Get brand voice from database - all voices are company voices now
             company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
-            
-            all_brand_voices = company_brand_voices + user_brand_voices
-            selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == brand_voice_id), None)
+            selected_brand_voice = next((bv for bv in company_brand_voices if bv.brand_voice_id == brand_voice_id), None)
             
             if selected_brand_voice:
                 brand_voice_context = rag_service.get_brand_voice_context(selected_brand_voice.markdown_content)
@@ -645,11 +639,9 @@ def brand_voices():
         flash('Invalid tenant. Please contact support.', 'error')
         return redirect(url_for('logout'))
     
-    company_brand_voices = []
-    if tenant.tenant_type == TenantType.COMPANY:
-        company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-    
-    user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+    # Get brand voices - all voices are treated as company voices now
+    company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+    user_brand_voices = []  # No longer using user-specific brand voices
     
     # Check limits based on subscription level
     if user.subscription_level == SubscriptionLevel.PRO:

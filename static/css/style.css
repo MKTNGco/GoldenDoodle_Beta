@@ -998,7 +998,7 @@ a:hover {
 .floating-benefits-section {
     position: relative;
     overflow: hidden;
-    height: 600px;
+    height: 300px;
 }
 
 .benefits-row {

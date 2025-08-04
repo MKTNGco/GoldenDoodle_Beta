@@ -106,6 +106,13 @@
                                 <i class="fas fa-key me-2"></i>Change Password
                             </button>
                         </div>
+                        {% if user.is_admin and tenant.tenant_type.value == 'company' %}
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-info w-100" data-bs-toggle="modal" data-bs-target="#inviteTeamMemberModal">
+                                <i class="fas fa-user-plus me-2"></i>Invite Team Member
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -133,6 +140,13 @@
                                 <i class="fas fa-palette me-1"></i>Brand Voices
                             </button>
                         </li>
+                        {% if user.is_admin and tenant.tenant_type.value == 'company' %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="team-management-tab" data-bs-toggle="tab" data-bs-target="#team-management" type="button" role="tab">
+                                <i class="fas fa-users me-1"></i>Team Management
+                            </button>
+                        </li>
+                        {% endif %}
                         {% if tenant.tenant_type.value == 'independent_user' %}
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="billing-tab" data-bs-toggle="tab" data-bs-target="#billing" type="button" role="tab">
@@ -247,6 +261,70 @@
                             </div>
                             {% endif %}
                         </div>
+
+                        <!-- Team Management Tab (for organization admins only) -->
+                        {% if user.is_admin and tenant.tenant_type.value == 'company' %}
+                        <div class="tab-pane fade" id="team-management" role="tabpanel">
+                            <div class="row mb-4">
+                                <div class="col-md-8">
+                                    <h6 class="text-primary mb-3">Team Member Management</h6>
+                                    <p class="text-muted">Invite new team members to join {{ tenant.name }} and manage pending invitations.</p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inviteTeamMemberModal">
+                                        <i class="fas fa-user-plus me-2"></i>Invite Team Member
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Pending Invitations -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-envelope me-2"></i>Pending Invitations
+                                    </h6>
+                                </div>
+                                <div class="card-body" id="pendingInvitesSection">
+                                    <div class="text-center py-2">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading invitations...
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Team Information -->
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>Organization Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label text-muted">Organization Name</label>
+                                                <p class="fw-semibold">{{ tenant.name }}</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label text-muted">Your Role</label>
+                                                <p class="fw-semibold">{{ 'Administrator' if user.is_admin else 'Member' }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label text-muted">Brand Voice Limit</label>
+                                                <p class="fw-semibold">{{ company_brand_voices|length }} / {{ tenant.max_brand_voices }} Company Voices</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label text-muted">Organization Type</label>
+                                                <p class="fw-semibold">{{ 'Company' if tenant.tenant_type.value == 'company' else 'Individual Account' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <!-- Billing Tab (for individual users only) -->
                         {% if tenant.tenant_type.value == 'independent_user' %}
@@ -370,6 +448,44 @@
     </div>
 </div>
 
+<!-- Invite Team Member Modal -->
+<div class="modal fade" id="inviteTeamMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Invite Team Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="inviteTeamMemberForm">
+                    <div class="mb-3">
+                        <label for="inviteEmail" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="inviteEmail" required 
+                               placeholder="Enter team member's email address">
+                        <div class="form-text">
+                            The team member will receive an invitation email to join {{ tenant.name }}.
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>What happens next:</strong><br>
+                        • An invitation email will be sent to the provided address<br>
+                        • If they have a GoldenDoodleLM account, they'll be added to your organization<br>
+                        • If not, they'll be guided through creating an account<br>
+                        • The invitation expires after 7 days
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendInviteBtn">
+                    <i class="fas fa-paper-plane me-1"></i>Send Invitation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Account Modal -->
 <div class="modal fade" id="deleteAccountModal" tabindex="-1">
     <div class="modal-dialog">
@@ -428,6 +544,91 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Load pending invites if team management tab exists
+    if (document.getElementById('team-management')) {
+        loadPendingInvites();
+    }
+
+    // Handle send team member invitation
+    const sendInviteBtn = document.getElementById('sendInviteBtn');
+    if (sendInviteBtn) {
+        sendInviteBtn.addEventListener('click', function() {
+            const email = document.getElementById('inviteEmail').value.trim();
+            
+            if (!email) {
+                alert('Please enter an email address');
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sending...';
+
+            fetch('/send-organization-invite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    document.getElementById('inviteEmail').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('inviteTeamMemberModal')).hide();
+                    loadPendingInvites(); // Refresh pending invites
+                } else {
+                    alert('Failed to send invitation: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to send invitation');
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Invitation';
+            });
+        });
+    }
+
+    function loadPendingInvites() {
+        const pendingSection = document.getElementById('pendingInvitesSection');
+        if (!pendingSection) return;
+
+        const tenantId = '{{ tenant.tenant_id }}';
+        
+        fetch(`/get-pending-invites/${tenantId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.invites && data.invites.length > 0) {
+                let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
+                html += '<thead><tr><th>Email</th><th>Invited By</th><th>Sent</th></tr></thead><tbody>';
+                
+                data.invites.forEach(invite => {
+                    const sentDate = new Date(invite.created_at).toLocaleDateString();
+                    html += `<tr>
+                        <td>${invite.email}</td>
+                        <td>${invite.invited_by}</td>
+                        <td>${sentDate}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                pendingSection.innerHTML = html;
+            } else {
+                pendingSection.innerHTML = '<div class="text-center py-2 text-muted">No pending invitations</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading pending invites:', error);
+            pendingSection.innerHTML = 
+                '<div class="text-center py-2 text-danger">Failed to load pending invitations</div>';
+        });
+    }
+
     // Edit Profile Form
     document.getElementById('editProfileForm').addEventListener('submit', function(e) {
         e.preventDefault();

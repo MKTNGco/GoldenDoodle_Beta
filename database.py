@@ -790,14 +790,28 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Delete user's brand voices first
-            cursor.execute("DELETE FROM brand_voices WHERE user_id = %s", (user_id,))
+            # Get user's tenant_id first
+            cursor.execute("SELECT tenant_id FROM users WHERE user_id = %s", (user_id,))
+            result = cursor.fetchone()
+            if result:
+                tenant_id = str(result[0])
+                
+                # Delete user's brand voices from tenant-specific table
+                table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
+                try:
+                    cursor.execute(f"DELETE FROM {table_name} WHERE user_id = %s", (user_id,))
+                except Exception:
+                    # Table might not exist, continue
+                    pass
 
             # Delete verification tokens
             cursor.execute("DELETE FROM email_verification_tokens WHERE user_id = %s", (user_id,))
 
             # Delete password reset tokens
             cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+
+            # Delete organization invite tokens sent by this user
+            cursor.execute("DELETE FROM organization_invite_tokens WHERE invited_by_user_id = %s", (user_id,))
 
             # Delete the user
             cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
@@ -822,12 +836,20 @@ class DatabaseManager:
 
             # Delete all user data
             for user_id in user_ids:
-                cursor.execute("DELETE FROM brand_voices WHERE user_id = %s", (user_id,))
                 cursor.execute("DELETE FROM email_verification_tokens WHERE user_id = %s", (user_id,))
                 cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
 
-            # Delete company brand voices
-            cursor.execute("DELETE FROM brand_voices WHERE tenant_id = %s AND user_id IS NULL", (tenant_id,))
+            # Delete tenant-specific brand voice tables
+            table_prefix = tenant_id.replace('-', '_')
+            try:
+                cursor.execute(f"DROP TABLE IF EXISTS company_brand_voices_{table_prefix}")
+                cursor.execute(f"DROP TABLE IF EXISTS user_brand_voices_{table_prefix}")
+            except Exception:
+                # Tables might not exist, continue
+                pass
+
+            # Delete organization invite tokens for this tenant
+            cursor.execute("DELETE FROM organization_invite_tokens WHERE tenant_id = %s", (tenant_id,))
 
             # Delete all users
             cursor.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id,))

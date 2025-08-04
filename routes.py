@@ -590,6 +590,52 @@ def change_password():
         logger.error(f"Error changing password: {e}")
         return jsonify({'error': 'An error occurred while changing your password'}), 500
 
+@app.route('/delete-account', methods=['POST'])
+@login_required
+def delete_account():
+    """Delete user account"""
+    try:
+        data = request.get_json()
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        confirm_email = data.get('confirm_email', '').strip().lower()
+        delete_reason = data.get('delete_reason', '').strip()
+        
+        # Verify email confirmation
+        if confirm_email != user.email.lower():
+            return jsonify({'error': 'Email confirmation does not match'}), 400
+        
+        # Only allow deletion for independent users (not organization members)
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        if not tenant:
+            return jsonify({'error': 'Invalid tenant'}), 400
+        
+        if tenant.tenant_type == TenantType.COMPANY:
+            return jsonify({'error': 'Organization members cannot delete their accounts. Please contact your organization admin.'}), 400
+        
+        # Log deletion reason if provided
+        if delete_reason:
+            logger.info(f"Account deletion reason for {user.email}: {delete_reason}")
+        
+        # Delete the user and their tenant (since they're independent)
+        user_deleted = db_manager.delete_user(user.user_id)
+        tenant_deleted = db_manager.delete_tenant(user.tenant_id)
+        
+        if user_deleted and tenant_deleted:
+            # Log out the user
+            logout_user()
+            logger.info(f"Account successfully deleted for user: {user.email}")
+            return jsonify({'success': True, 'message': 'Account deleted successfully'})
+        else:
+            logger.error(f"Failed to delete account for user: {user.email}")
+            return jsonify({'error': 'Failed to delete account. Please contact support.'}), 500
+    
+    except Exception as e:
+        logger.error(f"Error deleting account: {e}")
+        return jsonify({'error': 'An error occurred while deleting your account. Please contact support.'}), 500
+
 @app.route('/brand-voices')
 @login_required
 def brand_voices():

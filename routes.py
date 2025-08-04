@@ -749,6 +749,10 @@ def create_brand_voice():
     try:
         data = request.get_json()
         
+        if not data:
+            logger.error("No JSON data received in brand voice creation request")
+            return jsonify({'error': 'No data received'}), 400
+        
         # Required fields
         company_name = data.get('company_name', '').strip()
         company_url = data.get('company_url', '').strip()
@@ -756,14 +760,19 @@ def create_brand_voice():
         voice_type = data.get('voice_type', 'user')
         brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
         
+        logger.info(f"Creating brand voice: {voice_short_name} for voice_type: {voice_type}")
+        
         if not all([company_name, company_url, voice_short_name]):
+            logger.error(f"Missing required fields: company_name={bool(company_name)}, company_url={bool(company_url)}, voice_short_name={bool(voice_short_name)}")
             return jsonify({'error': 'Company name, URL, and voice name are required'}), 400
         
         user = get_current_user()
         if not user:
+            logger.error("No authenticated user found")
             return jsonify({'error': 'Authentication required'}), 401
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
+            logger.error(f"Invalid tenant for user {user.user_id}")
             return jsonify({'error': 'Invalid tenant'}), 400
         
         # Determine if this is an edit or create operation
@@ -771,12 +780,18 @@ def create_brand_voice():
         
         # Check permissions and limits
         if voice_type == 'company':
+            logger.info(f"Creating company voice for tenant {tenant.tenant_id}, user admin status: {user.is_admin}")
+            
             if not user.is_admin:
+                logger.error(f"User {user.user_id} attempted to create company voice without admin privileges")
                 return jsonify({'error': 'Admin access required'}), 403
             
             if not is_editing:
                 existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+                logger.info(f"Existing company voices: {len(existing_company_voices)}/{tenant.max_brand_voices}")
+                
                 if len(existing_company_voices) >= tenant.max_brand_voices:
+                    logger.error(f"Company voice limit exceeded: {len(existing_company_voices)}/{tenant.max_brand_voices}")
                     return jsonify({'error': f'Maximum of {tenant.max_brand_voices} company brand voices allowed'}), 400
             
             user_id = None

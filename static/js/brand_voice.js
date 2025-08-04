@@ -1,4 +1,3 @@
-
 // GoldenDoodleLM Brand Voice Wizard
 class BrandVoiceWizard {
     constructor() {
@@ -24,12 +23,12 @@ class BrandVoiceWizard {
         this.submitBtn = document.getElementById('submitBtn');
         this.currentStepNumber = document.getElementById('currentStepNumber');
         this.wizardProgress = document.getElementById('wizardProgress');
-        
+
         // Step 1 required fields
         this.companyNameInput = document.getElementById('companyName');
         this.companyUrlInput = document.getElementById('companyUrl');
         this.voiceShortNameInput = document.getElementById('voiceShortName');
-        
+
         // All form inputs for auto-save
         this.allInputs = this.form.querySelectorAll('input, textarea, select');
     }
@@ -73,7 +72,7 @@ class BrandVoiceWizard {
         if (this.autoSaveTimeout) {
             clearTimeout(this.autoSaveTimeout);
         }
-        
+
         // Schedule auto-save after 2 seconds of inactivity
         this.autoSaveTimeout = setTimeout(() => {
             this.autoSave();
@@ -102,7 +101,7 @@ class BrandVoiceWizard {
             if (response.ok) {
                 const result = await response.json();
                 this.profileId = result.profile_id;
-                
+
                 // Show subtle save indicator
                 this.showSaveIndicator('saved');
             }
@@ -122,7 +121,7 @@ class BrandVoiceWizard {
         // Create new indicator
         const indicator = document.createElement('div');
         indicator.className = 'save-indicator position-fixed top-0 end-0 m-3 p-2 rounded';
-        
+
         if (status === 'saved') {
             indicator.className += ' bg-success text-white';
             indicator.innerHTML = '<i class="fas fa-check me-1"></i>Saved';
@@ -130,7 +129,7 @@ class BrandVoiceWizard {
             indicator.className += ' bg-warning text-dark';
             indicator.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Save Error';
         }
-        
+
         indicator.style.zIndex = '9999';
         document.body.appendChild(indicator);
 
@@ -146,7 +145,7 @@ class BrandVoiceWizard {
         // Check if we're editing an existing profile
         const urlParams = new URLSearchParams(window.location.search);
         const editProfileId = urlParams.get('edit');
-        
+
         if (editProfileId) {
             try {
                 const response = await fetch(`/get-brand-voice/${editProfileId}`);
@@ -155,14 +154,14 @@ class BrandVoiceWizard {
                     this.populateForm(data);
                     this.profileId = editProfileId;
                     this.isEditing = true;
-                    
+
                     // Update UI to show we're editing
                     const title = document.querySelector('.card-header h4');
                     if (title) {
                         title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Brand Voice' + 
                                         title.innerHTML.substring(title.innerHTML.indexOf('<span'));
                     }
-                    
+
                     const submitBtn = document.getElementById('submitBtn');
                     if (submitBtn) {
                         submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Update Brand Voice';
@@ -196,7 +195,7 @@ class BrandVoiceWizard {
 
     changeStep(direction) {
         const newStep = this.currentStep + direction;
-        
+
         if (newStep < 1 || newStep > this.totalSteps) {
             return;
         }
@@ -218,7 +217,7 @@ class BrandVoiceWizard {
         this.updateStepVisibility();
         this.updateNavigationButtons();
         this.updateProgress();
-        
+
         // Scroll to top of form
         this.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -238,7 +237,7 @@ class BrandVoiceWizard {
     updateNavigationButtons() {
         // Previous button
         this.prevBtn.style.display = this.currentStep === 1 ? 'none' : 'inline-block';
-        
+
         // Next/Submit buttons
         if (this.currentStep === this.totalSteps) {
             this.nextBtn.style.display = 'none';
@@ -246,11 +245,11 @@ class BrandVoiceWizard {
         } else {
             this.nextBtn.style.display = 'inline-block';
             this.submitBtn.style.display = 'none';
-            
+
             // Update next button state based on current step validation
             const isValid = this.validateCurrentStep();
             this.nextBtn.disabled = !isValid;
-            
+
             if (this.currentStep === 1) {
                 // Update button text based on validation
                 if (isValid) {
@@ -285,7 +284,7 @@ class BrandVoiceWizard {
         const hasCompanyName = this.companyNameInput.value.trim().length > 0;
         const hasCompanyUrl = this.companyUrlInput.value.trim().length > 0;
         const hasVoiceShortName = this.voiceShortNameInput.value.trim().length > 0;
-        
+
         // Only show validation UI if fields have been touched
         if (this.companyNameInput.value.length > 0) {
             this.updateValidationUI(this.companyNameInput, hasCompanyName);
@@ -296,7 +295,7 @@ class BrandVoiceWizard {
         if (this.voiceShortNameInput.value.length > 0) {
             this.updateValidationUI(this.voiceShortNameInput, hasVoiceShortName);
         }
-        
+
         return hasCompanyName && hasCompanyUrl && hasVoiceShortName;
     }
 
@@ -311,13 +310,13 @@ class BrandVoiceWizard {
 
     collectFormData() {
         const formData = {};
-        
+
         // Get all form data
         const formDataObj = new FormData(this.form);
         for (let [key, value] of formDataObj.entries()) {
             formData[key] = value;
         }
-        
+
         // Handle radio buttons that might not be selected
         const radioGroups = ['punctuation_contractions', 'punctuation_oxford_comma'];
         radioGroups.forEach(group => {
@@ -334,32 +333,29 @@ class BrandVoiceWizard {
 
     async handleSubmit(event) {
         event.preventDefault();
-        
-        if (this.isSubmitting) {
-            return;
-        }
 
-        // Final validation
-        if (!this.validateStep1()) {
-            this.showAlert('Please complete all required fields in Step 1.', 'danger');
-            this.currentStep = 1;
-            this.updateStepVisibility();
-            this.updateNavigationButtons();
-            this.updateProgress();
+        // Validate required fields
+        if (!this.validateRequiredFields()) {
+            this.showAlert('Please fill in all required fields (Company Name, Company URL, and Voice Short Name).', 'danger');
             return;
         }
 
         this.isSubmitting = true;
         this.updateSubmitButton();
 
+        // Show loading message
+        this.showAlert('Creating your brand voice... This may take a moment.', 'info');
+
         try {
             const formData = this.collectFormData();
             formData.profile_id = this.profileId;
-            
+
             // Add brand voice ID for editing
             if (this.isEditing && this.profileId) {
                 formData.brand_voice_id = this.profileId;
             }
+
+            console.log('Submitting form data:', formData); // Debug log
 
             const response = await fetch('/create-brand-voice', {
                 method: 'POST',
@@ -369,22 +365,38 @@ class BrandVoiceWizard {
                 body: JSON.stringify(formData)
             });
 
-            const result = await response.json();
+            console.log('Response status:', response.status); // Debug log
 
-            if (response.ok) {
+            if (!response.ok) {
+                // Try to get error details from response
+                let errorMessage = 'An error occurred while creating the brand voice.';
+                try {
+                    const errorResult = await response.json();
+                    errorMessage = errorResult.error || errorMessage;
+                } catch (parseError) {
+                    console.error('Failed to parse error response:', parseError);
+                    errorMessage = `Server error (${response.status}): ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            console.log('Success result:', result); // Debug log
+
+            if (result.success) {
                 this.showAlert(result.message, 'success');
-                
+
                 // Redirect to brand voices page after a short delay
                 setTimeout(() => {
                     window.location.href = '/brand-voices';
                 }, 2000);
             } else {
-                this.showAlert(result.error || 'An error occurred while creating the brand voice.', 'danger');
+                this.showAlert(result.error || 'An unexpected error occurred.', 'danger');
             }
 
         } catch (error) {
             console.error('Error creating brand voice:', error);
-            this.showAlert('A network error occurred. Please check your connection and try again.', 'danger');
+            this.showAlert(error.message || 'A network error occurred. Please check your connection and try again.', 'danger');
         }
 
         this.isSubmitting = false;
@@ -392,19 +404,19 @@ class BrandVoiceWizard {
     }
 
     updateSubmitButton() {
-        if (this.isSubmitting) {
-            this.submitBtn.disabled = true;
-            if (this.isEditing) {
-                this.submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+            if (this.isSubmitting) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating Brand Voice...';
+                submitBtn.disabled = true;
+                submitBtn.classList.add('btn-secondary');
+                submitBtn.classList.remove('btn-success');
             } else {
-                this.submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
-            }
-        } else {
-            this.submitBtn.disabled = false;
-            if (this.isEditing) {
-                this.submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Update Brand Voice';
-            } else {
-                this.submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Create Brand Voice';
+                const isEditing = new URLSearchParams(window.location.search).get('edit');
+                submitBtn.innerHTML = `<i class="fas fa-save me-1"></i>${isEditing ? 'Update' : 'Create'} Brand Voice`;
+                submitBtn.disabled = false;
+                submitBtn.classList.add('btn-success');
+                submitBtn.classList.remove('btn-secondary');
             }
         }
     }
@@ -454,30 +466,30 @@ style.textContent = `
     .wizard-step {
         display: none;
     }
-    
+
     .fade-in {
         animation: fadeIn 0.3s ease-in;
     }
-    
+
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    
+
     .slider-container {
         margin-bottom: 1rem;
     }
-    
+
     .form-range {
         margin: 0.5rem 0;
     }
-    
+
     .save-indicator {
         font-size: 0.875rem;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         animation: slideIn 0.3s ease-out;
     }
-    
+
     @keyframes slideIn {
         from { transform: translateX(100%); }
         to { transform: translateX(0); }

@@ -173,19 +173,18 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Create company brand voices table if it's a company tenant
-            if tenant.tenant_type == TenantType.COMPANY:
-                cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS company_brand_voices_{tenant.tenant_id.replace('-', '_')} (
-                        brand_voice_id UUID PRIMARY KEY,
-                        name VARCHAR(255) NOT NULL,
-                        configuration JSON NOT NULL,
-                        markdown_content TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
+            # Create company brand voices table for all tenants (since we treat all voices as company voices now)
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS company_brand_voices_{tenant.tenant_id.replace('-', '_')} (
+                    brand_voice_id UUID PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    configuration JSON NOT NULL,
+                    markdown_content TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
 
-            # Create user brand voices table
+            # Create user brand voices table (keeping for backward compatibility)
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS user_brand_voices_{tenant.tenant_id.replace('-', '_')} (
                     brand_voice_id UUID PRIMARY KEY,
@@ -520,6 +519,18 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+            
+            # First, ensure the table exists
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {table_name} (
+                    brand_voice_id UUID PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    configuration JSON NOT NULL,
+                    markdown_content TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
             cursor.execute(f"""
                 SELECT * FROM {table_name} ORDER BY name
             """)
@@ -586,6 +597,17 @@ class DatabaseManager:
             if user_id:
                 # User brand voice
                 table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
+                # Ensure table exists
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        brand_voice_id UUID PRIMARY KEY,
+                        user_id UUID NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        configuration JSON NOT NULL,
+                        markdown_content TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
                 cursor.execute(f"""
                     INSERT INTO {table_name} (brand_voice_id, user_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s, %s)
@@ -593,6 +615,16 @@ class DatabaseManager:
             else:
                 # Company brand voice
                 table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+                # Ensure table exists
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        brand_voice_id UUID PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        configuration JSON NOT NULL,
+                        markdown_content TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
                 cursor.execute(f"""
                     INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s)
@@ -676,6 +708,17 @@ class DatabaseManager:
             if user_id:
                 # User brand voice
                 table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
+                # Ensure table exists
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        brand_voice_id UUID PRIMARY KEY,
+                        user_id UUID NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        configuration JSON NOT NULL,
+                        markdown_content TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
                 cursor.execute(f"""
                     INSERT INTO {table_name} (brand_voice_id, user_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s, %s)
@@ -683,6 +726,16 @@ class DatabaseManager:
             else:
                 # Company brand voice
                 table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+                # Ensure table exists
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        brand_voice_id UUID PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        configuration JSON NOT NULL,
+                        markdown_content TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
                 cursor.execute(f"""
                     INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s)

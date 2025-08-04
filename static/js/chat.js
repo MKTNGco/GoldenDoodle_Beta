@@ -94,7 +94,9 @@ class ChatInterface {
         // Brand voice selector
         if (this.brandVoiceBtn) {
             this.brandVoiceBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
+                console.log('Brand voice button clicked');
                 this.toggleBrandVoiceDropdown();
             });
         }
@@ -104,6 +106,7 @@ class ChatInterface {
             option.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log('Brand voice option selected:', option.textContent.trim());
                 this.selectBrandVoice(option.dataset.value, option.textContent.trim());
             });
         });
@@ -121,8 +124,8 @@ class ChatInterface {
         }
 
         // Global click to close dropdown
-        document.addEventListener('click', () => {
-            if (this.brandVoiceDropdown) {
+        document.addEventListener('click', (e) => {
+            if (this.brandVoiceDropdown && !this.brandVoiceDropdown.contains(e.target) && !this.brandVoiceBtn.contains(e.target)) {
                 this.closeBrandVoiceDropdown();
             }
         });
@@ -162,13 +165,25 @@ class ChatInterface {
 
     toggleBrandVoiceDropdown() {
         if (this.brandVoiceDropdown) {
-            this.brandVoiceDropdown.classList.toggle('show');
+            const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
+            
+            // Close any other dropdowns first
+            document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+            
+            // Toggle this dropdown
+            if (!isCurrentlyShown) {
+                this.brandVoiceDropdown.classList.add('show');
+                console.log('Brand voice dropdown shown');
+            }
         }
     }
 
     closeBrandVoiceDropdown() {
         if (this.brandVoiceDropdown) {
             this.brandVoiceDropdown.classList.remove('show');
+            console.log('Brand voice dropdown closed');
         }
     }
 

@@ -540,6 +540,91 @@ body {
     min-height: 60px;
 }
 
+/* Chat History Styles */
+.chat-history {
+    flex: 1;
+    overflow-y: auto;
+    padding-top: 16px;
+}
+
+.chat-history-item {
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    border: 1px solid transparent;
+}
+
+.chat-history-item:hover {
+    background: var(--border-light);
+}
+
+.chat-history-item.active {
+    background: var(--clearwater-teal);
+    border-color: var(--deep-teal);
+}
+
+.chat-history-item.active .chat-session-title {
+    color: white;
+    font-weight: 500;
+}
+
+.chat-history-item.active .chat-session-meta {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.chat-session-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-session-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.delete-session-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.chat-history-item:hover .delete-session-btn {
+    opacity: 1;
+}
+
+.delete-session-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.chat-history-item.active .delete-session-btn {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-history-item.active .delete-session-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
     .sidebar {

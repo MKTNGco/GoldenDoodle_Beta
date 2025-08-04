@@ -111,20 +111,51 @@ class DatabaseManager:
                 );
             """)
 
-            # Create organization invite tokens table
-            cursor.execute("""
+            # Organization invite tokens table
+            cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS organization_invite_tokens (
-                    invite_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    tenant_id UUID NOT NULL,
-                    invited_by_user_id UUID NOT NULL,
+                    token_id VARCHAR(36) PRIMARY KEY,
+                    tenant_id VARCHAR(36) NOT NULL,
+                    invited_by_user_id VARCHAR(36) NOT NULL,
                     email VARCHAR(255) NOT NULL,
                     token_hash VARCHAR(255) NOT NULL,
-                    expires_at TIMESTAMP NOT NULL,
-                    used BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    used_at TIMESTAMP NULL,
+                    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+                    FOREIGN KEY (invited_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                    INDEX idx_token_hash (token_hash),
+                    INDEX idx_email (email)
+                )
             """)
-            
+
+            # Chat sessions table
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    session_id VARCHAR(36) PRIMARY KEY,
+                    user_id VARCHAR(36) NOT NULL,
+                    title VARCHAR(255) NOT NULL DEFAULT 'New Chat',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                    INDEX idx_user_updated (user_id, updated_at)
+                )
+            """)
+
+            # Chat messages table
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    message_id VARCHAR(36) PRIMARY KEY,
+                    session_id VARCHAR(36) NOT NULL,
+                    message_type ENUM('user', 'assistant') NOT NULL,
+                    content TEXT NOT NULL,
+                    content_mode VARCHAR(50) NULL,
+                    brand_voice_id VARCHAR(36) NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
+                    INDEX idx_session_created (session_id, created_at)
+                )
+            """)
+
             # Add foreign key constraints separately to avoid issues with table creation order
             cursor.execute("""
                 DO $$ 
@@ -139,7 +170,7 @@ class DatabaseManager:
                     END IF;
                 END $$;
             """)
-            
+
             cursor.execute("""
                 DO $$ 
                 BEGIN
@@ -521,9 +552,9 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
-            
+
             logger.info(f"Getting company brand voices from table: {table_name}")
-            
+
             # First, ensure the table exists
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {table_name} (
@@ -534,17 +565,17 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            
+
             # Commit the table creation before querying
             conn.commit()
-            
+
             cursor.execute(f"""
                 SELECT * FROM {table_name} ORDER BY created_at DESC
             """)
 
             rows = cursor.fetchall()
             logger.info(f"Found {len(rows)} brand voices in {table_name}")
-            
+
             cursor.close()
             conn.close()
 
@@ -718,7 +749,7 @@ class DatabaseManager:
 
             # Always create as company brand voice now (ignoring user_id parameter)
             table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
-            
+
             # Ensure table exists
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {table_name} (
@@ -729,7 +760,7 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            
+
             cursor.execute(f"""
                 INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
                 VALUES (%s, %s, %s, %s)
@@ -787,7 +818,7 @@ class DatabaseManager:
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 SELECT u.user_id, u.tenant_id, u.first_name, u.last_name, u.email, 
                        u.subscription_level, u.is_admin, u.email_verified, u.created_at,
@@ -796,7 +827,7 @@ class DatabaseManager:
                 WHERE u.tenant_id = %s
                 ORDER BY u.is_admin DESC, u.created_at ASC
             """, (tenant_id,))
-            
+
             users = []
             for row in cursor.fetchall():
                 user = User(
@@ -812,7 +843,7 @@ class DatabaseManager:
                     password_hash=row[9]
                 )
                 users.append(user)
-            
+
             cursor.close()
             conn.close()
             return users
@@ -871,7 +902,7 @@ class DatabaseManager:
             result = cursor.fetchone()
             if result:
                 tenant_id = str(result[0])
-                
+
                 # Delete user's brand voices from tenant-specific table
                 table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
                 try:
@@ -978,7 +1009,7 @@ class DatabaseManager:
             # Check if there's already a pending invite for this email to this organization
             cursor.execute("""
                 SELECT invite_id FROM organization_invite_tokens 
-                WHERE tenant_id = %s AND email = %s AND used = FALSE AND expires_at > %s
+                WHERE tenant_id = %s AND email = %s AND used_at IS NULL AND expires_at > %s
             """, (tenant_id, email.lower(), datetime.utcnow()))
 
             existing_invite = cursor.fetchone()
@@ -1013,7 +1044,7 @@ class DatabaseManager:
 
             cursor.execute("""
                 SELECT tenant_id, email FROM organization_invite_tokens 
-                WHERE token_hash = %s AND expires_at > %s AND used = FALSE
+                WHERE token_hash = %s AND expires_at > %s AND used_at IS NULL
             """, (token_hash, datetime.utcnow()))
 
             row = cursor.fetchone()
@@ -1036,7 +1067,7 @@ class DatabaseManager:
 
             cursor.execute("""
                 UPDATE organization_invite_tokens 
-                SET used = TRUE 
+                SET used_at = NOW() 
                 WHERE token_hash = %s
             """, (token_hash,))
 
@@ -1049,37 +1080,175 @@ class DatabaseManager:
             logger.error(f"Error marking organization invite token as used: {e}")
             return False
 
-    def get_pending_invites(self, tenant_id: str) -> List[dict]:
-        """Get pending invites for an organization"""
+    def get_pending_invites(self, tenant_id):
+        """Get pending organization invites"""
         try:
-            from datetime import datetime
+            conn = self.get_connection()
+            cursor = conn.cursor(dictionary=True)
 
+            cursor.execute("""
+                SELECT oi.email, 
+                       CONCAT(u.first_name, ' ', u.last_name) as invited_by,
+                       oi.created_at
+                FROM organization_invite_tokens oi
+                JOIN users u ON oi.invited_by_user_id = u.user_id
+                WHERE oi.tenant_id = %s AND oi.used_at IS NULL
+                ORDER BY oi.created_at DESC
+            """, (tenant_id,))
+
+            invites = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            return invites
+        except Exception as e:
+            logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
+            return []
+
+    def create_chat_session(self, user_id, title=None):
+        """Create a new chat session"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            session_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO chat_sessions (session_id, user_id, title, created_at)
+                VALUES (%s, %s, %s, NOW())
+            """, (session_id, user_id, title or "New Chat"))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            logger.info(f"Created chat session {session_id} for user {user_id}")
+            return session_id
+        except Exception as e:
+            logger.error(f"Error creating chat session for user {user_id}: {e}")
+            return None
+
+    def add_chat_message(self, session_id, message_type, content, content_mode=None, brand_voice_id=None):
+        """Add a message to a chat session"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            message_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO chat_messages (message_id, session_id, message_type, content, content_mode, brand_voice_id, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            """, (message_id, session_id, message_type, content, content_mode, brand_voice_id))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            return message_id
+        except Exception as e:
+            logger.error(f"Error adding message to session {session_id}: {e}")
+            return None
+
+    def get_user_chat_sessions(self, user_id, limit=20):
+        """Get user's recent chat sessions"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cursor.execute("""
+                SELECT cs.session_id, cs.title, cs.created_at, cs.updated_at,
+                       COUNT(cm.message_id) as message_count
+                FROM chat_sessions cs
+                LEFT JOIN chat_messages cm ON cs.session_id = cm.session_id
+                WHERE cs.user_id = %s
+                GROUP BY cs.session_id, cs.title, cs.created_at, cs.updated_at
+                ORDER BY cs.updated_at DESC
+                LIMIT %s
+            """, (user_id, limit))
+
+            sessions = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            return sessions
+        except Exception as e:
+            logger.error(f"Error getting chat sessions for user {user_id}: {e}")
+            return []
+
+    def get_chat_messages(self, session_id):
+        """Get messages for a chat session"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cursor.execute("""
+                SELECT message_id, message_type, content, content_mode, brand_voice_id, created_at
+                FROM chat_messages
+                WHERE session_id = %s
+                ORDER BY created_at ASC
+            """, (session_id,))
+
+            messages = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            return messages
+        except Exception as e:
+            logger.error(f"Error getting messages for session {session_id}: {e}")
+            return []
+
+    def update_chat_session_title(self, session_id, title):
+        """Update chat session title and updated_at timestamp"""
+        try:
             conn = self.get_connection()
             cursor = conn.cursor()
 
             cursor.execute("""
-                SELECT oit.email, oit.created_at, u.first_name, u.last_name
-                FROM organization_invite_tokens oit
-                JOIN users u ON oit.invited_by_user_id = u.user_id
-                WHERE oit.tenant_id = %s AND oit.used = FALSE AND oit.expires_at > %s
-                ORDER BY oit.created_at DESC
-            """, (tenant_id, datetime.utcnow()))
+                UPDATE chat_sessions 
+                SET title = %s, updated_at = NOW()
+                WHERE session_id = %s
+            """, (title, session_id))
 
-            invites = []
-            for row in cursor.fetchall():
-                invites.append({
-                    'email': row[0],
-                    'created_at': row[1],
-                    'invited_by': f"{row[2]} {row[3]}"
-                })
-
+            conn.commit()
             cursor.close()
             conn.close()
-            return invites
 
+            return True
         except Exception as e:
-            logger.error(f"Error getting pending invites: {e}")
-            return []
+            logger.error(f"Error updating chat session title {session_id}: {e}")
+            return False
+
+    def delete_chat_session(self, session_id, user_id):
+        """Delete a chat session and its messages"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # First verify the session belongs to the user
+            cursor.execute("""
+                SELECT user_id FROM chat_sessions WHERE session_id = %s
+            """, (session_id,))
+
+            result = cursor.fetchone()
+            if not result or result[0] != user_id:
+                cursor.close()
+                conn.close()
+                return False
+
+            # Delete messages first (foreign key constraint)
+            cursor.execute("DELETE FROM chat_messages WHERE session_id = %s", (session_id,))
+
+            # Delete session
+            cursor.execute("DELETE FROM chat_sessions WHERE session_id = %s", (session_id,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            logger.info(f"Deleted chat session {session_id} for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting chat session {session_id}: {e}")
+            return False
 
 # Global database manager instance
 db_manager = DatabaseManager()

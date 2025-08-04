@@ -9,6 +9,7 @@ class ChatInterface {
         this.placeholderInterval = null;
         this.isDemoMode = window.isDemoMode || false;
         this.isLoggedIn = window.isLoggedIn || false;
+        this.currentSessionId = null; // Added for chat history
 
         this.placeholders = [
             "Message GoldenDoodleLM...",
@@ -30,6 +31,7 @@ class ChatInterface {
             this.updateSendButton();
             this.handleInitialPrompt();
             this.setupDemoMode();
+            this.loadChatHistory(); // Load chat history on initialization
         }
     }
 
@@ -43,6 +45,7 @@ class ChatInterface {
         this.modeButtons = document.querySelectorAll('.mode-btn[data-mode]');
         this.moreModesBtn = document.getElementById('moreModesBtn');
         this.secondaryModes = document.getElementById('secondaryModes');
+        this.newChatBtn = document.getElementById('newChatBtn'); // New chat button
 
         // Check if we're on the chat page
         if (!this.chatInput || !this.sendBtn || !this.chatMessages) {
@@ -123,6 +126,11 @@ class ChatInterface {
             this.moreModesBtn.addEventListener('click', () => this.toggleMoreModes());
         }
 
+        // New chat button event listener
+        if (this.newChatBtn) {
+            this.newChatBtn.addEventListener('click', () => this.startNewChat());
+        }
+
         // Global click to close dropdown
         document.addEventListener('click', (e) => {
             if (this.brandVoiceDropdown && !this.brandVoiceDropdown.contains(e.target) && !this.brandVoiceBtn.contains(e.target)) {
@@ -166,19 +174,19 @@ class ChatInterface {
     toggleBrandVoiceDropdown() {
         if (this.brandVoiceDropdown) {
             const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
-            
+
             // Close any other dropdowns first
             document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
             });
-            
+
             // Toggle this dropdown
             if (!isCurrentlyShown) {
                 // Position the dropdown relative to the button
                 const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
                 this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
                 this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
-                
+
                 this.brandVoiceDropdown.classList.add('show');
                 console.log('Brand voice dropdown shown');
             }
@@ -248,6 +256,11 @@ class ChatInterface {
             return;
         }
 
+        // If no current session, start a new one
+        if (!this.currentSessionId) {
+            await this.startNewChat(false); // Start new chat without clearing UI immediately
+        }
+
         // Clear input and update UI
         this.chatInput.value = '';
         this.autoResizeTextarea();
@@ -269,7 +282,8 @@ class ChatInterface {
                 prompt: prompt,
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
-                is_demo: this.isDemoMode
+                is_demo: this.isDemoMode,
+                session_id: this.currentSessionId
             };
 
             const response = await fetch('/generate', {
@@ -477,7 +491,8 @@ class ChatInterface {
                 prompt: prompt,
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
-                is_demo: this.isDemoMode
+                is_demo: this.isDemoMode,
+                session_id: this.currentSessionId
             };
 
             const response = await fetch('/generate', {
@@ -717,6 +732,138 @@ class ChatInterface {
             .replace(/^/, '<p>')
             .replace(/$/, '</p>')
             .replace(/<p><\/p>/g, '');
+    }
+
+    // Chat History Functionality
+    async startNewChat(clearUI = true) {
+        // Fetch a new session ID
+        try {
+            const response = await fetch('/new-session', { method: 'POST' });
+            const data = await response.json();
+            this.currentSessionId = data.session_id;
+            console.log('New session started:', this.currentSessionId);
+
+            // Update the UI
+            if (clearUI) {
+                this.clearChatMessages();
+                this.chatInput.value = '';
+                this.chatInput.focus();
+            }
+
+            // Update the sidebar with the new chat title (initially empty)
+            this.addChatToSidebar({ id: this.currentSessionId, title: 'New Chat', messages: [] });
+
+        } catch (error) {
+            console.error('Error starting new chat session:', error);
+            // Optionally display an error to the user
+        }
+    }
+
+    clearChatMessages() {
+        const chatMessages = this.chatMessages.querySelector('.chat-content');
+        if (chatMessages) {
+            chatMessages.innerHTML = `
+                <div class="welcome-screen">
+                </div>
+            `;
+        }
+        this.clearWelcomeScreen(); // Ensure welcome screen is handled
+    }
+
+    addChatToSidebar(chat) {
+        const sidebarChats = document.getElementById('sidebarChats'); // Assuming you have a container for chats
+        if (!sidebarChats) return;
+
+        const chatElement = document.createElement('div');
+        chatElement.className = 'sidebar-chat-item';
+        chatElement.dataset.sessionId = chat.id;
+        chatElement.textContent = chat.title;
+
+        // Add click listener to load chat
+        chatElement.addEventListener('click', () => this.loadChat(chat.id));
+
+        // Prepend to the list of chats
+        sidebarChats.prepend(chatElement);
+    }
+
+    async loadChatHistory() {
+        try {
+            const response = await fetch('/chat-history');
+            const chats = await response.json();
+
+            const sidebarChats = document.getElementById('sidebarChats');
+            if (!sidebarChats) return;
+
+            // Clear existing chats and add loaded ones
+            sidebarChats.innerHTML = '';
+            chats.forEach(chat => {
+                this.addChatToSidebar(chat);
+            });
+
+            // If there are chats, load the most recent one
+            if (chats.length > 0) {
+                this.loadChat(chats[0].id); // Load the first chat in the history
+            } else {
+                // If no history, start a new chat
+                this.startNewChat();
+            }
+
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+            // Fallback: start a new chat if history fails to load
+            this.startNewChat();
+        }
+    }
+
+    async loadChat(sessionId) {
+        if (this.currentSessionId === sessionId) return; // Already loaded
+
+        try {
+            const response = await fetch(`/chat/${sessionId}`);
+            const chatData = await response.json();
+
+            this.currentSessionId = sessionId;
+            this.clearChatMessages();
+
+            // Add messages to the chat interface
+            chatData.messages.forEach(msg => {
+                this.addMessage(msg.content, msg.sender);
+            });
+
+            // Update sidebar to highlight the current chat
+            document.querySelectorAll('.sidebar-chat-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.sessionId === sessionId) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Optionally update title if available
+            const chatTitleElement = document.querySelector('.sidebar-chat-item.active .chat-title');
+            if (chatTitleElement) {
+                chatTitleElement.textContent = chatData.title || 'New Chat';
+            }
+
+        } catch (error) {
+            console.error(`Error loading chat ${sessionId}:`, error);
+            // Handle error, e.g., show a message to the user
+        }
+    }
+
+    // Helper to generate title for a chat session
+    async generateChatTitle(sessionId) {
+        try {
+            const response = await fetch('/generate-title', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId })
+            });
+            const data = await response.json();
+            return data.title;
+        } catch (error) {
+            console.error('Error generating chat title:', error);
+            return 'New Chat'; // Fallback title
+        }
     }
 }
 

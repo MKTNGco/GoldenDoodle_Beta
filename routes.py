@@ -447,6 +447,21 @@ def generate():
             trauma_informed_context=trauma_informed_context
         )
 
+        # Save to chat history if user is logged in
+        session_id = data.get('session_id')
+        if user and session_id:
+            # Add user message
+            db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
+            # Add assistant response
+            db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
+            
+            # Update session title if this is the first exchange
+            messages = db_manager.get_chat_messages(session_id)
+            if len(messages) <= 2:  # First user message + first assistant response
+                # Generate a short title from the first user message
+                title = prompt[:50] + "..." if len(prompt) > 50 else prompt
+                db_manager.update_chat_session_title(session_id, title)
+
         return jsonify({'response': response})
 
     except Exception as e:
@@ -1387,6 +1402,83 @@ def get_pending_invites(tenant_id):
 
     except Exception as e:
         logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/api/chat-sessions', methods=['GET'])
+@login_required
+def get_chat_sessions():
+    """Get user's chat sessions"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        sessions = db_manager.get_user_chat_sessions(user.user_id)
+        return jsonify({'sessions': sessions})
+
+    except Exception as e:
+        logger.error(f"Error getting chat sessions: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/api/chat-sessions', methods=['POST'])
+@login_required
+def create_chat_session():
+    """Create a new chat session"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        data = request.get_json()
+        title = data.get('title', 'New Chat')
+        
+        session_id = db_manager.create_chat_session(user.user_id, title)
+        if session_id:
+            return jsonify({'session_id': session_id, 'title': title})
+        else:
+            return jsonify({'error': 'Failed to create chat session'}), 500
+
+    except Exception as e:
+        logger.error(f"Error creating chat session: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/api/chat-sessions/<session_id>/messages', methods=['GET'])
+@login_required
+def get_chat_messages(session_id):
+    """Get messages for a chat session"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # Verify user owns this session
+        sessions = db_manager.get_user_chat_sessions(user.user_id)
+        if not any(s['session_id'] == session_id for s in sessions):
+            return jsonify({'error': 'Session not found'}), 404
+
+        messages = db_manager.get_chat_messages(session_id)
+        return jsonify({'messages': messages})
+
+    except Exception as e:
+        logger.error(f"Error getting chat messages: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/api/chat-sessions/<session_id>', methods=['DELETE'])
+@login_required
+def delete_chat_session(session_id):
+    """Delete a chat session"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        if db_manager.delete_chat_session(session_id, user.user_id):
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Failed to delete session'}), 500
+
+    except Exception as e:
+        logger.error(f"Error deleting chat session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
 @app.errorhandler(404)

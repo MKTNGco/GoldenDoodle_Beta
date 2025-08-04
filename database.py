@@ -173,9 +173,11 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
+            table_suffix = tenant.tenant_id.replace('-', '_')
+
             # Create company brand voices table for all tenants (since we treat all voices as company voices now)
             cursor.execute(f"""
-                CREATE TABLE IF NOT EXISTS company_brand_voices_{tenant.tenant_id.replace('-', '_')} (
+                CREATE TABLE IF NOT EXISTS company_brand_voices_{table_suffix} (
                     brand_voice_id UUID PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     configuration JSON NOT NULL,
@@ -186,7 +188,7 @@ class DatabaseManager:
 
             # Create user brand voices table (keeping for backward compatibility)
             cursor.execute(f"""
-                CREATE TABLE IF NOT EXISTS user_brand_voices_{tenant.tenant_id.replace('-', '_')} (
+                CREATE TABLE IF NOT EXISTS user_brand_voices_{table_suffix} (
                     brand_voice_id UUID PRIMARY KEY,
                     user_id UUID NOT NULL,
                     name VARCHAR(255) NOT NULL,
@@ -199,7 +201,7 @@ class DatabaseManager:
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info(f"Tenant database created for {tenant.tenant_id}")
+            logger.info(f"Tenant database tables created successfully for {tenant.tenant_id}")
 
         except Exception as e:
             logger.error(f"Error creating tenant database: {e}")
@@ -531,8 +533,11 @@ class DatabaseManager:
                 );
             """)
             
+            # Commit the table creation before querying
+            conn.commit()
+            
             cursor.execute(f"""
-                SELECT * FROM {table_name} ORDER BY name
+                SELECT * FROM {table_name} ORDER BY created_at DESC
             """)
 
             rows = cursor.fetchall()
@@ -694,7 +699,7 @@ class DatabaseManager:
 
     def create_comprehensive_brand_voice(self, tenant_id: str, wizard_data: Dict[str, Any], 
                                        markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
-        """Create a comprehensive brand voice with full wizard data"""
+        """Create a comprehensive brand voice with full wizard data - now always creates as company voice"""
         try:
             brand_voice_id = str(uuid.uuid4())
             name = wizard_data['voice_short_name']
@@ -705,52 +710,37 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            if user_id:
-                # User brand voice
-                table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
-                # Ensure table exists
-                cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
-                        brand_voice_id UUID PRIMARY KEY,
-                        user_id UUID NOT NULL,
-                        name VARCHAR(255) NOT NULL,
-                        configuration JSON NOT NULL,
-                        markdown_content TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                cursor.execute(f"""
-                    INSERT INTO {table_name} (brand_voice_id, user_id, name, configuration, markdown_content)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (brand_voice_id, user_id, name, json.dumps(configuration), markdown_content))
-            else:
-                # Company brand voice
-                table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
-                # Ensure table exists
-                cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
-                        brand_voice_id UUID PRIMARY KEY,
-                        name VARCHAR(255) NOT NULL,
-                        configuration JSON NOT NULL,
-                        markdown_content TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                cursor.execute(f"""
-                    INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
-                    VALUES (%s, %s, %s, %s)
-                """, (brand_voice_id, name, json.dumps(configuration), markdown_content))
+            # Always create as company brand voice now (ignoring user_id parameter)
+            table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+            
+            # Ensure table exists
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {table_name} (
+                    brand_voice_id UUID PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    configuration JSON NOT NULL,
+                    markdown_content TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            cursor.execute(f"""
+                INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
+                VALUES (%s, %s, %s, %s)
+            """, (brand_voice_id, name, json.dumps(configuration), markdown_content))
 
             conn.commit()
             cursor.close()
             conn.close()
+
+            logger.info(f"Successfully created brand voice '{name}' with ID {brand_voice_id} in tenant {tenant_id}")
 
             return BrandVoice(
                 brand_voice_id=brand_voice_id,
                 name=name,
                 configuration=configuration,
                 markdown_content=markdown_content,
-                user_id=user_id
+                user_id=None  # Always None since we're treating as company voice
             )
 
         except Exception as e:

@@ -767,40 +767,22 @@ def create_brand_voice():
         # Determine if this is an edit or create operation
         is_editing = bool(brand_voice_id)
         
-        # Check permissions and limits
-        if voice_type == 'company':
-            logger.info(f"Creating company voice for tenant {tenant.tenant_id}, user admin status: {user.is_admin}")
+        # Always create as company voice now - check limits based on company voices
+        logger.info(f"Creating brand voice for tenant {tenant.tenant_id}")
+        
+        if not is_editing:
+            existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            logger.info(f"Existing company voices: {len(existing_company_voices)}/{tenant.max_brand_voices}")
             
-            if not user.is_admin:
-                logger.error(f"User {user.user_id} attempted to create company voice without admin privileges")
-                return jsonify({'error': 'Admin access required'}), 403
+            # Use a more generous limit for individuals to ensure they can create voices
+            max_allowed = max(tenant.max_brand_voices, 10)  # Allow at least 10 voices
             
-            if not is_editing:
-                existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-                logger.info(f"Existing company voices: {len(existing_company_voices)}/{tenant.max_brand_voices}")
-                
-                if len(existing_company_voices) >= tenant.max_brand_voices:
-                    logger.error(f"Company voice limit exceeded: {len(existing_company_voices)}/{tenant.max_brand_voices}")
-                    return jsonify({'error': f'Maximum of {tenant.max_brand_voices} company brand voices allowed'}), 400
-            
-            user_id = None
-        else:
-            if not is_editing:
-                existing_user_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
-                
-                if user.subscription_level == SubscriptionLevel.PRO:
-                    max_voices = 10
-                elif user.subscription_level == SubscriptionLevel.SOLO:
-                    max_voices = 1
-                elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
-                    max_voices = 10
-                else:
-                    max_voices = 1
-                
-                if len(existing_user_voices) >= max_voices:
-                    return jsonify({'error': f'Maximum of {max_voices} personal brand voices allowed for your subscription level'}), 400
-            
-            user_id = user.user_id
+            if len(existing_company_voices) >= max_allowed:
+                logger.error(f"Brand voice limit exceeded: {len(existing_company_voices)}/{max_allowed}")
+                return jsonify({'error': f'Maximum of {max_allowed} brand voices allowed'}), 400
+        
+        # Always set user_id to None since we're treating all voices as company voices
+        user_id = None
         
         # Collect all wizard data
         wizard_data = {

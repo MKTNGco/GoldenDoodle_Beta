@@ -167,11 +167,15 @@ class ChatInterface {
     }
 
     toggleBrandVoiceDropdown() {
-        this.brandVoiceDropdown.classList.toggle('show');
+        if (this.brandVoiceDropdown) {
+            this.brandVoiceDropdown.classList.toggle('show');
+        }
     }
 
     closeBrandVoiceDropdown() {
-        this.brandVoiceDropdown.classList.remove('show');
+        if (this.brandVoiceDropdown) {
+            this.brandVoiceDropdown.classList.remove('show');
+        }
     }
 
     selectBrandVoice(value, name) {

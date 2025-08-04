@@ -706,8 +706,6 @@ function startNewChat() {
     chatMessages.innerHTML = `
         <div class="chat-content">
             <div class="welcome-screen">
-                <h1>GoldenDoodleLM</h1>
-                <p>Your empathetic, trauma-informed AI assistant is here to help create meaningful communications that prioritize safety, trust, and healing.</p>
             </div>
         </div>
     `;

@@ -280,24 +280,53 @@ This investment will create lasting change in how our community approaches heali
     }
 
     function showPremiumMessage() {
-        // Create a temporary tooltip-like message
-        const message = document.createElement('div');
-        message.innerHTML = `
-            <div style="position: absolute; top: 100%; left: 0; background: var(--charcoal); color: var(--cloud-white); padding: 8px 12px; border-radius: 8px; font-size: 0.875rem; white-space: nowrap; z-index: 1000; margin-top: 4px;">
-                <i class="fas fa-crown" style="color: #fbbf24; margin-right: 6px;"></i>
-                Brand Voice is a premium feature - Sign up to get started!
-                <div style="position: absolute; top: -4px; left: 12px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 4px solid var(--charcoal);"></div>
+        // Show a tooltip-like message for premium features
+        const tooltip = document.createElement('div');
+        tooltip.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--charcoal); color: var(--cloud-white); padding: 16px 20px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                <i class="fas fa-crown" style="color: #fbbf24; margin-right: 8px;"></i>
+                This feature is available with a free account!
+                <div style="margin-top: 8px;">
+                    <a href="/register" style="color: var(--clearwater-teal); text-decoration: underline;">Sign up now</a>
+                </div>
             </div>
         `;
 
-        demoBrandVoiceBtn.style.position = 'relative';
-        demoBrandVoiceBtn.appendChild(message);
+        document.body.appendChild(tooltip);
 
-        // Remove message after 3 seconds
+        // Remove after 3 seconds
         setTimeout(() => {
-            if (message.parentNode) {
-                message.parentNode.removeChild(message);
+            if (tooltip.parentNode) {
+                tooltip.parentNode.removeChild(tooltip);
             }
         }, 3000);
     }
 });
+
+// Global functions for demo response actions
+function copyDemoResponse() {
+    const content = document.getElementById('demoResponseContent');
+    if (content) {
+        navigator.clipboard.writeText(content.textContent).then(() => {
+            // Show success message
+            const btn = event.target.closest('.demo-copy-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+            btn.style.background = 'var(--clearwater-teal)';
+            btn.style.color = 'white';
+
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = '';
+                btn.style.color = '';
+            }, 2000);
+        });
+    }
+}
+
+function clearDemoResponse() {
+    const responseArea = document.getElementById('demoResponseArea');
+    if (responseArea) {
+        responseArea.style.display = 'none';
+    }
+}

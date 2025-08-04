@@ -369,32 +369,106 @@ a:hover {
 .demo-secondary-modes {
     display: none;
     gap: 8px;
-    margin-top: 8px;
     flex-wrap: wrap;
-    justify-content: center;
-}
-
-.demo-secondary-modes.show {
-    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
 }
 
 /* Demo Response Area */
 .demo-response-area {
-    margin-top: 20px;
+    margin-top: 32px;
     animation: fadeIn 0.3s ease-out;
 }
 
 .demo-response-card {
     background: var(--cloud-white);
     border: 1px solid var(--vapor-gray);
-    border-radius: 18px;
-    padding: 1.25rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.demo-response-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px 12px 20px;
+    border-bottom: 1px solid var(--vapor-gray);
+    background: var(--cloud-white);
+}
+
+.demo-ai-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    background: rgba(50, 128, 140, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+}
+
+.demo-ai-label {
+    font-weight: 600;
+    color: var(--charcoal);
+    font-size: 0.95rem;
+    flex: 1;
+}
+
+.demo-signup-prompt {
+    margin-left: auto;
+}
+
+.demo-signup-link {
+    font-size: 0.85rem;
+    color: var(--clearwater-teal);
+    text-decoration: none;
+    padding: 4px 12px;
+    border: 1px solid var(--clearwater-teal);
+    border-radius: 16px;
+    transition: all 0.2s ease;
+}
+
+.demo-signup-link:hover {
+    background: var(--clearwater-teal);
+    color: white;
+    text-decoration: none;
 }
 
 .demo-response-content {
-    color: var(--charcoal);
+    padding: 20px;
     line-height: 1.6;
+    color: var(--charcoal);
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+}
+
+.demo-response-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--vapor-gray);
+    background: rgba(50, 128, 140, 0.02);
+}
+
+.demo-action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.demo-action-btn:hover {
+    background: var(--clearwater-teal);
+    color: white;
+    transform: scale(1.05);
 }
 
 /* Responsive logo sizing */

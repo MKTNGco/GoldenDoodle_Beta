@@ -558,7 +558,13 @@ class ChatInterface {
     }
 
     handleInitialPrompt() {
-        // Check for demo prompt from homepage
+        // Only handle session storage if user is logged in
+        // Demo users should experience the response on the homepage instead
+        if (!this.isLoggedIn) {
+            return;
+        }
+
+        // Check for demo prompt from homepage (only for logged-in users)
         const demoPrompt = sessionStorage.getItem('demoPrompt');
         const demoMode = sessionStorage.getItem('demoMode');
 

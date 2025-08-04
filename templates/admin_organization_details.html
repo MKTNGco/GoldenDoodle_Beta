@@ -1,57 +1,114 @@
 
 {% extends "base.html" %}
 
-{% block title %}Platform Admin - GoldenDoodleLM{% endblock %}
+{% block title %}{{ tenant.name }} - Organization Details - GoldenDoodleLM{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3">
-                    <i class="fas fa-cog me-2"></i>Platform Administration
-                </h1>
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('platform_admin') }}">Platform Admin</a></li>
+                            <li class="breadcrumb-item active">{{ tenant.name }}</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-building me-2"></i>{{ tenant.name }}
+                    </h1>
+                </div>
                 <div class="text-muted">
-                    Total Users: {{ users|length }} | Total Organizations: {{ tenants|length }}
+                    {{ organization_users|length }} Member{{ 's' if organization_users|length != 1 else '' }}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Users Management -->
-    <div class="row mb-5">
+    <!-- Organization Info -->
+    <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-users me-2"></i>User Management
+                        <i class="fas fa-info-circle me-2"></i>Organization Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Organization Name</label>
+                                <p class="fw-semibold">{{ tenant.name }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Organization Type</label>
+                                <p class="fw-semibold">
+                                    <span class="badge {% if tenant.tenant_type.value == 'company' %}bg-primary{% else %}bg-info{% endif %}">
+                                        {{ tenant.tenant_type.value.title().replace('_', ' ') }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Max Brand Voices</label>
+                                <p class="fw-semibold">{{ tenant.max_brand_voices }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Database Name</label>
+                                <p class="fw-semibold">
+                                    <code class="small">{{ tenant.database_name }}</code>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Organization Members -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Organization Members
                     </h5>
                 </div>
                 <div class="card-body p-0">
+                    {% if organization_users %}
                     <div class="table-responsive">
                         <table class="table table-striped mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th>Name</th>
                                     <th>Email</th>
-                                    <th>Organization</th>
+                                    <th>Role</th>
                                     <th>Subscription</th>
-                                    <th>Admin</th>
                                     <th>Verified</th>
-                                    <th>Created</th>
+                                    <th>Joined</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for user, tenant_name, tenant_type in users %}
+                                {% for user in organization_users %}
                                 <tr>
-                                    <td>{{ user.first_name }} {{ user.last_name }}</td>
+                                    <td>
+                                        {{ user.first_name }} {{ user.last_name }}
+                                        {% if user.is_admin %}
+                                            <i class="fas fa-crown text-warning ms-1" title="Administrator"></i>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ user.email }}</td>
                                     <td>
-                                        {{ tenant_name }}
-                                        <small class="text-muted d-block">
-                                            {{ tenant_type.title() }}
-                                        </small>
+                                        {% if user.is_admin %}
+                                            <span class="badge bg-warning text-dark">Administrator</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Member</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <select class="form-select form-select-sm subscription-select" 
@@ -64,20 +121,13 @@
                                         </select>
                                     </td>
                                     <td>
-                                        {% if user.is_admin %}
-                                            <span class="badge bg-success">Admin</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">User</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
                                         {% if user.email_verified %}
                                             <span class="badge bg-success">
-                                                <i class="fas fa-check"></i>
+                                                <i class="fas fa-check"></i> Verified
                                             </span>
                                         {% else %}
                                             <span class="badge bg-warning">
-                                                <i class="fas fa-exclamation"></i>
+                                                <i class="fas fa-exclamation"></i> Unverified
                                             </span>
                                         {% endif %}
                                     </td>
@@ -100,62 +150,12 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Organizations Management -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-building me-2"></i>Organization Management
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-striped mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Organization Name</th>
-                                    <th>Type</th>
-                                    <th>Max Brand Voices</th>
-                                    <th>Database</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for tenant in tenants %}
-                                <tr>
-                                    <td>
-                                        <a href="{{ url_for('admin_organization_details', tenant_id=tenant.tenant_id) }}" 
-                                           class="text-decoration-none fw-semibold">
-                                            {{ tenant.name }}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        <span class="badge {% if tenant.tenant_type.value == 'company' %}bg-primary{% else %}bg-info{% endif %}">
-                                            {{ tenant.tenant_type.value.title().replace('_', ' ') }}
-                                        </span>
-                                    </td>
-                                    <td>{{ tenant.max_brand_voices }}</td>
-                                    <td>
-                                        <code class="small">{{ tenant.database_name }}</code>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-danger btn-sm delete-tenant-btn" 
-                                                data-tenant-id="{{ tenant.tenant_id }}"
-                                                data-tenant-name="{{ tenant.name }}">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">No members found for this organization.</p>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -181,31 +181,6 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form id="deleteUserForm" method="POST" style="display: inline;">
                     <button type="submit" class="btn btn-danger">Delete User</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Tenant Modal -->
-<div class="modal fade" id="deleteTenantModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Delete Organization</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete organization <strong id="deleteTenantName"></strong>?</p>
-                <p class="text-danger">
-                    <i class="fas fa-exclamation-triangle me-1"></i>
-                    This action cannot be undone and will delete all users, brand voices, and data associated with this organization.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteTenantForm" method="POST" style="display: inline;">
-                    <button type="submit" class="btn btn-danger">Delete Organization</button>
                 </form>
             </div>
         </div>
@@ -261,19 +236,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('deleteUserForm').action = `/admin/delete-user/${userId}`;
             
             new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
-        });
-    });
-
-    // Handle delete tenant modal
-    document.querySelectorAll('.delete-tenant-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const tenantId = this.dataset.tenantId;
-            const tenantName = this.dataset.tenantName;
-            
-            document.getElementById('deleteTenantName').textContent = tenantName;
-            document.getElementById('deleteTenantForm').action = `/admin/delete-tenant/${tenantId}`;
-            
-            new bootstrap.Modal(document.getElementById('deleteTenantModal')).show();
         });
     });
 });

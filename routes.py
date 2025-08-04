@@ -1060,6 +1060,27 @@ def admin_delete_tenant(tenant_id):
     
     return redirect(url_for('platform_admin'))
 
+@app.route('/admin/organization/<tenant_id>')
+@super_admin_required
+def admin_organization_details(tenant_id):
+    """View organization details and members"""
+    try:
+        tenant = db_manager.get_tenant_by_id(tenant_id)
+        if not tenant:
+            flash('Organization not found.', 'error')
+            return redirect(url_for('platform_admin'))
+        
+        # Get organization members
+        organization_users = db_manager.get_organization_users(tenant_id)
+        
+        return render_template('admin_organization_details.html', 
+                             tenant=tenant, 
+                             organization_users=organization_users)
+    except Exception as e:
+        logger.error(f"Error loading organization details: {e}")
+        flash('An error occurred while loading organization details.', 'error')
+        return redirect(url_for('platform_admin'))
+
 @app.route('/admin/update-subscription', methods=['POST'])
 @super_admin_required
 def admin_update_subscription():

@@ -690,6 +690,44 @@ class DatabaseManager:
             logger.error(f"Error getting all tenants: {e}")
             return []
 
+    def get_organization_users(self, tenant_id: str) -> List[tuple]:
+        """Get all users for a specific organization"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT u.user_id, u.tenant_id, u.first_name, u.last_name, u.email, 
+                       u.subscription_level, u.is_admin, u.email_verified, u.created_at,
+                       u.password_hash
+                FROM users u
+                WHERE u.tenant_id = %s
+                ORDER BY u.is_admin DESC, u.created_at ASC
+            """, (tenant_id,))
+            
+            users = []
+            for row in cursor.fetchall():
+                user = User(
+                    user_id=str(row[0]),
+                    tenant_id=str(row[1]),
+                    first_name=row[2],
+                    last_name=row[3],
+                    email=row[4],
+                    subscription_level=SubscriptionLevel(row[5]),
+                    is_admin=row[6],
+                    email_verified=row[7],
+                    created_at=row[8],
+                    password_hash=row[9]
+                )
+                users.append(user)
+            
+            cursor.close()
+            conn.close()
+            return users
+        except Exception as e:
+            logger.error(f"Error getting organization users: {e}")
+            return []
+
     def get_all_users(self) -> List[tuple]:
         """Get all users with tenant info for admin management"""
         try:

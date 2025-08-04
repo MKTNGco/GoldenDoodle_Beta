@@ -70,8 +70,8 @@ def super_admin_required(f):
         user = get_current_user()
         if user is None:
             return redirect(url_for('login', next=request.url))
-        # Check if user is super admin (you can modify this logic)
-        if not (user.email == 'sunny@goldendoodlelm.ai' or user.is_admin):
+        # Only allow the specific super admin email
+        if user.email != 'sunny@goldendoodlelm.ai':
             flash('Super admin access required.', 'error')
             return redirect(url_for('chat'))
         return f(*args, **kwargs)

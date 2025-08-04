@@ -14,6 +14,12 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # Import routes after app creation to avoid circular imports
 from routes import *
 from database import init_databases
+from auth import get_current_user
+
+# Make get_current_user available in all templates
+@app.context_processor
+def inject_user():
+    return dict(get_current_user=get_current_user)
 
 if __name__ == '__main__':
     with app.app_context():

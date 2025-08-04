@@ -298,6 +298,11 @@ class ChatInterface {
         
         if (sender === 'ai') {
             bubbleDiv.innerHTML = this.formatMessage(content);
+            
+            // Add action buttons for AI responses (not for errors)
+            if (!isError) {
+                this.addActionButtons(bubbleDiv, content);
+            }
         } else {
             bubbleDiv.textContent = content;
         }
@@ -316,6 +321,171 @@ class ChatInterface {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
 
         return messageDiv;
+    }
+
+    addActionButtons(bubbleDiv, content) {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'message-actions';
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'action-btn copy-btn';
+        copyBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+        `;
+        copyBtn.title = 'Copy response';
+        copyBtn.addEventListener('click', () => this.copyToClipboard(content));
+        
+        const regenerateBtn = document.createElement('button');
+        regenerateBtn.className = 'action-btn regenerate-btn';
+        regenerateBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+        `;
+        regenerateBtn.title = 'Regenerate response';
+        regenerateBtn.addEventListener('click', () => this.regenerateResponse());
+        
+        actionsDiv.appendChild(copyBtn);
+        actionsDiv.appendChild(regenerateBtn);
+        
+        bubbleDiv.style.position = 'relative';
+        bubbleDiv.appendChild(actionsDiv);
+    }
+
+    async copyToClipboard(content, button) {
+        try {
+            // Strip HTML tags for plain text copying
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            
+            await navigator.clipboard.writeText(plainText);
+            
+            // Show success feedback
+            this.showCopyFeedback();
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            // Fallback for older browsers
+            this.fallbackCopyToClipboard(content);
+        }
+    }
+
+    fallbackCopyToClipboard(content) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        const plainText = tempDiv.textContent || tempDiv.innerText || '';
+        
+        const textArea = document.createElement('textarea');
+        textArea.value = plainText;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            this.showCopyFeedback();
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    showCopyFeedback() {
+        const feedback = document.createElement('div');
+        feedback.innerHTML = `
+            <div style="position: fixed; top: 20px; right: 20px; background: var(--clearwater-teal); color: var(--cloud-white); padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <i class="fas fa-check" style="margin-right: 8px;"></i>
+                Response copied to clipboard!
+            </div>
+        `;
+        
+        document.body.appendChild(feedback);
+        
+        setTimeout(() => {
+            if (feedback.parentNode) {
+                feedback.parentNode.removeChild(feedback);
+            }
+        }, 2000);
+    }
+
+    regenerateResponse() {
+        if (this.isGenerating) {
+            return;
+        }
+
+        // Get the last user message to regenerate response
+        const messages = this.chatMessages.querySelectorAll('.message');
+        let lastUserMessage = null;
+        
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].classList.contains('message-user')) {
+                const bubble = messages[i].querySelector('.message-bubble');
+                if (bubble) {
+                    lastUserMessage = bubble.textContent;
+                    break;
+                }
+            }
+        }
+        
+        if (!lastUserMessage) {
+            console.error('No user message found to regenerate response');
+            return;
+        }
+
+        // Remove the last AI response
+        const lastAiMessage = this.chatMessages.querySelector('.message-ai:last-child');
+        if (lastAiMessage) {
+            lastAiMessage.remove();
+        }
+
+        // Generate new response
+        this.generateResponse(lastUserMessage);
+    }
+
+    async generateResponse(prompt) {
+        this.isGenerating = true;
+        this.updateSendButtonLoading(true);
+
+        // Add loading message
+        const loadingId = this.addLoadingMessage();
+
+        try {
+            const requestData = {
+                prompt: prompt,
+                content_mode: this.currentMode,
+                brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
+                is_demo: this.isDemoMode
+            };
+
+            const response = await fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const data = await response.json();
+            this.removeLoadingMessage(loadingId);
+
+            if (response.ok) {
+                this.addMessage(data.response, 'ai');
+            } else {
+                this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
+            }
+
+        } catch (error) {
+            console.error('Error generating content:', error);
+            this.removeLoadingMessage(loadingId);
+            this.addMessage('I apologize, but I\'m having trouble connecting right now. Please try again in a moment.', 'ai', true);
+        }
+
+        // Reset UI
+        this.isGenerating = false;
+        this.updateSendButtonLoading(false);
     }
 
     addLoadingMessage() {

@@ -452,6 +452,60 @@ body {
     animation: fadeIn 0.3s ease-out;
 }
 
+/* Message Action Buttons */
+.message-actions {
+    position: absolute;
+    bottom: 8px;
+    left: 12px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.message-bubble:hover .message-actions {
+    opacity: 1;
+}
+
+.action-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 12px;
+}
+
+.action-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.05);
+}
+
+.copy-btn:hover {
+    background: var(--clearwater-teal);
+}
+
+.regenerate-btn:hover {
+    background: var(--deep-teal);
+}
+
+.action-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Ensure AI message bubbles have enough padding for action buttons */
+.message-ai .message-bubble {
+    padding-bottom: 45px;
+    min-height: 60px;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
     .sidebar {
@@ -468,6 +522,16 @@ body {
 
     .welcome-screen h1 {
         font-size: 2rem;
+    }
+
+    /* Make action buttons more touch-friendly on mobile */
+    .action-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .message-actions {
+        opacity: 1; /* Always show on mobile since there's no hover */
     }
 }
 </style>

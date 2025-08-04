@@ -682,11 +682,23 @@ def brand_voices():
 @login_required
 def brand_voice_wizard():
     """Brand voice creation/editing wizard"""
-    voice_type = request.args.get('type', 'user')
+    voice_type = request.args.get('type')
     edit_id = request.args.get('edit')
     user = get_current_user()
     if not user:
         return redirect(url_for('login'))
+    
+    tenant = db_manager.get_tenant_by_id(user.tenant_id)
+    if not tenant:
+        flash('Invalid tenant. Please contact support.', 'error')
+        return redirect(url_for('logout'))
+    
+    # Set default voice type based on tenant type and user role
+    if not voice_type:
+        if tenant.tenant_type == TenantType.COMPANY and user.is_admin:
+            voice_type = 'company'  # Default to company for organization admins
+        else:
+            voice_type = 'user'
     
     if voice_type == 'company' and not user.is_admin:
         flash('Admin access required to create company brand voices.', 'error')

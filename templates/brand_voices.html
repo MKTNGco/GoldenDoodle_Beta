@@ -14,14 +14,14 @@
                     <p class="text-muted mb-0">Manage your organization's unique communication styles</p>
                 </div>
                 <div>
-                    {% if can_create_user_voice %}
-                    <a href="{{ url_for('brand_voice_wizard', type='user') }}" class="btn btn-primary me-2">
-                        <i class="fas fa-plus me-1"></i>Personal Voice
+                    {% if can_create_company_voice %}
+                    <a href="{{ url_for('brand_voice_wizard', type='company') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-plus me-1"></i>Organization Voice
                     </a>
                     {% endif %}
-                    {% if can_create_company_voice %}
-                    <a href="{{ url_for('brand_voice_wizard', type='company') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-plus me-1"></i>Company Voice
+                    {% if can_create_user_voice %}
+                    <a href="{{ url_for('brand_voice_wizard', type='user') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i>Personal Voice
                     </a>
                     {% endif %}
                 </div>

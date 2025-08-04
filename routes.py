@@ -480,12 +480,9 @@ def account():
         flash('Invalid tenant. Please contact support.', 'error')
         return redirect(url_for('logout'))
     
-    # Get brand voices
-    company_brand_voices = []
-    if tenant.tenant_type == TenantType.COMPANY:
-        company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-    
-    user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+    # Get brand voices - all voices are treated as company voices now
+    company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+    user_brand_voices = []  # No longer using user-specific brand voices
     
     # Determine max user voices based on subscription
     if user.subscription_level == SubscriptionLevel.PRO:

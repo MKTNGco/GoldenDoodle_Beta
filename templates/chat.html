@@ -582,12 +582,12 @@ body {
                                 <div class="brand-voice-option" data-value="">Neutral (No brand voice)</div>
                                 {% if company_brand_voices %}
                                 {% for voice in company_brand_voices %}
-                                <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }} (Company)</div>
+                                <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
                                 {% endfor %}
                                 {% endif %}
                                 {% if user_brand_voices %}
                                 {% for voice in user_brand_voices %}
-                                <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }} (Personal)</div>
+                                <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
                                 {% endfor %}
                                 {% endif %}
                             </div>

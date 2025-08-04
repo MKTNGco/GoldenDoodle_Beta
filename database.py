@@ -121,10 +121,37 @@ class DatabaseManager:
                     token_hash VARCHAR(255) NOT NULL,
                     expires_at TIMESTAMP NOT NULL,
                     used BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-                    FOREIGN KEY (invited_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+            """)
+            
+            # Add foreign key constraints separately to avoid issues with table creation order
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'organization_invite_tokens_tenant_id_fkey'
+                    ) THEN
+                        ALTER TABLE organization_invite_tokens 
+                        ADD CONSTRAINT organization_invite_tokens_tenant_id_fkey 
+                        FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+                    END IF;
+                END $$;
+            """)
+            
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_name = 'organization_invite_tokens_invited_by_user_id_fkey'
+                    ) THEN
+                        ALTER TABLE organization_invite_tokens 
+                        ADD CONSTRAINT organization_invite_tokens_invited_by_user_id_fkey 
+                        FOREIGN KEY (invited_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE;
+                    END IF;
+                END $$;
             """)
 
             conn.commit()
@@ -810,8 +837,13 @@ class DatabaseManager:
             # Delete password reset tokens
             cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
 
-            # Delete organization invite tokens sent by this user
-            cursor.execute("DELETE FROM organization_invite_tokens WHERE invited_by_user_id = %s", (user_id,))
+            # Delete organization invite tokens sent by this user (if table exists)
+            try:
+                cursor.execute("DELETE FROM organization_invite_tokens WHERE invited_by_user_id = %s", (user_id,))
+            except Exception as e:
+                # Table might not exist, continue
+                logger.warning(f"Could not delete organization invite tokens for user {user_id}: {e}")
+                pass
 
             # Delete the user
             cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))

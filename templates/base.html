@@ -75,6 +75,13 @@
                                 Account
                             </a></li>
 
+                            {% if session.user_id and (get_current_user().email == 'sunny@goldendoodlelm.ai' or get_current_user().is_admin) %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-warning" href="{{ url_for('platform_admin') }}">
+                                <i class="fas fa-cog me-1"></i>Platform Admin
+                            </a></li>
+                            {% endif %}
+
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                 Logout
                             </a></li>

@@ -13,7 +13,7 @@
                         <h2 class="fw-bold text-primary">Join GoldenDoodleLM</h2>
                         <p class="text-muted">Your Compassionate Content Companion</p>
                     </div>
-                    
+
                     <form method="POST" id="registerForm">
                         <div class="row">
                             <div class="col-md-6">
@@ -31,19 +31,19 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="email" class="form-label fw-semibold">Email Address</label>
                             <input type="email" class="form-control" id="email" name="email" 
                                    placeholder="Enter your email" required>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="password" class="form-label fw-semibold">Password</label>
                             <input type="password" class="form-control" id="password" name="password" 
                                    placeholder="Create a secure password" required>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Account Type</label>
                             <div class="row g-2">
@@ -69,16 +69,16 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="mb-3" id="organizationField" style="display: none;">
                             <label for="organization_name" class="form-label fw-semibold">Organization Name</label>
                             <input type="text" class="form-control" id="organization_name" name="organization_name" 
                                    placeholder="Enter your organization name">
                         </div>
-                        
+
                         <div class="mb-4" id="subscriptionPlans">
                             <label class="form-label fw-semibold">Choose Your Plan</label>
-                            
+
                             <!-- Individual Plans -->
                             <div id="individualPlans">
                                 <h6 class="text-primary mb-2">Individual Plans</h6>
@@ -121,13 +121,14 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Team Plans -->
-                            <div id="teamPlans" style="display: none;">
-                                <h6 class="text-primary mb-2">Team Plans</h6>
-                                <div class="row g-3 mb-4">
-                                    <div class="col-md-6">
-                                        <div class="card subscription-card h-100" data-level="team">
+                        </div>
+
+                        <!-- Team Plans -->
+                        <div id="teamPlans" style="display: none;">
+                            <h6 class="text-primary mb-2">Team Plans</h6>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <div class="card subscription-card h-100" data-level="team">
                                             <div class="card-body p-3">
                                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                                     <h6 class="fw-bold text-primary">Team</h6>
@@ -165,12 +166,12 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <button type="submit" class="btn btn-primary w-100 mb-3">
                             <i class="fas fa-rocket me-2"></i>Create Account
                         </button>
                     </form>
-                    
+
                     <div class="text-center">
                         <p class="text-muted mb-0">
                             Already have an account? 
@@ -181,7 +182,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="text-center mt-4">
                 <small class="text-muted">
                     <i class="fas fa-shield-alt me-1"></i>
@@ -199,21 +200,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const organizationField = document.getElementById('organizationField');
     const individualPlans = document.getElementById('individualPlans');
     const teamPlans = document.getElementById('teamPlans');
-    
+
     accountTypeCards.forEach(card => {
         card.addEventListener('click', function() {
             accountTypeCards.forEach(c => c.classList.remove('selected'));
             this.classList.add('selected');
-            
+
             const radio = this.querySelector('input[type="radio"]');
             radio.checked = true;
-            
+
             if (radio.value === 'company') {
                 organizationField.style.display = 'block';
                 document.getElementById('organization_name').required = true;
                 individualPlans.style.display = 'none';
                 teamPlans.style.display = 'block';
-                
+
                 // Select team plan by default for organizations
                 const teamCard = document.querySelector('[data-level="team"]');
                 if (teamCard) {
@@ -224,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('organization_name').required = false;
                 individualPlans.style.display = 'block';
                 teamPlans.style.display = 'none';
-                
+
                 // Select solo plan by default for individuals
                 const soloCard = document.querySelector('[data-level="solo"]');
                 if (soloCard) {
@@ -233,20 +234,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
+
     // Subscription level selection
     const subscriptionCards = document.querySelectorAll('.subscription-card');
-    
+
     subscriptionCards.forEach(card => {
         card.addEventListener('click', function() {
             subscriptionCards.forEach(c => c.classList.remove('selected'));
             this.classList.add('selected');
-            
+
             const radio = this.querySelector('input[type="radio"]');
             radio.checked = true;
         });
     });
-    
+
     // Initialize first options as selected
     document.querySelector('.account-type-card').classList.add('selected');
     document.querySelector('.subscription-card').classList.add('selected');

@@ -111,6 +111,22 @@ class DatabaseManager:
                 );
             """)
 
+            # Create organization invite tokens table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS organization_invite_tokens (
+                    invite_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    tenant_id UUID NOT NULL,
+                    invited_by_user_id UUID NOT NULL,
+                    email VARCHAR(255) NOT NULL,
+                    token_hash VARCHAR(255) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    used BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+                    FOREIGN KEY (invited_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """)
+
             conn.commit()
             cursor.close()
             conn.close()
@@ -846,6 +862,121 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error updating user subscription: {e}")
             return False
+
+    def create_organization_invite(self, tenant_id: str, invited_by_user_id: str, email: str, token_hash: str) -> bool:
+        """Create an organization invite token"""
+        try:
+            from datetime import datetime, timedelta
+            expires_at = datetime.utcnow() + timedelta(days=7)  # 7 day expiry
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Check if there's already a pending invite for this email to this organization
+            cursor.execute("""
+                SELECT invite_id FROM organization_invite_tokens 
+                WHERE tenant_id = %s AND email = %s AND used = FALSE AND expires_at > %s
+            """, (tenant_id, email.lower(), datetime.utcnow()))
+
+            existing_invite = cursor.fetchone()
+            if existing_invite:
+                # Delete the existing invite
+                cursor.execute("""
+                    DELETE FROM organization_invite_tokens 
+                    WHERE invite_id = %s
+                """, (existing_invite[0],))
+
+            cursor.execute("""
+                INSERT INTO organization_invite_tokens (tenant_id, invited_by_user_id, email, token_hash, expires_at)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (tenant_id, invited_by_user_id, email.lower(), token_hash, expires_at))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error creating organization invite: {e}")
+            return False
+
+    def verify_organization_invite_token(self, token_hash: str) -> Optional[tuple]:
+        """Verify organization invite token and return (tenant_id, email) if valid"""
+        try:
+            from datetime import datetime
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT tenant_id, email FROM organization_invite_tokens 
+                WHERE token_hash = %s AND expires_at > %s AND used = FALSE
+            """, (token_hash, datetime.utcnow()))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                return (str(row[0]), row[1])
+            return None
+
+        except Exception as e:
+            logger.error(f"Error verifying organization invite token: {e}")
+            return None
+
+    def use_organization_invite_token(self, token_hash: str) -> bool:
+        """Mark organization invite token as used"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE organization_invite_tokens 
+                SET used = TRUE 
+                WHERE token_hash = %s
+            """, (token_hash,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error marking organization invite token as used: {e}")
+            return False
+
+    def get_pending_invites(self, tenant_id: str) -> List[dict]:
+        """Get pending invites for an organization"""
+        try:
+            from datetime import datetime
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT oit.email, oit.created_at, u.first_name, u.last_name
+                FROM organization_invite_tokens oit
+                JOIN users u ON oit.invited_by_user_id = u.user_id
+                WHERE oit.tenant_id = %s AND oit.used = FALSE AND oit.expires_at > %s
+                ORDER BY oit.created_at DESC
+            """, (tenant_id, datetime.utcnow()))
+
+            invites = []
+            for row in cursor.fetchall():
+                invites.append({
+                    'email': row[0],
+                    'created_at': row[1],
+                    'invited_by': f"{row[2]} {row[3]}"
+                })
+
+            cursor.close()
+            conn.close()
+            return invites
+
+        except Exception as e:
+            logger.error(f"Error getting pending invites: {e}")
+            return []
 
 # Global database manager instance
 db_manager = DatabaseManager()

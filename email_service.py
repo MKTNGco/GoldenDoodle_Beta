@@ -1,4 +1,3 @@
-
 import os
 import logging
 from sendgrid import SendGridAPIClient
@@ -15,27 +14,28 @@ class EmailService:
         self.api_key = os.environ.get('SENDGRID_API_KEY')
         self.from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@goldendoodlelm.com')
         self.from_name = os.environ.get('SENDGRID_FROM_NAME', 'GoldenDoodleLM')
-        
+        self.base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+
         if not self.api_key:
             logger.warning("SendGrid API key not configured")
             self.client = None
         else:
             self.client = SendGridAPIClient(api_key=self.api_key)
-    
+
     def send_verification_email(self, to_email: str, verification_token: str, first_name: str) -> bool:
         """Send email verification email"""
         if not self.client:
             logger.error("SendGrid client not configured")
             return False
-        
+
         try:
             # Get the base URL for verification link
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
             verification_link = f"{base_url}/verify-email?token={verification_token}"
-            
+
             # Email content
             subject = "Verify Your GoldenDoodleLM Account"
-            
+
             plain_content = f"""
 Hello {first_name},
 
@@ -50,7 +50,7 @@ If you didn't create an account with us, please ignore this email.
 Best regards,
 The GoldenDoodleLM Team
             """
-            
+
             html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -86,7 +86,7 @@ The GoldenDoodleLM Team
 </body>
 </html>
             """
-            
+
             message = Mail(
                 from_email=From(self.from_email, self.from_name),
                 to_emails=To(to_email),
@@ -94,27 +94,27 @@ The GoldenDoodleLM Team
                 plain_text_content=PlainTextContent(plain_content),
                 html_content=HtmlContent(html_content)
             )
-            
+
             response = self.client.send(message)
             logger.info(f"Verification email sent to {to_email}, status: {response.status_code}")
             return response.status_code == 202
-            
+
         except Exception as e:
             logger.error(f"Failed to send verification email to {to_email}: {e}")
             return False
-    
+
     def send_password_reset_email(self, to_email: str, reset_token: str, first_name: str) -> bool:
         """Send password reset email"""
         if not self.client:
             logger.error("SendGrid client not configured")
             return False
-        
+
         try:
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
             reset_link = f"{base_url}/reset-password?token={reset_token}"
-            
+
             subject = "Reset Your GoldenDoodleLM Password"
-            
+
             plain_content = f"""
 Hello {first_name},
 
@@ -131,7 +131,7 @@ If you didn't request this reset, please ignore this email.
 Best regards,
 The GoldenDoodleLM Team
             """
-            
+
             html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -166,7 +166,7 @@ The GoldenDoodleLM Team
 </body>
 </html>
             """
-            
+
             message = Mail(
                 from_email=From(self.from_email, self.from_name),
                 to_emails=To(to_email),
@@ -174,16 +174,75 @@ The GoldenDoodleLM Team
                 plain_text_content=PlainTextContent(plain_content),
                 html_content=HtmlContent(html_content)
             )
-            
+
             response = self.client.send(message)
             logger.info(f"Password reset email sent to {to_email}, status: {response.status_code}")
             return response.status_code == 202
-            
+
         except Exception as e:
-            logger.error(f"Failed to send password reset email to {to_email}: {e}")
+            logger.error(f"Error sending password reset email: {e}")
             return False
 
-# Create global instance
+    def send_organization_invite_email(self, to_email: str, invite_token: str, organization_name: str, inviter_name: str) -> bool:
+        """Send organization invite email"""
+        try:
+            invite_url = f"{self.base_url}/join-organization?token={invite_token}"
+
+            subject = f"You're invited to join {organization_name} on GoldenDoodleLM"
+
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #2c3e50; margin: 0;">GoldenDoodleLM</h1>
+                    <p style="color: #7f8c8d; margin: 5px 0;">Trauma-Informed AI Content Generation</p>
+                </div>
+
+                <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px; margin-bottom: 30px;">
+                    <h2 style="color: #2c3e50; margin-top: 0;">You're Invited!</h2>
+                    <p style="color: #34495e; line-height: 1.6; margin-bottom: 20px;">
+                        <strong>{inviter_name}</strong> has invited you to join <strong>{organization_name}</strong> on GoldenDoodleLM.
+                    </p>
+                    <p style="color: #34495e; line-height: 1.6; margin-bottom: 25px;">
+                        GoldenDoodleLM helps organizations create trauma-informed content that prioritizes safety, trust, and empowerment in all communications.
+                    </p>
+                    <div style="text-align: center;">
+                        <a href="{invite_url}" 
+                           style="background-color: #3498db; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                            Accept Invitation
+                        </a>
+                    </div>
+                </div>
+
+                <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 30px;">
+                    <p style="color: #856404; margin: 0; font-size: 14px;">
+                        <strong>Note:</strong> This invitation will expire in 7 days. If you already have a GoldenDoodleLM account, you'll be added to the organization. If not, you'll be guided through creating an account.
+                    </p>
+                </div>
+
+                <div style="border-top: 1px solid #ecf0f1; padding-top: 20px; text-align: center;">
+                    <p style="color: #7f8c8d; font-size: 12px; margin: 0;">
+                        If you're having trouble with the button above, copy and paste this URL into your browser:<br>
+                        <a href="{invite_url}" style="color: #3498db;">{invite_url}</a>
+                    </p>
+                </div>
+            </div>
+            """
+
+            message = Mail(
+                from_email=self.from_email,
+                to_emails=to_email,
+                subject=subject,
+                html_content=html_content
+            )
+
+            response = self.client.send(message)
+            return response.status_code == 202
+
+        except Exception as e:
+            logger.error(f"Error sending organization invite email: {e}")
+            return False
+
+# Global email service instance
 email_service = EmailService()
 
 def generate_verification_token() -> str:

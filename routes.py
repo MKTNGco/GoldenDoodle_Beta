@@ -23,6 +23,10 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration"""
+    # Check if this is an organization invite
+    is_organization_invite = request.args.get('invite') == 'organization'
+    organization_invite = session.get('organization_invite') if is_organization_invite else None
+    
     if request.method == 'POST':
         try:
             first_name = request.form.get('first_name', '').strip()
@@ -36,17 +40,72 @@ def register():
             # Validation
             if not all([first_name, last_name, email, password]):
                 flash('All fields are required.', 'error')
-                return render_template('register.html')
+                return render_template('register.html', 
+                                     is_organization_invite=is_organization_invite,
+                                     organization_invite=organization_invite)
             
+            # Handle organization invite registration
+            if organization_invite:
+                if email != organization_invite['email']:
+                    flash('You must use the invited email address to register.', 'error')
+                    return render_template('register.html', 
+                                         is_organization_invite=is_organization_invite,
+                                         organization_invite=organization_invite)
+                
+                # Check if user already exists
+                existing_user = db_manager.get_user_by_email(email)
+                if existing_user:
+                    flash('An account with this email already exists.', 'error')
+                    return render_template('register.html', 
+                                         is_organization_invite=is_organization_invite,
+                                         organization_invite=organization_invite)
+                
+                # Create user as organization member
+                user = db_manager.create_user(
+                    tenant_id=organization_invite['tenant_id'],
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    password=password,
+                    subscription_level=SubscriptionLevel.TEAM,  # Default for organization members
+                    is_admin=False
+                )
+                
+                # Mark invite as used
+                db_manager.use_organization_invite_token(organization_invite['token_hash'])
+                
+                # Clear invite from session
+                session.pop('organization_invite', None)
+                
+                # Generate and send verification email
+                verification_token = generate_verification_token()
+                token_hash = hash_token(verification_token)
+                
+                if db_manager.create_verification_token(user.user_id, token_hash):
+                    if email_service.send_verification_email(email, verification_token, first_name):
+                        flash(f'Account created successfully! You\'ve been added to {organization_invite["organization_name"]}. Please check your email to verify your account before signing in.', 'success')
+                        return redirect(url_for('login'))
+                    else:
+                        flash('Account created, but we couldn\'t send the verification email. Please contact support.', 'warning')
+                        return redirect(url_for('login'))
+                else:
+                    flash('Account created, but there was an issue with email verification. Please contact support.', 'warning')
+                    return redirect(url_for('login'))
+            
+            # Regular registration flow
             if user_type == 'company' and not organization_name:
                 flash('Organization name is required for company accounts.', 'error')
-                return render_template('register.html')
+                return render_template('register.html', 
+                                     is_organization_invite=is_organization_invite,
+                                     organization_invite=organization_invite)
             
             # Check if user already exists
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
                 flash('An account with this email already exists.', 'error')
-                return render_template('register.html')
+                return render_template('register.html', 
+                                     is_organization_invite=is_organization_invite,
+                                     organization_invite=organization_invite)
             
             # Create tenant and determine brand voice limits
             subscription_enum = SubscriptionLevel(subscription_level)
@@ -112,7 +171,9 @@ def register():
             logger.error(f"Registration error: {e}")
             flash('An error occurred during registration. Please try again.', 'error')
     
-    return render_template('register.html')
+    return render_template('register.html', 
+                         is_organization_invite=is_organization_invite,
+                         organization_invite=organization_invite)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1100,6 +1161,117 @@ def admin_update_subscription():
     except Exception as e:
         logger.error(f"Error updating subscription: {e}")
         return jsonify({'error': 'An error occurred while updating subscription'}), 500
+
+@app.route('/send-organization-invite', methods=['POST'])
+@login_required
+def send_organization_invite():
+    """Send an organization invite"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        
+        if not email:
+            return jsonify({'error': 'Email address is required'}), 400
+        
+        user = get_current_user()
+        if not user or not user.is_admin:
+            return jsonify({'error': 'Admin access required'}), 403
+        
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        if not tenant or tenant.tenant_type != TenantType.COMPANY:
+            return jsonify({'error': 'Organization account required'}), 400
+        
+        # Check if user already exists in this organization
+        existing_user = db_manager.get_user_by_email(email)
+        if existing_user and existing_user.tenant_id == user.tenant_id:
+            return jsonify({'error': 'User is already a member of this organization'}), 400
+        
+        # Generate invite token
+        from email_service import generate_verification_token, hash_token
+        invite_token = generate_verification_token()
+        token_hash = hash_token(invite_token)
+        
+        # Create invite in database
+        if db_manager.create_organization_invite(user.tenant_id, user.user_id, email, token_hash):
+            # Send invite email
+            if email_service.send_organization_invite_email(
+                email, 
+                invite_token, 
+                tenant.name, 
+                f"{user.first_name} {user.last_name}"
+            ):
+                return jsonify({
+                    'success': True, 
+                    'message': f'Invitation sent to {email} successfully'
+                })
+            else:
+                return jsonify({'error': 'Failed to send invitation email'}), 500
+        else:
+            return jsonify({'error': 'Failed to create invitation'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error sending organization invite: {e}")
+        return jsonify({'error': 'An error occurred while sending the invitation'}), 500
+
+@app.route('/join-organization')
+def join_organization():
+    """Handle organization invite acceptance"""
+    token = request.args.get('token')
+    if not token:
+        flash('Invalid invitation link.', 'error')
+        return redirect(url_for('login'))
+    
+    from email_service import hash_token
+    token_hash = hash_token(token)
+    invite_data = db_manager.verify_organization_invite_token(token_hash)
+    
+    if not invite_data:
+        flash('Invalid or expired invitation link.', 'error')
+        return redirect(url_for('login'))
+    
+    tenant_id, email = invite_data
+    tenant = db_manager.get_tenant_by_id(tenant_id)
+    
+    if not tenant:
+        flash('Organization not found.', 'error')
+        return redirect(url_for('login'))
+    
+    # Check if user already exists
+    existing_user = db_manager.get_user_by_email(email)
+    
+    if existing_user:
+        if existing_user.tenant_id == tenant_id:
+            flash('You are already a member of this organization.', 'info')
+            return redirect(url_for('login'))
+        else:
+            flash('This email is already associated with another account. Please contact support.', 'error')
+            return redirect(url_for('login'))
+    
+    # Store invite info in session for registration
+    session['organization_invite'] = {
+        'token_hash': token_hash,
+        'tenant_id': tenant_id,
+        'email': email,
+        'organization_name': tenant.name
+    }
+    
+    return redirect(url_for('register', invite='organization'))
+
+@app.route('/get-pending-invites/<tenant_id>')
+@login_required
+def get_pending_invites(tenant_id):
+    """Get pending invites for an organization"""
+    try:
+        user = get_current_user()
+        if not user or not user.is_admin or user.tenant_id != tenant_id:
+            return jsonify({'error': 'Permission denied'}), 403
+        
+        invites = db_manager.get_pending_invites(tenant_id)
+        return jsonify({'invites': invites})
+        
+    except Exception as e:
+        logger.error(f"Error getting pending invites: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
 
 @app.errorhandler(404)
 def not_found_error(error):

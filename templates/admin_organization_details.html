@@ -19,8 +19,13 @@
                         <i class="fas fa-building me-2"></i>{{ tenant.name }}
                     </h1>
                 </div>
-                <div class="text-muted">
-                    {{ organization_users|length }} Member{{ 's' if organization_users|length != 1 else '' }}
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-muted">
+                        {{ organization_users|length }} Member{{ 's' if organization_users|length != 1 else '' }}
+                    </div>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#inviteUserModal">
+                        <i class="fas fa-user-plus me-1"></i>Invite Member
+                    </button>
                 </div>
             </div>
         </div>
@@ -63,6 +68,24 @@
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Invites -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-envelope me-2"></i>Pending Invitations
+                    </h6>
+                </div>
+                <div class="card-body" id="pendingInvitesSection">
+                    <div class="text-center py-2">
+                        <i class="fas fa-spinner fa-spin"></i> Loading invites...
                     </div>
                 </div>
             </div>
@@ -162,6 +185,36 @@
     </div>
 </div>
 
+<!-- Invite User Modal -->
+<div class="modal fade" id="inviteUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Invite Team Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="inviteUserForm">
+                    <div class="mb-3">
+                        <label for="inviteEmail" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="inviteEmail" required 
+                               placeholder="Enter email address">
+                        <div class="form-text">
+                            The user will receive an invitation email to join {{ tenant.name }}.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendInviteBtn">
+                    <i class="fas fa-paper-plane me-1"></i>Send Invitation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete User Modal -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1">
     <div class="modal-dialog">
@@ -189,6 +242,51 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Load pending invites
+    loadPendingInvites();
+
+    // Handle send invitation
+    document.getElementById('sendInviteBtn').addEventListener('click', function() {
+        const email = document.getElementById('inviteEmail').value.trim();
+        
+        if (!email) {
+            alert('Please enter an email address');
+            return;
+        }
+
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sending...';
+
+        fetch('/send-organization-invite', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                document.getElementById('inviteEmail').value = '';
+                bootstrap.Modal.getInstance(document.getElementById('inviteUserModal')).hide();
+                loadPendingInvites(); // Refresh pending invites
+            } else {
+                alert('Failed to send invitation: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to send invitation');
+        })
+        .finally(() => {
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Invitation';
+        });
+    });
+
     // Handle subscription level changes
     document.querySelectorAll('.subscription-select').forEach(select => {
         select.addEventListener('change', function() {
@@ -238,6 +336,40 @@ document.addEventListener('DOMContentLoaded', function() {
             new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
         });
     });
+
+    function loadPendingInvites() {
+        const tenantId = '{{ tenant.tenant_id }}';
+        
+        fetch(`/get-pending-invites/${tenantId}`)
+        .then(response => response.json())
+        .then(data => {
+            const section = document.getElementById('pendingInvitesSection');
+            
+            if (data.invites && data.invites.length > 0) {
+                let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
+                html += '<thead><tr><th>Email</th><th>Invited By</th><th>Sent</th></tr></thead><tbody>';
+                
+                data.invites.forEach(invite => {
+                    const sentDate = new Date(invite.created_at).toLocaleDateString();
+                    html += `<tr>
+                        <td>${invite.email}</td>
+                        <td>${invite.invited_by}</td>
+                        <td>${sentDate}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                section.innerHTML = html;
+            } else {
+                section.innerHTML = '<div class="text-center py-2 text-muted">No pending invitations</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading pending invites:', error);
+            document.getElementById('pendingInvitesSection').innerHTML = 
+                '<div class="text-center py-2 text-danger">Failed to load pending invitations</div>';
+        });
+    }
 });
 </script>
 {% endblock %}

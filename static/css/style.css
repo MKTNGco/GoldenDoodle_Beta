@@ -862,6 +862,20 @@ a:hover {
     color: var(--clearwater-teal);
 }
 
+/* Brand Voice Icon Styling */
+.brand-voice-icon,
+img[src*="brand-voice-icon.svg"] {
+    filter: brightness(0) saturate(100%) invert(47%) sepia(23%) saturate(1678%) hue-rotate(158deg) brightness(91%) contrast(86%);
+}
+
+/* Brand voice icon in text-primary contexts should be teal */
+.text-primary img[src*="brand-voice-icon.svg"],
+.card-header img[src*="brand-voice-icon.svg"],
+h1 img[src*="brand-voice-icon.svg"],
+h5 img[src*="brand-voice-icon.svg"] {
+    filter: brightness(0) saturate(100%) invert(47%) sepia(23%) saturate(1678%) hue-rotate(158deg) brightness(91%) contrast(86%);
+}
+
 /* Success states */
 .text-success {
     color: var(--clearwater-teal) !important;

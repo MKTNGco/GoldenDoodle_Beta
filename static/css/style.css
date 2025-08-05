@@ -862,6 +862,40 @@ a:hover {
     color: var(--clearwater-teal);
 }
 
+/* Quick Actions Menu Styling */
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-warning,
+.btn-outline-info {
+    color: var(--clearwater-teal) !important;
+    border-color: var(--clearwater-teal) !important;
+    background-color: transparent !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-warning:hover,
+.btn-outline-info:hover {
+    background-color: var(--clearwater-teal) !important;
+    border-color: var(--clearwater-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
+/* Quick Actions - All icons should be teal and turn white on hover */
+.btn-outline-primary i,
+.btn-outline-success i,
+.btn-outline-warning i,
+.btn-outline-info i {
+    color: var(--clearwater-teal) !important;
+}
+
+.btn-outline-primary:hover i,
+.btn-outline-success:hover i,
+.btn-outline-warning:hover i,
+.btn-outline-info:hover i {
+    color: var(--cloud-white) !important;
+}
+
 /* Brand Voice Icon Styling */
 .fa-microphone {
     color: var(--clearwater-teal);

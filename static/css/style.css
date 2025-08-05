@@ -863,17 +863,16 @@ a:hover {
 }
 
 /* Brand Voice Icon Styling */
-.brand-voice-icon,
-img[src*="brand-voice-icon.svg"] {
-    filter: brightness(0) saturate(100%) invert(47%) sepia(23%) saturate(1678%) hue-rotate(158deg) brightness(91%) contrast(86%);
+.fa-microphone {
+    color: var(--clearwater-teal);
 }
 
 /* Brand voice icon in text-primary contexts should be teal */
-.text-primary img[src*="brand-voice-icon.svg"],
-.card-header img[src*="brand-voice-icon.svg"],
-h1 img[src*="brand-voice-icon.svg"],
-h5 img[src*="brand-voice-icon.svg"] {
-    filter: brightness(0) saturate(100%) invert(47%) sepia(23%) saturate(1678%) hue-rotate(158deg) brightness(91%) contrast(86%);
+.text-primary .fa-microphone,
+.card-header .fa-microphone,
+h1 .fa-microphone,
+h5 .fa-microphone {
+    color: var(--clearwater-teal);
 }
 
 /* Success states */

@@ -121,7 +121,7 @@ class DatabaseManager:
                     token_hash VARCHAR(255) NOT NULL,
                     expires_at TIMESTAMP NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    used_at TIMESTAMP NULL
+                    used BOOLEAN DEFAULT FALSE
                 );
             """)
 
@@ -134,6 +134,28 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_organization_invite_email 
                 ON organization_invite_tokens(email);
+            """)
+
+            # Migration: Fix organization_invite_tokens table structure
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    -- Check if used_at column exists and used column doesn't
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'organization_invite_tokens' AND column_name = 'used_at'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'organization_invite_tokens' AND column_name = 'used'
+                    ) THEN
+                        -- Add used column
+                        ALTER TABLE organization_invite_tokens ADD COLUMN used BOOLEAN DEFAULT FALSE;
+                        -- Migrate data: set used = TRUE where used_at IS NOT NULL
+                        UPDATE organization_invite_tokens SET used = TRUE WHERE used_at IS NOT NULL;
+                        -- Drop the old column
+                        ALTER TABLE organization_invite_tokens DROP COLUMN used_at;
+                    END IF;
+                END $$;
             """)
 
             # Chat sessions table
@@ -1021,7 +1043,7 @@ class DatabaseManager:
             # Check if there's already a pending invite for this email to this organization
             cursor.execute("""
                 SELECT invite_id FROM organization_invite_tokens 
-                WHERE tenant_id = %s AND email = %s AND used_at IS NULL AND expires_at > %s
+                WHERE tenant_id = %s AND email = %s AND used = FALSE AND expires_at > %s
             """, (tenant_id, email.lower(), datetime.utcnow()))
 
             existing_invite = cursor.fetchone()
@@ -1059,7 +1081,7 @@ class DatabaseManager:
 
             cursor.execute("""
                 SELECT tenant_id, email FROM organization_invite_tokens 
-                WHERE token_hash = %s AND expires_at > %s AND used_at IS NULL
+                WHERE token_hash = %s AND expires_at > %s AND used = FALSE
             """, (token_hash, datetime.utcnow()))
 
             row = cursor.fetchone()
@@ -1082,7 +1104,7 @@ class DatabaseManager:
 
             cursor.execute("""
                 UPDATE organization_invite_tokens 
-                SET used_at = NOW() 
+                SET used = TRUE 
                 WHERE token_hash = %s
             """, (token_hash,))
 
@@ -1107,7 +1129,7 @@ class DatabaseManager:
                        oi.created_at
                 FROM organization_invite_tokens oi
                 JOIN users u ON oi.invited_by_user_id = u.user_id
-                WHERE oi.tenant_id = %s AND oi.used_at IS NULL
+                WHERE oi.tenant_id = %s AND oi.used = FALSE
                 ORDER BY oi.created_at DESC
             """, (tenant_id,))
 

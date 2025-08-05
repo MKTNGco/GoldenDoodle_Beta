@@ -158,32 +158,51 @@ class DatabaseManager:
                 END $$;
             """)
 
+            # Create message_type enum for PostgreSQL
+            cursor.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE message_type AS ENUM ('user', 'assistant');
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """)
+
             # Chat sessions table
-            cursor.execute(f"""
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_sessions (
                     session_id VARCHAR(36) PRIMARY KEY,
-                    user_id VARCHAR(36) NOT NULL,
+                    user_id UUID NOT NULL,
                     title VARCHAR(255) NOT NULL DEFAULT 'New Chat',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                    INDEX idx_user_updated (user_id, updated_at)
-                )
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_chat_sessions_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """)
+
+            # Create index for chat sessions
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_updated 
+                ON chat_sessions(user_id, updated_at);
             """)
 
             # Chat messages table
-            cursor.execute(f"""
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
                     message_id VARCHAR(36) PRIMARY KEY,
                     session_id VARCHAR(36) NOT NULL,
-                    message_type ENUM('user', 'assistant') NOT NULL,
+                    message_type message_type NOT NULL,
                     content TEXT NOT NULL,
                     content_mode VARCHAR(50) NULL,
                     brand_voice_id VARCHAR(36) NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
-                    INDEX idx_session_created (session_id, created_at)
-                )
+                    CONSTRAINT fk_chat_messages_session FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE
+                );
+            """)
+
+            # Create index for chat messages
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_chat_messages_session_created 
+                ON chat_messages(session_id, created_at);
             """)
 
             # Add foreign key constraints separately to avoid issues with table creation order

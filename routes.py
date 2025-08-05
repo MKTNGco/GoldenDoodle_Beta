@@ -1481,6 +1481,79 @@ def delete_chat_session(session_id):
         logger.error(f"Error deleting chat session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
+@app.route('/new-session', methods=['POST'])
+@login_required
+def new_session():
+    """Create a new chat session"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        session_id = db_manager.create_chat_session(user.user_id, "New Chat")
+        if session_id:
+            return jsonify({'session_id': session_id})
+        else:
+            return jsonify({'error': 'Failed to create session'}), 500
+
+    except Exception as e:
+        logger.error(f"Error creating new session: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/chat-history')
+@login_required
+def chat_history():
+    """Get user's chat history"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        sessions = db_manager.get_user_chat_sessions(user.user_id)
+        return jsonify([{
+            'id': session['session_id'],
+            'title': session['title'],
+            'created_at': session['created_at'].isoformat() if session['created_at'] else None,
+            'updated_at': session['updated_at'].isoformat() if session['updated_at'] else None,
+            'message_count': session['message_count']
+        } for session in sessions])
+
+    except Exception as e:
+        logger.error(f"Error getting chat history: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/chat/<session_id>')
+@login_required
+def get_chat(session_id):
+    """Get a specific chat session with messages"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # Verify user owns this session
+        sessions = db_manager.get_user_chat_sessions(user.user_id)
+        session_exists = any(s['session_id'] == session_id for s in sessions)
+        
+        if not session_exists:
+            return jsonify({'error': 'Session not found'}), 404
+
+        messages = db_manager.get_chat_messages(session_id)
+        session_title = next((s['title'] for s in sessions if s['session_id'] == session_id), 'New Chat')
+
+        return jsonify({
+            'title': session_title,
+            'messages': [{
+                'content': msg['content'],
+                'sender': 'user' if msg['message_type'] == 'user' else 'ai',
+                'created_at': msg['created_at'].isoformat() if msg['created_at'] else None
+            } for msg in messages]
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting chat {session_id}: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
 @app.errorhandler(404)
 def not_found_error(error):
     logger.warning(f"404 Not Found: {error}")

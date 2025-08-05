@@ -736,9 +736,22 @@ class ChatInterface {
 
     // Chat History Functionality
     async startNewChat(clearUI = true) {
-        // Fetch a new session ID
+        if (!this.isLoggedIn) {
+            // For demo users, just clear the UI
+            if (clearUI) {
+                this.clearChatMessages();
+                this.chatInput.value = '';
+                this.chatInput.focus();
+            }
+            return;
+        }
+
+        // Fetch a new session ID for logged-in users
         try {
             const response = await fetch('/new-session', { method: 'POST' });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
             const data = await response.json();
             this.currentSessionId = data.session_id;
             console.log('New session started:', this.currentSessionId);
@@ -748,14 +761,29 @@ class ChatInterface {
                 this.clearChatMessages();
                 this.chatInput.value = '';
                 this.chatInput.focus();
+                
+                // Remove active state from other sessions
+                document.querySelectorAll('.chat-history-item').forEach(item => {
+                    item.classList.remove('active');
+                });
             }
 
             // Update the sidebar with the new chat title (initially empty)
-            this.addChatToSidebar({ id: this.currentSessionId, title: 'New Chat', messages: [] });
+            this.addChatToSidebar({ 
+                id: this.currentSessionId, 
+                title: 'New Chat', 
+                message_count: 0,
+                created_at: new Date().toISOString()
+            });
 
         } catch (error) {
             console.error('Error starting new chat session:', error);
-            // Optionally display an error to the user
+            // For demo fallback, just clear UI
+            if (clearUI) {
+                this.clearChatMessages();
+                this.chatInput.value = '';
+                this.chatInput.focus();
+            }
         }
     }
 
@@ -771,31 +799,46 @@ class ChatInterface {
     }
 
     addChatToSidebar(chat) {
-        const sidebarChats = document.getElementById('sidebarChats'); // Assuming you have a container for chats
-        if (!sidebarChats) return;
+        const chatHistory = document.getElementById('chatHistory');
+        if (!chatHistory) return;
 
         const chatElement = document.createElement('div');
-        chatElement.className = 'sidebar-chat-item';
+        chatElement.className = 'chat-history-item';
         chatElement.dataset.sessionId = chat.id;
-        chatElement.textContent = chat.title;
+        
+        chatElement.innerHTML = `
+            <div class="chat-session-title">${chat.title}</div>
+            <div class="chat-session-meta">
+                <span>${chat.message_count || 0} messages</span>
+                <span>${this.formatDate(chat.updated_at || chat.created_at)}</span>
+            </div>
+            <button class="delete-session-btn" onclick="event.stopPropagation(); chatInterface.deleteSession('${chat.id}')">
+                ×
+            </button>
+        `;
 
         // Add click listener to load chat
         chatElement.addEventListener('click', () => this.loadChat(chat.id));
 
         // Prepend to the list of chats
-        sidebarChats.prepend(chatElement);
+        chatHistory.prepend(chatElement);
     }
 
     async loadChatHistory() {
+        if (!this.isLoggedIn) return; // Don't load history for demo users
+
         try {
             const response = await fetch('/chat-history');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
             const chats = await response.json();
 
-            const sidebarChats = document.getElementById('sidebarChats');
-            if (!sidebarChats) return;
+            const chatHistory = document.getElementById('chatHistory');
+            if (!chatHistory) return;
 
             // Clear existing chats and add loaded ones
-            sidebarChats.innerHTML = '';
+            chatHistory.innerHTML = '';
             chats.forEach(chat => {
                 this.addChatToSidebar(chat);
             });
@@ -805,13 +848,13 @@ class ChatInterface {
                 this.loadChat(chats[0].id); // Load the first chat in the history
             } else {
                 // If no history, start a new chat
-                this.startNewChat();
+                await this.startNewChat();
             }
 
         } catch (error) {
             console.error('Error loading chat history:', error);
             // Fallback: start a new chat if history fails to load
-            this.startNewChat();
+            await this.startNewChat();
         }
     }
 
@@ -831,7 +874,7 @@ class ChatInterface {
             });
 
             // Update sidebar to highlight the current chat
-            document.querySelectorAll('.sidebar-chat-item').forEach(item => {
+            document.querySelectorAll('.chat-history-item').forEach(item => {
                 item.classList.remove('active');
                 if (item.dataset.sessionId === sessionId) {
                     item.classList.add('active');
@@ -865,6 +908,46 @@ class ChatInterface {
             return 'New Chat'; // Fallback title
         }
     }
+
+    formatDate(dateString) {
+        if (!dateString) return 'Unknown';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 1) return 'Today';
+        if (diffDays === 2) return 'Yesterday';
+        if (diffDays <= 7) return `${diffDays} days ago`;
+        return date.toLocaleDateString();
+    }
+
+    async deleteSession(sessionId) {
+        if (!confirm('Are you sure you want to delete this conversation?')) return;
+
+        try {
+            const response = await fetch(`/api/chat-sessions/${sessionId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                // Remove from sidebar
+                const sessionElement = document.querySelector(`[data-session-id="${sessionId}"]`);
+                if (sessionElement) {
+                    sessionElement.remove();
+                }
+
+                // If this was the current session, start a new one
+                if (this.currentSessionId === sessionId) {
+                    await this.startNewChat();
+                }
+            } else {
+                console.error('Failed to delete session');
+            }
+        } catch (error) {
+            console.error('Error deleting session:', error);
+        }
+    }
 }
 
 // New chat functionality
@@ -882,7 +965,10 @@ function startNewChat() {
     document.getElementById('chatInput').focus();
 }
 
+// Global chat interface reference
+let chatInterface;
+
 // Initialize chat interface
 document.addEventListener('DOMContentLoaded', function() {
-    new ChatInterface();
+    chatInterface = new ChatInterface();
 });

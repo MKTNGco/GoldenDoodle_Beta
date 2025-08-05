@@ -243,6 +243,68 @@ class DatabaseManager:
             logger.error(f"Error initializing main database: {e}")
             raise
 
+    def ensure_chat_tables_exist(self):
+        """Ensure chat tables exist - can be called independently"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Create message_type enum for PostgreSQL
+            cursor.execute("""
+                DO $$ BEGIN
+                    CREATE TYPE message_type AS ENUM ('user', 'assistant');
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """)
+
+            # Chat sessions table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    session_id VARCHAR(36) PRIMARY KEY,
+                    user_id UUID NOT NULL,
+                    title VARCHAR(255) NOT NULL DEFAULT 'New Chat',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_chat_sessions_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """)
+
+            # Create index for chat sessions
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_updated 
+                ON chat_sessions(user_id, updated_at);
+            """)
+
+            # Chat messages table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    message_id VARCHAR(36) PRIMARY KEY,
+                    session_id VARCHAR(36) NOT NULL,
+                    message_type message_type NOT NULL,
+                    content TEXT NOT NULL,
+                    content_mode VARCHAR(50) NULL,
+                    brand_voice_id VARCHAR(36) NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_chat_messages_session FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id) ON DELETE CASCADE
+                );
+            """)
+
+            # Create index for chat messages
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_chat_messages_session_created 
+                ON chat_messages(session_id, created_at);
+            """)
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("Chat tables ensured to exist")
+
+        except Exception as e:
+            logger.error(f"Error ensuring chat tables exist: {e}")
+            raise
+
     def create_tenant_database(self, tenant: Tenant):
         """Create a tenant-specific database"""
         try:
@@ -1165,6 +1227,9 @@ class DatabaseManager:
     def create_chat_session(self, user_id, title=None):
         """Create a new chat session"""
         try:
+            # Ensure chat tables exist
+            self.ensure_chat_tables_exist()
+            
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1208,6 +1273,9 @@ class DatabaseManager:
     def get_user_chat_sessions(self, user_id, limit=20):
         """Get user's recent chat sessions"""
         try:
+            # Ensure chat tables exist
+            self.ensure_chat_tables_exist()
+            
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -1313,3 +1381,10 @@ db_manager = DatabaseManager()
 def init_databases():
     """Initialize all databases"""
     db_manager.init_main_database()
+
+# Initialize databases on import
+try:
+    init_databases()
+except Exception as e:
+    logger.error(f"Failed to initialize databases on import: {e}")
+    # Don't raise here to avoid breaking the app, but log the error

@@ -112,20 +112,28 @@ class DatabaseManager:
             """)
 
             # Organization invite tokens table
-            cursor.execute(f"""
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS organization_invite_tokens (
-                    token_id VARCHAR(36) PRIMARY KEY,
-                    tenant_id VARCHAR(36) NOT NULL,
-                    invited_by_user_id VARCHAR(36) NOT NULL,
+                    invite_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    tenant_id UUID NOT NULL,
+                    invited_by_user_id UUID NOT NULL,
                     email VARCHAR(255) NOT NULL,
                     token_hash VARCHAR(255) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    used_at TIMESTAMP NULL,
-                    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-                    FOREIGN KEY (invited_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                    INDEX idx_token_hash (token_hash),
-                    INDEX idx_email (email)
-                )
+                    used_at TIMESTAMP NULL
+                );
+            """)
+
+            # Create indexes separately
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_organization_invite_token_hash 
+                ON organization_invite_tokens(token_hash);
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_organization_invite_email 
+                ON organization_invite_tokens(email);
             """)
 
             # Chat sessions table
@@ -961,7 +969,11 @@ class DatabaseManager:
                 pass
 
             # Delete organization invite tokens for this tenant
-            cursor.execute("DELETE FROM organization_invite_tokens WHERE tenant_id = %s", (tenant_id,))
+            try:
+                cursor.execute("DELETE FROM organization_invite_tokens WHERE tenant_id = %s", (tenant_id,))
+            except Exception:
+                # Table might not exist, continue
+                pass
 
             # Delete all users
             cursor.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id,))
@@ -1032,6 +1044,9 @@ class DatabaseManager:
 
         except Exception as e:
             logger.error(f"Error creating organization invite: {e}")
+            conn.rollback()
+            cursor.close()
+            conn.close()
             return False
 
     def verify_organization_invite_token(self, token_hash: str) -> Optional[tuple]:
@@ -1084,11 +1099,11 @@ class DatabaseManager:
         """Get pending organization invites"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
                 SELECT oi.email, 
-                       CONCAT(u.first_name, ' ', u.last_name) as invited_by,
+                       (u.first_name || ' ' || u.last_name) as invited_by,
                        oi.created_at
                 FROM organization_invite_tokens oi
                 JOIN users u ON oi.invited_by_user_id = u.user_id
@@ -1100,7 +1115,8 @@ class DatabaseManager:
             cursor.close()
             conn.close()
 
-            return invites
+            # Convert to list of dicts for JSON serialization
+            return [dict(invite) for invite in invites]
         except Exception as e:
             logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
             return []

@@ -54,7 +54,7 @@
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    <img src="{{ url_for('static', filename='images/brand-voice-icon.png') }}" alt="Brand Voice" class="text-primary mb-2" style="width: 32px; height: 32px;">
+                    <img src="{{ url_for('static', filename='images/brand-voice-icon.svg') }}" alt="Brand Voice" class="text-primary mb-2" style="width: 32px; height: 32px;">
                     <h5>Brand Voices</h5>
                     <p class="text-muted">{{ company_brand_voices|length }} Voices</p>
                 </div>
@@ -98,7 +98,7 @@
                         </div>
                         <div class="col-md-4">
                             <a href="{{ url_for('brand_voices') }}" class="btn btn-outline-success w-100">
-                                <img src="{{ url_for('static', filename='images/brand-voice-icon.png') }}" alt="Brand Voice" class="me-2" style="width: 16px; height: 16px;">Manage Brand Voices
+                                <img src="{{ url_for('static', filename='images/brand-voice-icon.svg') }}" alt="Brand Voice" class="me-2" style="width: 16px; height: 16px;">Manage Brand Voices
                             </a>
                         </div>
                         <div class="col-md-4">
@@ -137,7 +137,7 @@
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="brand-voices-tab" data-bs-toggle="tab" data-bs-target="#brand-voices" type="button" role="tab">
-                                <img src="{{ url_for('static', filename='images/brand-voice-icon.png') }}" alt="Brand Voice" class="me-1" style="width: 16px; height: 16px;">Brand Voices
+                                <img src="{{ url_for('static', filename='images/brand-voice-icon.svg') }}" alt="Brand Voice" class="me-1" style="width: 16px; height: 16px;">Brand Voices
                             </button>
                         </li>
                         {% if user.is_admin and tenant.tenant_type.value == 'company' %}
@@ -252,7 +252,7 @@
                             </div>
                             {% else %}
                             <div class="text-center py-4">
-                                <img src="{{ url_for('static', filename='images/brand-voice-icon.png') }}" alt="Brand Voice" class="text-muted mb-3" style="width: 60px; height: 60px; opacity: 0.5;">
+                                <img src="{{ url_for('static', filename='images/brand-voice-icon.svg') }}" alt="Brand Voice" class="text-muted mb-3" style="width: 60px; height: 60px; opacity: 0.5;">
                                 <h5>No Brand Voices Yet</h5>
                                 <p class="text-muted">Create your first brand voice to get started.</p>
                                 <a href="{{ url_for('brand_voice_wizard', type='company') }}" class="btn btn-primary">

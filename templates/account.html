@@ -54,7 +54,7 @@
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    <img src="{{ url_for('static', filename='images/brand-voice-icon.svg') }}" alt="Brand Voice" class="text-primary mb-2" style="width: 32px; height: 32px;">
+                    <i class="fas fa-microphone text-primary mb-2" style="font-size: 2rem;"></i>
                     <h5>Brand Voices</h5>
                     <p class="text-muted">{{ company_brand_voices|length }} Voices</p>
                 </div>
@@ -137,7 +137,7 @@
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="brand-voices-tab" data-bs-toggle="tab" data-bs-target="#brand-voices" type="button" role="tab">
-                                <img src="{{ url_for('static', filename='images/brand-voice-icon.svg') }}" alt="Brand Voice" class="me-1" style="width: 16px; height: 16px;">Brand Voices
+                                <i class="fas fa-microphone me-1"></i>Brand Voices
                             </button>
                         </li>
                         {% if user.is_admin and tenant.tenant_type.value == 'company' %}

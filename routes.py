@@ -193,6 +193,9 @@ def login():
                 flash('Please verify your email address before signing in. Check your inbox for the verification link.', 'warning')
                 return render_template('login.html', show_resend=True, email=email)
 
+            # Update last login timestamp
+            db_manager.update_user_last_login(user.user_id)
+            
             login_user(user)
             flash('Welcome back!', 'success')
             next_page = request.args.get('next')

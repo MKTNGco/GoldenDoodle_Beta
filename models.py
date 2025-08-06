@@ -33,6 +33,7 @@ class User:
     is_admin: bool = False
     email_verified: bool = False
     created_at: Optional[str] = None
+    last_login: Optional[str] = None
     
     @property
     def name(self) -> str:

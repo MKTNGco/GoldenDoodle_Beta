@@ -85,6 +85,19 @@ class DatabaseManager:
                 END $$;
             """)
 
+            # Add last_login column if it doesn't exist
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'last_login'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN last_login TIMESTAMP NULL;
+                    END IF;
+                END $$;
+            """)
+
             # Create email verification tokens table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS email_verification_tokens (
@@ -447,9 +460,8 @@ class DatabaseManager:
                     is_admin=row['is_admin']
                 )
                 user.email_verified = row['email_verified']  # Add email_verified
-                # Add created_at if available
-                if len(row) > 8:
-                    user.created_at = row['created_at']
+                user.created_at = row['created_at']
+                user.last_login = row['last_login']
                 return user
             return None
 
@@ -933,7 +945,7 @@ class DatabaseManager:
             cursor.execute("""
                 SELECT u.user_id, u.tenant_id, u.first_name, u.last_name, u.email, 
                        u.subscription_level, u.is_admin, u.email_verified, u.created_at,
-                       u.password_hash
+                       u.password_hash, u.last_login
                 FROM users u
                 WHERE u.tenant_id = %s
                 ORDER BY u.is_admin DESC, u.created_at ASC
@@ -951,7 +963,8 @@ class DatabaseManager:
                     is_admin=row[6],
                     email_verified=row[7],
                     created_at=row[8],
-                    password_hash=row[9]
+                    password_hash=row[9],
+                    last_login=row[10]
                 )
                 users.append(user)
 
@@ -1223,6 +1236,28 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
             return []
+
+    def update_user_last_login(self, user_id: str) -> bool:
+        """Update user's last login timestamp"""
+        try:
+            from datetime import datetime
+            
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET last_login = %s
+                WHERE user_id = %s
+            """, (datetime.utcnow(), user_id))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating user last login: {e}")
+            return False
 
     def create_chat_session(self, user_id, title=None):
         """Create a new chat session"""

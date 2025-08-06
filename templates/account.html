@@ -291,6 +291,20 @@
                                 </div>
                             </div>
 
+                            <!-- Active Users -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-user-check me-2"></i>Active Users
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0" id="activeUsersSection">
+                                    <div class="text-center py-2">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading active users...
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Team Information -->
                             <div class="card">
                                 <div class="card-header bg-info text-white">
@@ -544,9 +558,10 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Load pending invites if team management tab exists
+    // Load pending invites and active users if team management tab exists
     if (document.getElementById('team-management')) {
         loadPendingInvites();
+        loadActiveUsers();
     }
 
     // Handle send team member invitation
@@ -626,6 +641,71 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error loading pending invites:', error);
             pendingSection.innerHTML = 
                 '<div class="text-center py-2 text-danger">Failed to load pending invitations</div>';
+        });
+    }
+
+    function loadActiveUsers() {
+        const activeUsersSection = document.getElementById('activeUsersSection');
+        if (!activeUsersSection) return;
+
+        const tenantId = '{{ tenant.tenant_id }}';
+        
+        fetch(`/get-active-users/${tenantId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.users && data.users.length > 0) {
+                let html = '<div class="table-responsive"><table class="table table-striped mb-0">';
+                html += `<thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Access Level</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Member Since</th>
+                    </tr>
+                </thead><tbody>`;
+                
+                data.users.forEach(user => {
+                    const lastLogin = user.last_login ? 
+                        new Date(user.last_login).toLocaleDateString() + ' ' + 
+                        new Date(user.last_login).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) :
+                        '<span class="text-muted">Never</span>';
+                    
+                    const memberSince = user.created_at ? 
+                        new Date(user.created_at).toLocaleDateString() : 'N/A';
+                    
+                    const adminCrown = user.is_admin ? 
+                        ' <i class="fas fa-crown text-warning ms-1" title="Administrator"></i>' : '';
+                    
+                    const accessLevel = user.is_admin ?
+                        '<span class="badge bg-warning text-dark">Administrator</span>' :
+                        '<span class="badge bg-secondary">User</span>';
+                    
+                    const status = user.email_verified ?
+                        '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Active</span>' :
+                        '<span class="badge bg-warning"><i class="fas fa-exclamation me-1"></i>Pending</span>';
+                    
+                    html += `<tr>
+                        <td>${user.first_name} ${user.last_name}${adminCrown}</td>
+                        <td>${user.email}</td>
+                        <td>${accessLevel}</td>
+                        <td>${status}</td>
+                        <td>${lastLogin}</td>
+                        <td>${memberSince}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                activeUsersSection.innerHTML = html;
+            } else {
+                activeUsersSection.innerHTML = '<div class="text-center py-2 text-muted">No active users found</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading active users:', error);
+            activeUsersSection.innerHTML = 
+                '<div class="text-center py-2 text-danger">Failed to load active users</div>';
         });
     }
 

@@ -1407,6 +1407,41 @@ def get_pending_invites(tenant_id):
         logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
+@app.route('/get-active-users/<tenant_id>')
+@login_required
+def get_active_users(tenant_id):
+    """Get active users for an organization"""
+    try:
+        user = get_current_user()
+        if not user or not user.is_admin or user.tenant_id != tenant_id:
+            logger.warning(f"Permission denied for user {user.user_id} to get active users for tenant {tenant_id}.")
+            return jsonify({'error': 'Permission denied'}), 403
+
+        logger.info(f"Fetching active users for tenant {tenant_id} by admin user {user.user_id}.")
+        organization_users = db_manager.get_organization_users(tenant_id)
+        
+        # Convert users to JSON-serializable format
+        users_data = []
+        for org_user in organization_users:
+            users_data.append({
+                'user_id': org_user.user_id,
+                'first_name': org_user.first_name,
+                'last_name': org_user.last_name,
+                'email': org_user.email,
+                'is_admin': org_user.is_admin,
+                'email_verified': org_user.email_verified,
+                'subscription_level': org_user.subscription_level.value,
+                'created_at': org_user.created_at.isoformat() if org_user.created_at else None,
+                'last_login': org_user.last_login.isoformat() if org_user.last_login else None
+            })
+        
+        logger.info(f"Found {len(users_data)} active users for tenant {tenant_id}.")
+        return jsonify({'users': users_data})
+
+    except Exception as e:
+        logger.error(f"Error getting active users for tenant {tenant_id}: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
 @app.route('/api/chat-sessions', methods=['GET'])
 @login_required
 def get_chat_sessions():

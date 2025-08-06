@@ -59,10 +59,10 @@ The GoldenDoodleLM Team
     <style>
         body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .header {{ background: #32808c; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
         .content {{ background: #f9f9f9; padding: 30px; }}
-        .button {{ display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
+        .button {{ display: inline-block; background: #32808c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ background: #32808c; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
     </style>
 </head>
 <body>

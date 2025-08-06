@@ -1221,11 +1221,13 @@ h5 .fa-microphone {
 .form-range {
     width: 100%;
     height: 20px;
-    background: transparent;
+    background: var(--vapor-gray);
     outline: none;
     -webkit-appearance: none;
     appearance: none;
     margin: 10px 0;
+    border-radius: 2px;
+    border: none;
 }
 
 /* Webkit browsers (Chrome, Safari, Edge) */
@@ -1235,6 +1237,7 @@ h5 .fa-microphone {
     background: var(--vapor-gray);
     border-radius: 2px;
     border: none;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .form-range::-webkit-slider-thumb {
@@ -1248,6 +1251,8 @@ h5 .fa-microphone {
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
+    position: relative;
+    margin-top: -7px;
 }
 
 .form-range::-webkit-slider-thumb:hover {
@@ -1262,6 +1267,7 @@ h5 .fa-microphone {
     background: var(--vapor-gray);
     border-radius: 2px;
     border: none;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .form-range::-moz-range-thumb {
@@ -1273,6 +1279,7 @@ h5 .fa-microphone {
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
+    -moz-appearance: none;
 }
 
 .form-range::-moz-range-thumb:hover {
@@ -1280,13 +1287,15 @@ h5 .fa-microphone {
     transform: scale(1.1);
 }
 
-/* Edge */
+/* Edge/IE */
 .form-range::-ms-track {
     width: 100%;
     height: 4px;
-    background: transparent;
+    background: var(--vapor-gray);
     border-color: transparent;
     color: transparent;
+    border-radius: 2px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .form-range::-ms-fill-lower {

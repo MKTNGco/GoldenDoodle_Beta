@@ -61,15 +61,15 @@ def register():
                                          is_organization_invite=is_organization_invite,
                                          organization_invite=organization_invite)
 
-                # Create user as organization member
+                # Create user as organization member with predetermined settings
                 user = db_manager.create_user(
                     tenant_id=organization_invite['tenant_id'],
                     first_name=first_name,
                     last_name=last_name,
                     email=email,
                     password=password,
-                    subscription_level=SubscriptionLevel.TEAM,  # Default for organization members
-                    is_admin=False
+                    subscription_level=SubscriptionLevel.TEAM,  # Predetermined for organization members
+                    is_admin=False  # Regular team member, not admin
                 )
 
                 # Mark invite as used
@@ -84,7 +84,7 @@ def register():
 
                 if db_manager.create_verification_token(user.user_id, token_hash):
                     if email_service.send_verification_email(email, verification_token, first_name):
-                        flash(f'Account created successfully! You\'ve been added to {organization_invite["organization_name"]}. Please check your email to verify your account before signing in.', 'success')
+                        flash(f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.', 'success')
                         return redirect(url_for('login'))
                     else:
                         flash('Account created, but we couldn\'t send the verification email. Please contact support.', 'warning')

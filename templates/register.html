@@ -44,6 +44,7 @@
                                    placeholder="Create a secure password" required>
                         </div>
 
+                        {% if not is_organization_invite %}
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Account Type</label>
                             <div class="row g-2">
@@ -75,7 +76,17 @@
                             <input type="text" class="form-control" id="organization_name" name="organization_name" 
                                    placeholder="Enter your organization name">
                         </div>
+                        {% endif %}
 
+                        {% if is_organization_invite %}
+                        <div class="mb-4">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                You're joining <strong>{{ organization_invite.organization_name }}</strong> as a team member.
+                                Your account will be automatically configured with the appropriate access level.
+                            </div>
+                        </div>
+                        {% else %}
                         <div class="mb-4" id="subscriptionPlans">
                             <label class="form-label fw-semibold">Choose Your Plan</label>
 
@@ -166,6 +177,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
                         <button type="submit" class="btn btn-primary w-100 mb-3">
                             <i class="fas fa-rocket me-2"></i>Create Account
@@ -195,6 +207,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Skip JavaScript setup for organization invites
+    const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
+    if (isOrgInvite) {
+        return;
+    }
+
     // Account type selection
     const accountTypeCards = document.querySelectorAll('.account-type-card');
     const organizationField = document.getElementById('organizationField');
@@ -248,9 +266,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Initialize first options as selected
-    document.querySelector('.account-type-card').classList.add('selected');
-    document.querySelector('.subscription-card').classList.add('selected');
+    // Initialize first options as selected (only for non-invite users)
+    if (document.querySelector('.account-type-card')) {
+        document.querySelector('.account-type-card').classList.add('selected');
+    }
+    if (document.querySelector('.subscription-card')) {
+        document.querySelector('.subscription-card').classList.add('selected');
+    }
 });
 </script>
 {% endblock %}

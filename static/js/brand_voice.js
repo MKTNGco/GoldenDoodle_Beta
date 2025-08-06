@@ -158,8 +158,8 @@ class BrandVoiceWizard {
                     // Update UI to show we're editing
                     const title = document.querySelector('.card-header h4');
                     if (title) {
-                        title.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Brand Voice' + 
-                                        title.innerHTML.substring(title.innerHTML.indexOf('<span'));
+                        title.innerHTML = '<i class="fas fa-edit me-2"></i>Brand Voice Wizard';
+                        title.className = 'mb-0 text-white';
                     }
 
                     const submitBtn = document.getElementById('submitBtn');

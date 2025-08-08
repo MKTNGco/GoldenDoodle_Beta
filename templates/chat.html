@@ -101,6 +101,18 @@ body {
     background: var(--deep-teal);
 }
 
+.new-chat-btn i {
+    color: var(--cloud-white) !important;
+    font-size: 16px;
+}
+
+/* Fallback if Font Awesome doesn't load */
+.new-chat-btn i:before {
+    content: "💬";
+    font-family: system-ui, sans-serif;
+    font-style: normal;
+}
+
 .sidebar:hover .new-chat-btn {
     position: relative;
     width: 100%;
@@ -669,7 +681,7 @@ body {
     <!-- Sidebar -->
     <div class="sidebar">
         <button class="new-chat-btn" onclick="startNewChat()">
-            <i class="fas fa-message-captions"></i>
+            <i class="fas fa-comment" style="color: var(--cloud-white); font-size: 16px;"></i>
             <span class="new-chat-text">New Conversation</span>
         </button>
         <div class="sidebar-content">

@@ -180,6 +180,53 @@ class DatabaseManager:
                 END $$;
             """)
 
+            # Create pricing plans table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS pricing_plans (
+                    plan_id VARCHAR(50) PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    price_monthly DECIMAL(10,2) NOT NULL,
+                    price_annual DECIMAL(10,2) NULL,
+                    target_user TEXT,
+                    core_value TEXT,
+                    analysis_brainstorm BOOLEAN NOT NULL DEFAULT FALSE,
+                    templates VARCHAR(50) NOT NULL DEFAULT 'basic',
+                    token_limit INTEGER NOT NULL DEFAULT 20000,
+                    brand_voices INTEGER NOT NULL DEFAULT 0,
+                    admin_controls BOOLEAN NOT NULL DEFAULT FALSE,
+                    chat_history_limit INTEGER NOT NULL DEFAULT 10,
+                    user_seats INTEGER NOT NULL DEFAULT 1,
+                    support_level VARCHAR(50) NOT NULL DEFAULT 'none',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+            # Create user token usage tracking table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_token_usage (
+                    user_id UUID PRIMARY KEY,
+                    tokens_used_month INTEGER NOT NULL DEFAULT 0,
+                    tokens_used_total INTEGER NOT NULL DEFAULT 0,
+                    current_month INTEGER NOT NULL DEFAULT EXTRACT(MONTH FROM NOW()),
+                    current_year INTEGER NOT NULL DEFAULT EXTRACT(YEAR FROM NOW()),
+                    last_reset TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """)
+
+            # Add plan_id column to users table if it doesn't exist
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'plan_id'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN plan_id VARCHAR(50) DEFAULT 'free';
+                    END IF;
+                END $$;
+            """)
+
             # Chat sessions table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -1241,7 +1288,7 @@ class DatabaseManager:
         """Update user's last login timestamp"""
         try:
             from datetime import datetime
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1264,7 +1311,7 @@ class DatabaseManager:
         try:
             # Ensure chat tables exist
             self.ensure_chat_tables_exist()
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1310,7 +1357,7 @@ class DatabaseManager:
         try:
             # Ensure chat tables exist
             self.ensure_chat_tables_exist()
-            
+
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 

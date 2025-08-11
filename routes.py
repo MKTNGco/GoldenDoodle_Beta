@@ -424,7 +424,15 @@ def generate():
 
             return jsonify({'response': response})
 
-        # Logged-in user - full functionality
+        # Logged-in user - enforce plan limits
+        # Estimate tokens needed (rough estimate: 1 token ≈ 4 characters)
+        estimated_tokens = max(len(prompt) // 4, 100)  # Minimum 100 tokens
+        
+        # Check user limits before proceeding
+        limits_check = db_manager.check_user_limits(user.user_id, content_mode, estimated_tokens)
+        if not limits_check['allowed']:
+            return jsonify({'error': limits_check['error']}), 403
+
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
             return jsonify({'error': 'Invalid tenant'}), 400
@@ -450,20 +458,46 @@ def generate():
             trauma_informed_context=trauma_informed_context
         )
 
+        # Update token usage (rough calculation: input + output tokens)
+        response_tokens = len(response) // 4  # Rough estimate
+        total_tokens_used = estimated_tokens + response_tokens
+        db_manager.update_user_token_usage(user.user_id, total_tokens_used)
+
         # Save to chat history if user is logged in
         session_id = data.get('session_id')
         if user and session_id:
-            # Add user message
-            db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
-            # Add assistant response
-            db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
-            
-            # Update session title if this is the first exchange
-            messages = db_manager.get_chat_messages(session_id)
-            if len(messages) <= 2:  # First user message + first assistant response
-                # Generate a short title from the first user message
-                title = prompt[:50] + "..." if len(prompt) > 50 else prompt
-                db_manager.update_chat_session_title(session_id, title)
+            # Check chat history limits first
+            user_plan = db_manager.get_user_plan(user.user_id)
+            if user_plan and user_plan['chat_history_limit'] != -1:  # -1 means unlimited
+                user_sessions = db_manager.get_user_chat_sessions(user.user_id, user_plan['chat_history_limit'])
+                if len(user_sessions) >= user_plan['chat_history_limit']:
+                    # Don't save to history if limit reached
+                    pass
+                else:
+                    # Add user message
+                    db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
+                    # Add assistant response
+                    db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
+                    
+                    # Update session title if this is the first exchange
+                    messages = db_manager.get_chat_messages(session_id)
+                    if len(messages) <= 2:  # First user message + first assistant response
+                        # Generate a short title from the first user message
+                        title = prompt[:50] + "..." if len(prompt) > 50 else prompt
+                        db_manager.update_chat_session_title(session_id, title)
+            else:
+                # Unlimited history - save normally
+                # Add user message
+                db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
+                # Add assistant response
+                db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
+                
+                # Update session title if this is the first exchange
+                messages = db_manager.get_chat_messages(session_id)
+                if len(messages) <= 2:  # First user message + first assistant response
+                    # Generate a short title from the first user message
+                    title = prompt[:50] + "..." if len(prompt) > 50 else prompt
+                    db_manager.update_chat_session_title(session_id, title)
 
         return jsonify({'response': response})
 
@@ -1590,6 +1624,36 @@ def get_chat(session_id):
 
     except Exception as e:
         logger.error(f"Error getting chat {session_id}: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/api/get-plans', methods=['GET'])
+def get_plans():
+    """Get all pricing plans"""
+    try:
+        plans = db_manager.get_all_pricing_plans()
+        return jsonify(plans)
+    except Exception as e:
+        logger.error(f"Error getting pricing plans: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/api/user-plan', methods=['GET'])
+@login_required
+def get_user_plan():
+    """Get current user's plan and usage"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        plan = db_manager.get_user_plan(user.user_id)
+        usage = db_manager.get_user_token_usage(user.user_id)
+        
+        return jsonify({
+            'plan': plan,
+            'usage': usage
+        })
+    except Exception as e:
+        logger.error(f"Error getting user plan: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
 @app.errorhandler(404)

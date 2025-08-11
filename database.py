@@ -297,6 +297,10 @@ class DatabaseManager:
             conn.commit()
             cursor.close()
             conn.close()
+            
+            # Populate default pricing plans
+            self.populate_pricing_plans()
+            
             logger.info("Main database initialized successfully")
 
         except Exception as e:
@@ -1456,6 +1460,284 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error deleting chat session {session_id}: {e}")
             return False
+
+    def get_all_pricing_plans(self):
+        """Get all pricing plans"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            # First ensure pricing plans are populated
+            self.populate_pricing_plans()
+
+            cursor.execute("""
+                SELECT * FROM pricing_plans ORDER BY 
+                CASE plan_id 
+                    WHEN 'free' THEN 1 
+                    WHEN 'solo' THEN 2 
+                    WHEN 'team' THEN 3 
+                    WHEN 'professional' THEN 4 
+                    ELSE 5 
+                END
+            """)
+
+            plans = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            return [dict(plan) for plan in plans]
+        except Exception as e:
+            logger.error(f"Error getting pricing plans: {e}")
+            return []
+
+    def populate_pricing_plans(self):
+        """Populate pricing plans table with default data"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Check if plans already exist
+            cursor.execute("SELECT COUNT(*) FROM pricing_plans")
+            count = cursor.fetchone()[0]
+
+            if count == 0:
+                # Insert default pricing plans
+                plans = [
+                    {
+                        'plan_id': 'free',
+                        'name': 'The Companion',
+                        'price_monthly': 0.00,
+                        'price_annual': None,
+                        'target_user': 'Individuals exploring the tool.',
+                        'core_value': 'Basic access to the core model.',
+                        'analysis_brainstorm': False,
+                        'templates': 'basic',
+                        'token_limit': 20000,
+                        'brand_voices': 0,
+                        'admin_controls': False,
+                        'chat_history_limit': 10,
+                        'user_seats': 1,
+                        'support_level': 'none'
+                    },
+                    {
+                        'plan_id': 'solo',
+                        'name': 'The Practitioner',
+                        'price_monthly': 29.00,
+                        'price_annual': 290.00,
+                        'target_user': 'Solo practitioners working independently.',
+                        'core_value': 'Full power for one person.',
+                        'analysis_brainstorm': True,
+                        'templates': 'full',
+                        'token_limit': 200000,
+                        'brand_voices': 1,
+                        'admin_controls': False,
+                        'chat_history_limit': -1,
+                        'user_seats': 1,
+                        'support_level': 'email'
+                    },
+                    {
+                        'plan_id': 'team',
+                        'name': 'The Organization',
+                        'price_monthly': 39.00,
+                        'price_annual': 32.00,
+                        'target_user': 'Communication departments and teams.',
+                        'core_value': 'Organizational consistency with team collaboration.',
+                        'analysis_brainstorm': True,
+                        'templates': 'full',
+                        'token_limit': 250000,
+                        'brand_voices': 10,
+                        'admin_controls': True,
+                        'chat_history_limit': -1,
+                        'user_seats': 50,
+                        'support_level': 'priority'
+                    },
+                    {
+                        'plan_id': 'professional',
+                        'name': 'The Powerhouse',
+                        'price_monthly': 82.00,
+                        'price_annual': 820.00,
+                        'target_user': 'Professional grant writers and heavy users.',
+                        'core_value': 'Massive individual output with premium features.',
+                        'analysis_brainstorm': True,
+                        'templates': 'full',
+                        'token_limit': 1000000,
+                        'brand_voices': 10,
+                        'admin_controls': False,
+                        'chat_history_limit': -1,
+                        'user_seats': 1,
+                        'support_level': 'top_priority'
+                    }
+                ]
+
+                for plan in plans:
+                    cursor.execute("""
+                        INSERT INTO pricing_plans (
+                            plan_id, name, price_monthly, price_annual, target_user, core_value,
+                            analysis_brainstorm, templates, token_limit, brand_voices, admin_controls,
+                            chat_history_limit, user_seats, support_level
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                    """, (
+                        plan['plan_id'], plan['name'], plan['price_monthly'], plan['price_annual'],
+                        plan['target_user'], plan['core_value'], plan['analysis_brainstorm'],
+                        plan['templates'], plan['token_limit'], plan['brand_voices'],
+                        plan['admin_controls'], plan['chat_history_limit'], plan['user_seats'],
+                        plan['support_level']
+                    ))
+
+                conn.commit()
+                logger.info("Pricing plans populated successfully")
+
+            cursor.close()
+            conn.close()
+
+        except Exception as e:
+            logger.error(f"Error populating pricing plans: {e}")
+            raise
+
+    def get_user_plan(self, user_id):
+        """Get user's current plan details"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cursor.execute("""
+                SELECT u.plan_id, pp.* 
+                FROM users u
+                LEFT JOIN pricing_plans pp ON u.plan_id = pp.plan_id
+                WHERE u.user_id = %s
+            """, (user_id,))
+
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            return dict(result) if result else None
+        except Exception as e:
+            logger.error(f"Error getting user plan: {e}")
+            return None
+
+    def get_user_token_usage(self, user_id):
+        """Get user's token usage for the current month"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            # Ensure usage record exists
+            self.ensure_user_token_usage_record(user_id)
+
+            cursor.execute("""
+                SELECT tokens_used_month, tokens_used_total, current_month, current_year
+                FROM user_token_usage 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            return dict(result) if result else {'tokens_used_month': 0, 'tokens_used_total': 0}
+        except Exception as e:
+            logger.error(f"Error getting user token usage: {e}")
+            return {'tokens_used_month': 0, 'tokens_used_total': 0}
+
+    def ensure_user_token_usage_record(self, user_id):
+        """Ensure user has a token usage record"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO user_token_usage (user_id, tokens_used_month, tokens_used_total)
+                VALUES (%s, 0, 0)
+                ON CONFLICT (user_id) DO NOTHING
+            """, (user_id,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error ensuring user token usage record: {e}")
+
+    def update_user_token_usage(self, user_id, tokens_used):
+        """Update user's token usage"""
+        try:
+            from datetime import datetime
+            current_month = datetime.now().month
+            current_year = datetime.now().year
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Check if we need to reset monthly usage
+            cursor.execute("""
+                SELECT current_month, current_year FROM user_token_usage 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            result = cursor.fetchone()
+            if result:
+                stored_month, stored_year = result
+                if stored_month != current_month or stored_year != current_year:
+                    # Reset monthly usage
+                    cursor.execute("""
+                        UPDATE user_token_usage 
+                        SET tokens_used_month = %s, tokens_used_total = tokens_used_total + %s,
+                            current_month = %s, current_year = %s, last_reset = NOW()
+                        WHERE user_id = %s
+                    """, (tokens_used, tokens_used, current_month, current_year, user_id))
+                else:
+                    # Add to existing usage
+                    cursor.execute("""
+                        UPDATE user_token_usage 
+                        SET tokens_used_month = tokens_used_month + %s, 
+                            tokens_used_total = tokens_used_total + %s
+                        WHERE user_id = %s
+                    """, (tokens_used, tokens_used, user_id))
+            else:
+                # Create new record
+                cursor.execute("""
+                    INSERT INTO user_token_usage 
+                    (user_id, tokens_used_month, tokens_used_total, current_month, current_year)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (user_id, tokens_used, tokens_used, current_month, current_year))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating user token usage: {e}")
+            return False
+
+    def check_user_limits(self, user_id, content_mode, estimated_tokens):
+        """Check if user can perform the requested action based on their plan limits"""
+        try:
+            # Get user's plan
+            user_plan = self.get_user_plan(user_id)
+            if not user_plan:
+                return {'allowed': False, 'error': 'User plan not found'}
+
+            # Check if content mode is allowed for free users
+            if user_plan['plan_id'] == 'free':
+                restricted_modes = ['summarize', 'brainstorm', 'analyze']
+                if content_mode in restricted_modes:
+                    return {'allowed': False, 'error': f'{content_mode.title()} feature requires a paid plan'}
+
+            # Check token limits
+            usage = self.get_user_token_usage(user_id)
+            current_usage = usage.get('tokens_used_month', 0)
+            token_limit = user_plan.get('token_limit', 20000)
+
+            if current_usage + estimated_tokens > token_limit:
+                return {'allowed': False, 'error': f'Monthly token limit exceeded. Upgrade your plan for more tokens.'}
+
+            return {'allowed': True}
+
+        except Exception as e:
+            logger.error(f"Error checking user limits: {e}")
+            return {'allowed': False, 'error': 'Error checking user limits'}
 
 # Global database manager instance
 db_manager = DatabaseManager()

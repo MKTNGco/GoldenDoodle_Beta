@@ -1355,14 +1355,15 @@ input:checked + .slider:before {
 .price-amount {
     font-size: 2.5rem;
     font-weight: 700;
-    color: var(--clearwater-teal);
+    color: var(--charcoal);
     line-height: 1;
 }
 
 .price-period {
     font-size: 0.9rem;
-    color: var(--text-muted);
+    color: var(--charcoal);
     margin-top: 0.25rem;
+    font-weight: 500;
 }
 
 .savings-badge {

@@ -90,90 +90,27 @@
                         <div class="mb-4" id="subscriptionPlans">
                             <label class="form-label fw-semibold">Choose Your Plan</label>
 
+                            <!-- Loading indicator for plans -->
+                            <div id="plansLoadingIndicator" class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading plans...</span>
+                                </div>
+                                <p class="small text-muted mt-2">Loading pricing plans...</p>
+                            </div>
+
                             <!-- Individual Plans -->
-                            <div id="individualPlans">
+                            <div id="individualPlans" style="display: none;">
                                 <h6 class="text-primary mb-2">Individual Plans</h6>
-                                <div class="row g-3 mb-4">
-                                    <div class="col-md-6">
-                                        <div class="card subscription-card h-100" data-level="solo">
-                                            <div class="card-body p-3">
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 class="fw-bold text-primary">Solo</h6>
-                                                    <span class="badge bg-success">$20/mo</span>
-                                                </div>
-                                                <p class="small text-muted mb-2">Ideal for freelance grant writers, nonprofit consultants, or single-person communications teams.</p>
-                                                <ul class="list-unstyled small mb-0">
-                                                    <li><i class="fas fa-check text-success me-1"></i> 1 User Seat</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> 1 Custom Brand Voice</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Trauma-Informed AI</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Ironclad Security</li>
-                                                </ul>
-                                                <input type="radio" name="subscription_level" value="solo" class="d-none" checked>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="card subscription-card h-100" data-level="pro">
-                                            <div class="card-body p-3">
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 class="fw-bold text-primary">Pro</h6>
-                                                    <span class="badge bg-warning">$82/mo</span>
-                                                </div>
-                                                <p class="small text-muted mb-2">Ideal for heavy users like full-time development directors who need maximum flexibility.</p>
-                                                <ul class="list-unstyled small mb-0">
-                                                    <li><i class="fas fa-check text-success me-1"></i> 1 User Seat</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Up to 10 Brand Voices</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Priority Features</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Advanced Analytics</li>
-                                                </ul>
-                                                <input type="radio" name="subscription_level" value="pro" class="d-none">
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="row g-3 mb-4" id="individualPlansContainer">
+                                    <!-- Plans will be loaded dynamically -->
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Team Plans -->
-                        <div id="teamPlans" style="display: none;">
-                            <h6 class="text-primary mb-2">Team Plans</h6>
-                            <div class="row g-3 mb-4">
-                                <div class="col-md-6">
-                                    <div class="card subscription-card h-100" data-level="team">
-                                            <div class="card-body p-3">
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 class="fw-bold text-primary">Team</h6>
-                                                    <span class="badge bg-info">$24/user/mo</span>
-                                                </div>
-                                                <p class="small text-muted mb-2">Ideal for small nonprofits with a core communications or development team.</p>
-                                                <ul class="list-unstyled small mb-0">
-                                                    <li><i class="fas fa-check text-success me-1"></i> At least 3 User Seats</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Up to 3 Brand Voices</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Team Collaboration</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> All Solo Features</li>
-                                                </ul>
-                                                <input type="radio" name="subscription_level" value="team" class="d-none">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="card subscription-card h-100" data-level="enterprise">
-                                            <div class="card-body p-3">
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <h6 class="fw-bold text-primary">Enterprise</h6>
-                                                    <span class="badge bg-dark">Custom</span>
-                                                </div>
-                                                <p class="small text-muted mb-2">For large organizations requiring custom solutions and enterprise features.</p>
-                                                <ul class="list-unstyled small mb-0">
-                                                    <li><i class="fas fa-check text-success me-1"></i> Custom User Seats</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> SSO Integration</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> Bespoke Development</li>
-                                                    <li><i class="fas fa-check text-success me-1"></i> All Pro Features</li>
-                                                </ul>
-                                                <input type="radio" name="subscription_level" value="enterprise" class="d-none">
-                                            </div>
-                                        </div>
-                                    </div>
+                            <!-- Team Plans -->
+                            <div id="teamPlans" style="display: none;">
+                                <h6 class="text-primary mb-2">Team Plans</h6>
+                                <div class="row g-3 mb-4" id="teamPlansContainer">
+                                    <!-- Plans will be loaded dynamically -->
                                 </div>
                             </div>
                         </div>
@@ -213,11 +150,148 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+    let plansData = [];
+
+    // Load pricing plans
+    async function loadPlans() {
+        try {
+            const response = await fetch('/api/get-plans');
+            if (!response.ok) {
+                throw new Error('Failed to load plans');
+            }
+            
+            plansData = await response.json();
+            renderPlans();
+            document.getElementById('plansLoadingIndicator').style.display = 'none';
+        } catch (error) {
+            console.error('Error loading plans:', error);
+            document.getElementById('plansLoadingIndicator').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Failed to load pricing plans. Please refresh the page.
+                </div>
+            `;
+        }
+    }
+
+    function renderPlans() {
+        const individualContainer = document.getElementById('individualPlansContainer');
+        const teamContainer = document.getElementById('teamPlansContainer');
+
+        // Clear containers
+        individualContainer.innerHTML = '';
+        teamContainer.innerHTML = '';
+
+        // Individual plans: free, solo, professional
+        const individualPlans = plansData.filter(plan => ['free', 'solo', 'professional'].includes(plan.plan_id));
+        individualPlans.forEach(plan => {
+            individualContainer.appendChild(createPlanCard(plan));
+        });
+
+        // Team plans: team only
+        const teamPlans = plansData.filter(plan => ['team'].includes(plan.plan_id));
+        teamPlans.forEach(plan => {
+            teamContainer.appendChild(createPlanCard(plan));
+        });
+    }
+
+    function createPlanCard(plan) {
+        const col = document.createElement('div');
+        col.className = 'col-md-6';
+
+        // Determine pricing display
+        let priceDisplay, badgeClass;
+        if (plan.plan_id === 'free') {
+            priceDisplay = 'Free';
+            badgeClass = 'bg-success';
+        } else if (plan.plan_id === 'team') {
+            priceDisplay = `$${plan.price_monthly}/user/mo`;
+            badgeClass = 'bg-info';
+        } else {
+            priceDisplay = `$${plan.price_monthly}/mo`;
+            badgeClass = plan.plan_id === 'solo' ? 'bg-success' : 'bg-warning';
+        }
+
+        // Get features
+        const features = getPlanFeatures(plan);
+
+        col.innerHTML = `
+            <div class="card subscription-card h-100" data-level="${plan.plan_id}">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="fw-bold text-primary">${plan.name}</h6>
+                        <span class="badge ${badgeClass}">${priceDisplay}</span>
+                    </div>
+                    <p class="small text-muted mb-2">${plan.target_user}</p>
+                    <ul class="list-unstyled small mb-0">
+                        ${features.map(feature => `
+                            <li>
+                                <i class="fas fa-${feature.available ? 'check text-success' : 'times text-muted'} me-1"></i> 
+                                ${feature.text}
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <input type="radio" name="subscription_level" value="${plan.plan_id}" class="d-none">
+                </div>
+            </div>
+        `;
+
+        return col;
+    }
+
+    function getPlanFeatures(plan) {
+        const features = [];
+
+        // User seats
+        if (plan.plan_id === 'team') {
+            features.push({ text: 'Minimum 3 User Seats', available: true });
+        } else {
+            features.push({ text: '1 User Seat', available: true });
+        }
+
+        // Brand voices
+        if (plan.brand_voices > 0) {
+            const voiceText = plan.brand_voices === 1 ? '1 Brand Voice' : `Up to ${plan.brand_voices} Brand Voices`;
+            features.push({ text: voiceText, available: true });
+        }
+
+        // Templates
+        if (plan.templates === 'full') {
+            features.push({ text: 'Full Template Library', available: true });
+        } else if (plan.templates === 'basic') {
+            features.push({ text: 'Basic Templates', available: true });
+        }
+
+        // Analysis & brainstorming
+        if (plan.analysis_brainstorm) {
+            features.push({ text: 'Analysis & Brainstorm Tools', available: true });
+        }
+
+        // Admin controls for team plans
+        if (plan.admin_controls) {
+            features.push({ text: 'Admin Controls & User Management', available: true });
+        }
+
+        // Support
+        const supportLevels = {
+            'none': 'Community Support',
+            'email': 'Email Support',
+            'priority': 'Priority Support'
+        };
+        
+        features.push({ 
+            text: supportLevels[plan.support_level] || 'Support', 
+            available: plan.support_level !== 'none' 
+        });
+
+        return features;
+    }
+
     // Account type selection
     const accountTypeCards = document.querySelectorAll('.account-type-card');
     const organizationField = document.getElementById('organizationField');
-    const individualPlans = document.getElementById('individualPlans');
-    const teamPlans = document.getElementById('teamPlans');
+    const individualPlansDiv = document.getElementById('individualPlans');
+    const teamPlansDiv = document.getElementById('teamPlans');
 
     accountTypeCards.forEach(card => {
         card.addEventListener('click', function() {
@@ -230,48 +304,53 @@ document.addEventListener('DOMContentLoaded', function() {
             if (radio.value === 'company') {
                 organizationField.style.display = 'block';
                 document.getElementById('organization_name').required = true;
-                individualPlans.style.display = 'none';
-                teamPlans.style.display = 'block';
+                individualPlansDiv.style.display = 'none';
+                teamPlansDiv.style.display = 'block';
 
                 // Select team plan by default for organizations
-                const teamCard = document.querySelector('[data-level="team"]');
-                if (teamCard) {
-                    teamCard.click();
-                }
+                setTimeout(() => {
+                    const teamCard = document.querySelector('[data-level="team"]');
+                    if (teamCard) {
+                        teamCard.click();
+                    }
+                }, 100);
             } else {
                 organizationField.style.display = 'none';
                 document.getElementById('organization_name').required = false;
-                individualPlans.style.display = 'block';
-                teamPlans.style.display = 'none';
+                individualPlansDiv.style.display = 'block';
+                teamPlansDiv.style.display = 'none';
 
-                // Select solo plan by default for individuals
-                const soloCard = document.querySelector('[data-level="solo"]');
-                if (soloCard) {
-                    soloCard.click();
-                }
+                // Select free plan by default for individuals
+                setTimeout(() => {
+                    const freeCard = document.querySelector('[data-level="free"]');
+                    if (freeCard) {
+                        freeCard.click();
+                    }
+                }, 100);
             }
         });
     });
 
-    // Subscription level selection
-    const subscriptionCards = document.querySelectorAll('.subscription-card');
+    // Subscription level selection (delegated event handling)
+    document.addEventListener('click', function(e) {
+        const subscriptionCard = e.target.closest('.subscription-card');
+        if (subscriptionCard) {
+            document.querySelectorAll('.subscription-card').forEach(c => c.classList.remove('selected'));
+            subscriptionCard.classList.add('selected');
 
-    subscriptionCards.forEach(card => {
-        card.addEventListener('click', function() {
-            subscriptionCards.forEach(c => c.classList.remove('selected'));
-            this.classList.add('selected');
-
-            const radio = this.querySelector('input[type="radio"]');
-            radio.checked = true;
-        });
+            const radio = subscriptionCard.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+        }
     });
+
+    // Initialize
+    loadPlans();
 
     // Initialize first options as selected (only for non-invite users)
     if (document.querySelector('.account-type-card')) {
         document.querySelector('.account-type-card').classList.add('selected');
-    }
-    if (document.querySelector('.subscription-card')) {
-        document.querySelector('.subscription-card').classList.add('selected');
     }
 });
 </script>

@@ -255,6 +255,12 @@ class PricingPage {
             return;
         }
 
+        // Ensure the table container is visible
+        const featuresTable = document.getElementById('featuresTable');
+        if (featuresTable) {
+            featuresTable.style.display = 'table';
+        }
+
         const planOrder = ['free', 'solo', 'team', 'professional'];
         const sortedPlans = planOrder.map(id => validPlans.find(plan => plan.plan_id === id)).filter(Boolean);
 
@@ -290,6 +296,15 @@ class PricingPage {
             
             return `<tr><td class="fw-semibold">${feature.name}</td>${cells}</tr>`;
         }).join('');
+
+        // Force table layout refresh
+        setTimeout(() => {
+            const featuresTable = document.getElementById('featuresTable');
+            if (featuresTable) {
+                featuresTable.style.tableLayout = 'fixed';
+                featuresTable.style.width = '100%';
+            }
+        }, 50);
     }
 
     updatePricing() {

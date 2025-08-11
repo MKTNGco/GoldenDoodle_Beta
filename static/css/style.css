@@ -1344,20 +1344,31 @@ input:checked + .slider:before {
 
 /* Ensure table stays horizontal on all screen sizes */
 #featuresTable {
-    min-width: 100%;
+    min-width: 800px;
     table-layout: fixed;
+    width: 100%;
 }
 
 #featuresTable th:first-child {
-    width: 25%;
+    width: 200px;
+    min-width: 200px;
     text-align: left;
 }
 
 #featuresTable th:not(:first-child) {
-    width: 18.75%;
+    width: 150px;
+    min-width: 150px;
 }
 
-#featuresTable td {
+#featuresTable td:first-child {
+    width: 200px;
+    min-width: 200px;
+    white-space: nowrap;
+}
+
+#featuresTable td:not(:first-child) {
+    width: 150px;
+    min-width: 150px;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -1411,23 +1422,35 @@ input:checked + .slider:before {
     }
 
     .table-responsive {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        margin-bottom: 1rem;
     }
 
     #featuresTable th:first-child {
-        width: 30%;
-        min-width: 120px;
+        width: 180px;
+        min-width: 180px;
     }
 
     #featuresTable th:not(:first-child) {
-        width: 17.5%;
-        min-width: 80px;
+        width: 120px;
+        min-width: 120px;
+    }
+
+    #featuresTable td:first-child {
+        width: 180px;
+        min-width: 180px;
+        white-space: nowrap;
+    }
+
+    #featuresTable td:not(:first-child) {
+        width: 120px;
+        min-width: 120px;
     }
 
     #featuresTable {
-        min-width: 600px;
+        min-width: 660px;
     }
 }
 

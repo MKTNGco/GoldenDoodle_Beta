@@ -19,7 +19,7 @@
 
             <!-- Demo Prompt Window -->
             <div class="col-lg-8 mx-auto">
-                <div class="demo-prompt-container">
+                <div class="demo-prompt-container" style="width: 100%; max-width: 800px;">
                     <div class="demo-prompt-card">
                         <div class="demo-prompt-input-container">
                             <div class="demo-prompt-controls">
@@ -73,26 +73,23 @@
 
                             <!-- Demo Secondary Modes -->
                             <div class="demo-secondary-modes" id="demoSecondaryModes">
-                                <button class="demo-mode-btn" data-mode="summarize">
+                                <button class="demo-mode-btn demo-restricted" data-mode="summarize">
                                     <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/>
                                     </svg>
                                     Summarize
-                                    <i class="fas fa-crown premium-icon"></i>
                                 </button>
-                                <button class="demo-mode-btn" data-mode="brainstorm">
+                                <button class="demo-mode-btn demo-restricted" data-mode="brainstorm">
                                     <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/>
                                     </svg>
                                     Brainstorm
-                                    <i class="fas fa-crown premium-icon"></i>
                                 </button>
-                                <button class="demo-mode-btn" data-mode="analyze">
+                                <button class="demo-mode-btn demo-restricted" data-mode="analyze">
                                     <svg class="mode-icon" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                                     </svg>
                                     Analyze
-                                    <i class="fas fa-crown premium-icon"></i>
                                 </button>
                             </div>
 
@@ -100,9 +97,8 @@
                                 <div style="flex: 1;"></div>
                                 <div class="demo-action-buttons">
                                     <div class="demo-brand-voice-selector">
-                                        <button class="demo-brand-voice-btn" id="demoBrandVoiceBtn">
+                                        <button class="demo-brand-voice-btn demo-restricted" id="demoBrandVoiceBtn">
                                             <span>Brand Voice</span>
-                                            <i class="fas fa-crown premium-icon" style="color: #fbbf24;"></i>
                                         </button>
                                     </div>
                                     <button class="demo-send-btn" id="demoSendBtn" disabled>
@@ -177,7 +173,7 @@
             <p>Generate content that is consistently grounded in core principles of safety, dignity, and respect. Communicate in a way that builds trust and strengthens relationships, while always sounding uniquely like you.</p>
         </div>
     </div>
-    
+
     <div class="benefits-row benefits-row-2">
         <div class="benefit-card">
             <h4>More Mission, Less Overhead</h4>
@@ -476,4 +472,3 @@
 
 <script src="{{ url_for('static', filename='js/demo.js') }}"></script>
 {% endblock %}
-```

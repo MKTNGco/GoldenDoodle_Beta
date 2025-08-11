@@ -31,6 +31,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Mode selection
     demoModeButtons.forEach(button => {
         button.addEventListener('click', function() {
+            // Check if this is a restricted feature
+            if (this.classList.contains('demo-restricted')) {
+                showDemoRestrictionMessage();
+                return;
+            }
+            
             // Remove active class from all buttons
             demoModeButtons.forEach(btn => btn.classList.remove('active'));
             // Add active class to clicked button
@@ -51,11 +57,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Brand voice button (premium feature demo)
+    // Brand voice button (restricted feature demo)
     if (demoBrandVoiceBtn) {
         demoBrandVoiceBtn.addEventListener('click', function() {
-            // Show premium feature message
-            showPremiumMessage();
+            // Show demo restriction message
+            showDemoRestrictionMessage();
+        });
+    }
+
+    // Attachment button (restricted feature demo)
+    const demoAttachmentBtn = document.querySelector('.demo-attachment-btn');
+    if (demoAttachmentBtn) {
+        demoAttachmentBtn.addEventListener('click', function() {
+            // Show demo restriction message
+            showDemoRestrictionMessage();
         });
     }
 
@@ -276,27 +291,25 @@ This investment will create lasting change in how our community approaches heali
         demoResponseArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    function showPremiumMessage() {
-        // Show a tooltip-like message for premium features
+    function showDemoRestrictionMessage() {
+        // Show a tooltip-like message for demo-restricted features
         const tooltip = document.createElement('div');
         tooltip.innerHTML = `
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--charcoal); color: var(--cloud-white); padding: 16px 20px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                <i class="fas fa-crown" style="color: #fbbf24; margin-right: 8px;"></i>
-                This feature is available with a free account!
-                <div style="margin-top: 8px;">
-                    <a href="/register" style="color: var(--clearwater-teal); text-decoration: underline;">Sign up now</a>
-                </div>
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--charcoal); color: var(--cloud-white); padding: 20px 24px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 320px; text-align: center;">
+                <div style="margin-bottom: 12px; font-weight: 600;">This feature is not available in demo mode</div>
+                <div style="margin-bottom: 16px; color: rgba(255,255,255,0.8);">Create a Free Account now!</div>
+                <a href="/register" style="display: inline-block; background: var(--clearwater-teal); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: background 0.2s ease;">Sign Up</a>
             </div>
         `;
 
         document.body.appendChild(tooltip);
 
-        // Remove after 3 seconds
+        // Remove after 4 seconds
         setTimeout(() => {
             if (tooltip.parentNode) {
                 tooltip.parentNode.removeChild(tooltip);
             }
-        }, 3000);
+        }, 4000);
     }
 });
 

@@ -254,13 +254,26 @@ a:hover {
     border-radius: 20px;
     font-size: 0.875rem;
     color: #6b7280;
-    cursor: not-allowed;
+    cursor: pointer;
     transition: all 0.2s ease;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .demo-brand-voice-btn:hover {
     transform: scale(1.02);
+    background: rgba(50, 128, 140, 0.1);
+    color: var(--clearwater-teal);
+}
+
+.demo-mode-btn.demo-restricted {
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.demo-mode-btn.demo-restricted:hover {
+    border-color: var(--clearwater-teal);
+    color: var(--clearwater-teal);
+    background: rgba(50, 128, 140, 0.05);
 }
 
 .brand-voice-icon {
@@ -281,19 +294,24 @@ a:hover {
     border-radius: 18px;
     border: none;
     background: transparent;
-    cursor: not-allowed;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
     color: #9ca3af;
-    opacity: 0.6;
+    opacity: 0.8;
 }
 
 .demo-attachment-btn:hover {
     background: rgba(50, 128, 140, 0.1);
     color: var(--clearwater-teal);
     transform: scale(1.05);
+}
+
+.demo-attachment-btn.demo-restricted {
+    cursor: pointer;
+    opacity: 0.8;
 }
 
 .demo-send-btn {

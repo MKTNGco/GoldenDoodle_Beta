@@ -1324,6 +1324,8 @@ input:checked + .slider:before {
 /* Features Table */
 .table {
     font-size: 0.9rem;
+    width: 100%;
+    table-layout: fixed;
 }
 
 .table th {
@@ -1331,11 +1333,33 @@ input:checked + .slider:before {
     color: var(--charcoal);
     font-weight: 600;
     border-color: var(--vapor-gray);
+    white-space: nowrap;
+    text-align: center;
 }
 
 .table td {
     vertical-align: middle;
     border-color: var(--vapor-gray);
+}
+
+/* Ensure table stays horizontal on all screen sizes */
+#featuresTable {
+    min-width: 100%;
+    table-layout: fixed;
+}
+
+#featuresTable th:first-child {
+    width: 25%;
+    text-align: left;
+}
+
+#featuresTable th:not(:first-child) {
+    width: 18.75%;
+}
+
+#featuresTable td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 /* FAQ Section */
@@ -1387,7 +1411,23 @@ input:checked + .slider:before {
     }
 
     .table-responsive {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #featuresTable th:first-child {
+        width: 30%;
+        min-width: 120px;
+    }
+
+    #featuresTable th:not(:first-child) {
+        width: 17.5%;
+        min-width: 80px;
+    }
+
+    #featuresTable {
+        min-width: 600px;
     }
 }
 

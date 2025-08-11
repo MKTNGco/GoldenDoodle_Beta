@@ -4,6 +4,7 @@ class PricingPage {
     constructor() {
         this.plans = [];
         this.isAnnual = false;
+        this.loadingPlans = false;
         this.initializeElements();
         this.bindEvents();
         this.loadPlans();
@@ -26,7 +27,13 @@ class PricingPage {
     }
 
     async loadPlans() {
+        // Prevent multiple simultaneous calls
+        if (this.loadingPlans) {
+            return;
+        }
+        
         try {
+            this.loadingPlans = true;
             this.showLoading(true);
             
             const response = await fetch('/api/get-plans');
@@ -62,6 +69,8 @@ class PricingPage {
             console.error('Error loading plans:', error);
             this.showError(`Failed to load pricing information: ${error.message}. Please refresh the page.`);
             this.showLoading(false);
+        } finally {
+            this.loadingPlans = false;
         }
     }
 
@@ -267,9 +276,16 @@ class PricingPage {
 
         this.featuresTableBody.innerHTML = features.map(feature => {
             const cells = sortedPlans.map(plan => {
-                const value = feature.formatter(plan);
-                const isUnavailable = value.includes('✗');
-                return `<td class="text-center ${isUnavailable ? 'text-muted' : ''}">${value}</td>`;
+                try {
+                    const value = feature.formatter(plan);
+                    // Ensure value is a string before calling includes
+                    const valueString = String(value || '');
+                    const isUnavailable = valueString.includes('✗');
+                    return `<td class="text-center ${isUnavailable ? 'text-muted' : ''}">${valueString}</td>`;
+                } catch (error) {
+                    console.error('Error formatting feature value:', error, 'for feature:', feature.name, 'plan:', plan);
+                    return `<td class="text-center text-muted">-</td>`;
+                }
             }).join('');
             
             return `<tr><td class="fw-semibold">${feature.name}</td>${cells}</tr>`;

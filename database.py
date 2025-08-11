@@ -1485,9 +1485,13 @@ class DatabaseManager:
             cursor.close()
             conn.close()
 
-            return [dict(plan) for plan in plans]
+            plans_list = [dict(plan) for plan in plans]
+            logger.info(f"Retrieved {len(plans_list)} pricing plans from database")
+            return plans_list
         except Exception as e:
             logger.error(f"Error getting pricing plans: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return []
 
     def populate_pricing_plans(self):
@@ -1496,9 +1500,31 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
+            # Ensure the pricing_plans table exists first
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS pricing_plans (
+                    plan_id VARCHAR(50) PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    price_monthly DECIMAL(10,2) NOT NULL,
+                    price_annual DECIMAL(10,2) NULL,
+                    target_user TEXT,
+                    core_value TEXT,
+                    analysis_brainstorm BOOLEAN NOT NULL DEFAULT FALSE,
+                    templates VARCHAR(50) NOT NULL DEFAULT 'basic',
+                    token_limit INTEGER NOT NULL DEFAULT 20000,
+                    brand_voices INTEGER NOT NULL DEFAULT 0,
+                    admin_controls BOOLEAN NOT NULL DEFAULT FALSE,
+                    chat_history_limit INTEGER NOT NULL DEFAULT 10,
+                    user_seats INTEGER NOT NULL DEFAULT 1,
+                    support_level VARCHAR(50) NOT NULL DEFAULT 'none',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
             # Check if plans already exist
             cursor.execute("SELECT COUNT(*) FROM pricing_plans")
             count = cursor.fetchone()[0]
+            logger.info(f"Found {count} existing pricing plans")
 
             if count == 0:
                 # Insert default pricing plans

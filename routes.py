@@ -1635,11 +1635,22 @@ def get_chat(session_id):
 def get_plans():
     """Get all pricing plans"""
     try:
+        logger.info("Getting pricing plans...")
         plans = db_manager.get_all_pricing_plans()
+        logger.info(f"Retrieved {len(plans)} pricing plans")
+        
+        if not plans:
+            logger.warning("No pricing plans found, attempting to populate...")
+            db_manager.populate_pricing_plans()
+            plans = db_manager.get_all_pricing_plans()
+            logger.info(f"After population: {len(plans)} pricing plans")
+        
         return jsonify(plans)
     except Exception as e:
         logger.error(f"Error getting pricing plans: {e}")
-        return jsonify({'error': 'An error occurred'}), 500
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'An error occurred while loading pricing plans'}), 500
 
 @app.route('/api/user-plan', methods=['GET'])
 @login_required

@@ -34,14 +34,33 @@ class PricingPage {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            this.plans = await response.json();
+            const data = await response.json();
+            console.log('Received data:', data);
+            
+            // Check if we received an error object instead of an array
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Check if we received an array of plans
+            if (!Array.isArray(data)) {
+                throw new Error('Invalid data format received from server');
+            }
+            
+            this.plans = data;
+            console.log('Loaded plans:', this.plans);
+            
+            if (this.plans.length === 0) {
+                throw new Error('No pricing plans available');
+            }
+            
             this.renderPricingCards();
             this.renderFeaturesTable();
             this.showLoading(false);
             
         } catch (error) {
             console.error('Error loading plans:', error);
-            this.showError('Failed to load pricing information. Please refresh the page.');
+            this.showError(`Failed to load pricing information: ${error.message}. Please refresh the page.`);
             this.showLoading(false);
         }
     }

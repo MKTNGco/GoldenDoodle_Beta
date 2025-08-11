@@ -1,0 +1,47 @@
+Phase 1 - Backend Implementation
+(Once the AI confirms, send this entire prompt to have it execute all backend changes.)
+
+Excellent. Let's begin Phase 1: Backend Update. Please perform the following modifications to the application.
+
+Here is the complete specification for the new pricing model. Use this as the single source of truth for all data and logic.
+
+Tier	Free ("The Companion")	Solo ("The Practitioner")	Team ("The Organization")	Professional ("The Powerhouse")
+plan_id	free	solo	team	professional
+Price (Monthly)	$0	$29	$39 / user	$82
+Price (Annual)	N/A	$290	$32 / user	$820
+Target User	Individuals exploring the tool.	Solo practitioners...	Communication depts...	Pro grant writers...
+Core Value	Basic access to the core model.	Full power for one person.	Organizational consistency...	Massive individual output...
+Features				
+Analysis & Brainstorm	false	true	true	true
+Templates	basic	full	full	full
+Token Limit	20000	200000	250000	1000000
+Brand Voices	0	1	10	10
+Admin Controls	false	false	true	false
+Chat History Limit	10	-1 (unlimited)	-1 (unlimited)	-1 (unlimited)
+User Seats	1	1	2	1
+Support Level	none	email	priority	top_priority
+
+Export to Sheets
+Task 1: Initialize Plan Data in replit.db
+
+Create and run a one-time Python script to populate replit.db with the four new pricing plans detailed above. Use the plan_id (free, solo, team, professional) as the database key for each entry. The value for each key should be a JSON object containing all relevant details from the table (e.g., name, price points, token limits, feature booleans).
+
+Task 2: Refactor Backend Logic in main.py
+
+Modify the existing Flask backend to support and enforce these new plans.
+
+A. Create API Endpoint: Implement a new GET endpoint at /api/get-plans. This endpoint should retrieve all four plan objects from replit.db and return them as a single JSON array.
+
+B. Update User Model: Modify the user sign-up logic to default all new users to the plan_id: 'free'. Ensure the user object in the database has this plan_id field.
+
+C. Enforce Plan Limits: In the primary chat processing endpoint (e.g., /api/chat), refactor the code to perform these checks before calling the Gemini API:
+
+Fetch the logged-in user's data and their associated plan_id.
+
+Retrieve the plan's rules from the database using the plan_id.
+
+Enforce the limits: Check their current usage against the token_limit, verify if features like Analysis & Brainstorm are true, and limit chat history saving based on the Chat History Limit.
+
+If a limit is exceeded or a feature is not permitted, return a clear JSON error message (e.g., {"error": "Upgrade your plan to use the Analysis feature."}).
+
+Please proceed with these backend modifications. Let me know when you have completed all tasks in Phase 1.

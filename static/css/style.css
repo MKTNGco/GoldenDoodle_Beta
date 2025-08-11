@@ -889,6 +889,8 @@ a:hover {
     background-color: var(--cloud-white);
     border: 1px solid var(--vapor-gray);
     z-index: 9999 !important;
+    max-width: 220px !important;
+    min-width: 180px !important;
 }
 
 .navbar .dropdown-menu {

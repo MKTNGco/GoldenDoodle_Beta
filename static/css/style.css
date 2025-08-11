@@ -177,11 +177,14 @@ a:hover {
 }
 
 .demo-prompt-input-container {
-    padding: 20px 20px 8px 20px;
+    display: flex;
+    align-items: flex-end;
+    padding: 16px 20px 8px 20px;
+    gap: 12px;
 }
 
 .demo-prompt-textarea {
-    width: 100%;
+    flex: 1;
     min-height: 80px;
     max-height: 200px;
     border: none;
@@ -220,6 +223,12 @@ a:hover {
 }
 
 .demo-prompt-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.demo-prompt-controls-bottom {
     display: flex;
     justify-content: space-between;
     align-items: center;

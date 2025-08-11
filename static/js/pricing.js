@@ -97,6 +97,12 @@ class PricingPage {
     }
 
     createPricingCard(plan) {
+        // Add defensive checks for plan data
+        if (!plan || typeof plan !== 'object') {
+            console.error('Invalid plan data:', plan);
+            return '';
+        }
+        
         const isPopular = plan.plan_id === 'team';
         const isFree = plan.plan_id === 'free';
         
@@ -115,10 +121,10 @@ class PricingPage {
             }
         } else {
             if (plan.plan_id === 'team') {
-                price = `$${plan.price_monthly}`;
+                price = `$${plan.price_monthly || '0'}`;
                 pricePeriod = '/user/month';
             } else {
-                price = `$${plan.price_monthly}`;
+                price = `$${plan.price_monthly || '0'}`;
                 pricePeriod = '/month';
             }
         }
@@ -132,8 +138,8 @@ class PricingPage {
                     ${isPopular ? '<div class="popular-badge">Most Popular</div>' : ''}
                     
                     <div class="card-header text-center">
-                        <h3 class="plan-name">${plan.name}</h3>
-                        <p class="plan-description text-muted">${plan.target_user}</p>
+                        <h3 class="plan-name">${plan.name || 'Unknown Plan'}</h3>
+                        <p class="plan-description text-muted">${plan.target_user || 'No description available'}</p>
                     </div>
                     
                     <div class="card-body">
@@ -145,7 +151,7 @@ class PricingPage {
                         
                         <div class="core-value mb-4">
                             <h6 class="fw-bold">Core Value:</h6>
-                            <p class="text-muted small">${plan.core_value}</p>
+                            <p class="text-muted small">${plan.core_value || 'No core value specified'}</p>
                         </div>
                         
                         <ul class="feature-list">
@@ -164,6 +170,9 @@ class PricingPage {
     }
 
     createFeatureList(plan, restrictedFeatures = []) {
+        // Ensure restrictedFeatures is always an array
+        const restrictedArray = Array.isArray(restrictedFeatures) ? restrictedFeatures : [];
+        
         const features = [
             {
                 name: 'Writing Tools',
@@ -178,7 +187,7 @@ class PricingPage {
             },
             {
                 name: 'Monthly Tokens',
-                value: plan.token_limit.toLocaleString(),
+                value: plan.token_limit ? plan.token_limit.toLocaleString() : '0',
                 available: true
             },
             {
@@ -204,7 +213,7 @@ class PricingPage {
         ];
 
         return features.map(feature => {
-            const isRestricted = restrictedFeatures.includes(feature.name) || feature.restricted;
+            const isRestricted = restrictedArray.includes(feature.name) || feature.restricted;
             const isAvailable = feature.available !== false;
             
             return `

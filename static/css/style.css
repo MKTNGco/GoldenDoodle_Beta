@@ -719,6 +719,28 @@ a:hover {
     background-color: var(--cloud-white);
 }
 
+/* Registration page pricing badges */
+.subscription-card .badge {
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+}
+
+.subscription-card .bg-success {
+    background-color: var(--clearwater-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
+.subscription-card .bg-info {
+    background-color: var(--deep-teal) !important;
+    color: var(--cloud-white) !important;
+}
+
+.subscription-card .bg-warning {
+    background-color: var(--charcoal) !important;
+    color: var(--cloud-white) !important;
+}
+
 .account-type-card:hover,
 .subscription-card:hover {
     border-color: var(--clearwater-teal);

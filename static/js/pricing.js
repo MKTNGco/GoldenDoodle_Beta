@@ -137,14 +137,14 @@ class PricingPage {
     renderPricingCards() {
         if (!this.plans.length) return;
 
-        // Individual plans: free and solo
-        const individualPlans = this.plans.filter(plan => ['free', 'solo'].includes(plan.plan_id));
+        // Individual plans: free, solo, and professional
+        const individualPlans = this.plans.filter(plan => ['free', 'solo', 'professional'].includes(plan.plan_id));
         if (this.individualPricingContainer && individualPlans.length) {
             this.individualPricingContainer.innerHTML = individualPlans.map(plan => this.createPricingCard(plan)).join('');
         }
 
-        // Team plans: team and professional
-        const teamPlans = this.plans.filter(plan => ['team', 'professional'].includes(plan.plan_id));
+        // Team plans: team only
+        const teamPlans = this.plans.filter(plan => ['team'].includes(plan.plan_id));
         if (this.teamPricingContainer && teamPlans.length) {
             this.teamPricingContainer.innerHTML = teamPlans.map(plan => this.createPricingCard(plan)).join('');
         }
@@ -156,7 +156,7 @@ class PricingPage {
             return '';
         }
         
-        const isPopular = plan.plan_id === 'team' || plan.plan_id === 'solo';
+        const isPopular = plan.plan_id === 'solo' || (plan.plan_id === 'professional' && !this.showingTeamPlans) || (plan.plan_id === 'team' && this.showingTeamPlans);
         const isFree = plan.plan_id === 'free';
         
         // Get pricing based on billing toggle

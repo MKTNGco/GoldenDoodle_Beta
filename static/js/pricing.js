@@ -4,6 +4,7 @@ class PricingPage {
     constructor() {
         this.plans = [];
         this.isAnnual = false;
+        this.showingTeamPlans = false;
         this.loadingPlans = false;
         this.initializeElements();
         this.bindEvents();
@@ -11,10 +12,14 @@ class PricingPage {
     }
 
     initializeElements() {
-        this.pricingContainer = document.getElementById('pricingContainer');
+        this.individualPricingContainer = document.getElementById('individualPricingContainer');
+        this.teamPricingContainer = document.getElementById('teamPricingContainer');
+        this.individualPlansSection = document.getElementById('individualPlans');
+        this.teamPlansSection = document.getElementById('teamPlans');
         this.billingToggle = document.getElementById('billingToggle');
-        this.featuresTableBody = document.getElementById('featuresTableBody');
         this.loadingIndicator = document.getElementById('loadingIndicator');
+        this.individualTypeRadio = document.getElementById('individualType');
+        this.teamTypeRadio = document.getElementById('teamType');
     }
 
     bindEvents() {
@@ -24,10 +29,38 @@ class PricingPage {
                 this.updatePricing();
             });
         }
+
+        if (this.individualTypeRadio) {
+            this.individualTypeRadio.addEventListener('change', () => {
+                if (this.individualTypeRadio.checked) {
+                    this.showingTeamPlans = false;
+                    this.switchPlanView();
+                }
+            });
+        }
+
+        if (this.teamTypeRadio) {
+            this.teamTypeRadio.addEventListener('change', () => {
+                if (this.teamTypeRadio.checked) {
+                    this.showingTeamPlans = true;
+                    this.switchPlanView();
+                }
+            });
+        }
+    }
+
+    switchPlanView() {
+        if (this.showingTeamPlans) {
+            this.individualPlansSection.style.display = 'none';
+            this.teamPlansSection.style.display = 'block';
+        } else {
+            this.individualPlansSection.style.display = 'block';
+            this.teamPlansSection.style.display = 'none';
+        }
+        this.updatePricing();
     }
 
     async loadPlans() {
-        // Prevent multiple simultaneous calls
         if (this.loadingPlans) {
             return;
         }
@@ -44,12 +77,10 @@ class PricingPage {
             const data = await response.json();
             console.log('Received data:', data);
             
-            // Check if we received an error object instead of an array
             if (data.error) {
                 throw new Error(data.error);
             }
             
-            // Check if we received an array of plans
             if (!Array.isArray(data)) {
                 throw new Error('Invalid data format received from server');
             }
@@ -62,7 +93,6 @@ class PricingPage {
             }
             
             this.renderPricingCards();
-            this.renderFeaturesTable();
             this.showLoading(false);
             
         } catch (error) {
@@ -78,52 +108,66 @@ class PricingPage {
         if (this.loadingIndicator) {
             this.loadingIndicator.style.display = show ? 'block' : 'none';
         }
-        if (this.pricingContainer) {
-            this.pricingContainer.style.display = show ? 'none' : 'block';
+        if (this.individualPricingContainer) {
+            this.individualPricingContainer.style.display = show ? 'none' : 'flex';
+        }
+        if (this.teamPricingContainer) {
+            this.teamPricingContainer.style.display = show ? 'none' : 'flex';
         }
     }
 
     showError(message) {
-        if (this.pricingContainer) {
-            this.pricingContainer.innerHTML = `
-                <div class="col-12 text-center">
-                    <div class="alert alert-danger" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        ${message}
-                    </div>
+        const errorHtml = `
+            <div class="col-12 text-center">
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${message}
                 </div>
-            `;
+            </div>
+        `;
+        
+        if (this.individualPricingContainer) {
+            this.individualPricingContainer.innerHTML = errorHtml;
+        }
+        if (this.teamPricingContainer) {
+            this.teamPricingContainer.innerHTML = errorHtml;
         }
     }
 
     renderPricingCards() {
-        if (!this.pricingContainer || !this.plans.length) return;
+        if (!this.plans.length) return;
 
-        const planOrder = ['free', 'solo', 'team', 'professional'];
-        const sortedPlans = planOrder.map(id => this.plans.find(plan => plan.plan_id === id)).filter(Boolean);
+        // Individual plans: free and solo
+        const individualPlans = this.plans.filter(plan => ['free', 'solo'].includes(plan.plan_id));
+        if (this.individualPricingContainer && individualPlans.length) {
+            this.individualPricingContainer.innerHTML = individualPlans.map(plan => this.createPricingCard(plan)).join('');
+        }
 
-        this.pricingContainer.innerHTML = sortedPlans.map(plan => this.createPricingCard(plan)).join('');
+        // Team plans: team and professional
+        const teamPlans = this.plans.filter(plan => ['team', 'professional'].includes(plan.plan_id));
+        if (this.teamPricingContainer && teamPlans.length) {
+            this.teamPricingContainer.innerHTML = teamPlans.map(plan => this.createPricingCard(plan)).join('');
+        }
     }
 
     createPricingCard(plan) {
-        // Add defensive checks for plan data
         if (!plan || typeof plan !== 'object') {
             console.error('Invalid plan data:', plan);
             return '';
         }
         
-        const isPopular = plan.plan_id === 'team';
+        const isPopular = plan.plan_id === 'team' || plan.plan_id === 'solo';
         const isFree = plan.plan_id === 'free';
         
         // Get pricing based on billing toggle
         let price, pricePeriod;
         if (isFree) {
             price = '$0';
-            pricePeriod = '';
+            pricePeriod = 'Forever free';
         } else if (this.isAnnual && plan.price_annual) {
             if (plan.plan_id === 'team') {
-                price = `$${plan.price_annual}`;
-                pricePeriod = '/user/month';
+                price = `$${Math.round(plan.price_annual * 12 / 12)}`;
+                pricePeriod = '/user/month (billed annually)';
             } else {
                 price = `$${plan.price_annual}`;
                 pricePeriod = '/year';
@@ -138,11 +182,10 @@ class PricingPage {
             }
         }
 
-        // Determine restricted features for free plan
-        const restrictedFeatures = isFree ? ['Analysis & Brainstorm', 'Summarize'] : [];
+        const features = this.getPlanFeatures(plan);
 
         return `
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-6 col-md-8">
                 <div class="card pricing-card h-100 ${isPopular ? 'popular-plan' : ''} ${isFree ? 'free-plan' : ''}">
                     ${isPopular ? '<div class="popular-badge">Most Popular</div>' : ''}
                     
@@ -159,17 +202,22 @@ class PricingPage {
                         </div>
                         
                         <div class="core-value mb-4">
-                            <h6 class="fw-bold">Core Value:</h6>
+                            <h6 class="fw-bold text-primary">Core Value:</h6>
                             <p class="text-muted small">${plan.core_value || 'No core value specified'}</p>
                         </div>
                         
                         <ul class="feature-list">
-                            ${this.createFeatureList(plan, restrictedFeatures)}
+                            ${features.map(feature => `
+                                <li class="feature-item ${!feature.available ? 'unavailable' : ''}">
+                                    <i class="fas ${feature.available ? 'fa-check' : 'fa-times'} feature-icon"></i>
+                                    <span class="feature-text">${feature.text}</span>
+                                </li>
+                            `).join('')}
                         </ul>
                     </div>
                     
                     <div class="card-footer text-center">
-                        <a href="${isFree ? '/register' : '/register'}" class="btn ${isPopular ? 'btn-primary' : 'btn-outline-primary'} btn-lg w-100">
+                        <a href="/register" class="btn ${isPopular ? 'btn-primary' : 'btn-outline-primary'} btn-lg w-100">
                             ${isFree ? 'Get Started Free' : 'Choose Plan'}
                         </a>
                     </div>
@@ -178,133 +226,73 @@ class PricingPage {
         `;
     }
 
-    createFeatureList(plan, restrictedFeatures = []) {
-        // Ensure restrictedFeatures is always an array
-        const restrictedArray = Array.isArray(restrictedFeatures) ? restrictedFeatures : [];
+    getPlanFeatures(plan) {
+        const features = [];
         
-        const features = [
-            {
-                name: 'Writing Tools',
-                value: plan.templates === 'basic' ? 'Email, Social, Rewrite, Article' : 'All 7 Writing Tools',
-                restricted: plan.templates === 'basic'
-            },
-            {
-                name: 'Analysis & Brainstorm',
-                value: plan.analysis_brainstorm ? 'Included' : 'Not Available',
-                available: plan.analysis_brainstorm,
-                restricted: !plan.analysis_brainstorm
-            },
-            {
-                name: 'Monthly Tokens',
-                value: plan.token_limit ? plan.token_limit.toLocaleString() : '0',
-                available: true
-            },
-            {
-                name: 'Brand Voices',
-                value: plan.brand_voices === 0 ? 'None' : plan.brand_voices,
-                available: plan.brand_voices > 0
-            },
-            {
-                name: 'Chat History',
-                value: plan.chat_history_limit === -1 ? 'Unlimited' : plan.chat_history_limit + ' chats',
-                available: true
-            },
-            {
-                name: 'User Seats',
-                value: plan.user_seats + (plan.user_seats === 1 ? ' user' : ' users'),
-                available: true
-            },
-            {
-                name: 'Support Level',
-                value: this.formatSupportLevel(plan.support_level),
-                available: plan.support_level !== 'none'
+        // Writing tools
+        if (plan.templates === 'basic') {
+            features.push({ text: 'Basic Writing Tools (Email, Social, Rewrite, Article)', available: true });
+        } else {
+            features.push({ text: 'All 7 Advanced Writing Tools', available: true });
+        }
+        
+        // Analysis & Brainstorm
+        features.push({ 
+            text: 'Analysis & Brainstorm Tools', 
+            available: plan.analysis_brainstorm 
+        });
+        
+        // Monthly tokens
+        features.push({ 
+            text: `${plan.token_limit ? plan.token_limit.toLocaleString() : '0'} Monthly Tokens`, 
+            available: true 
+        });
+        
+        // Brand voices
+        if (plan.brand_voices > 0) {
+            features.push({ 
+                text: `${plan.brand_voices} Brand Voice${plan.brand_voices > 1 ? 's' : ''}`, 
+                available: true 
+            });
+        } else {
+            features.push({ text: 'Brand Voices', available: false });
+        }
+        
+        // Chat history
+        if (plan.chat_history_limit === -1) {
+            features.push({ text: 'Unlimited Chat History', available: true });
+        } else {
+            features.push({ text: `${plan.chat_history_limit} Saved Chats`, available: true });
+        }
+        
+        // User seats (for team plans)
+        if (plan.plan_id === 'team' || plan.plan_id === 'professional') {
+            if (plan.plan_id === 'team') {
+                features.push({ text: 'Minimum 3 User Seats', available: true });
+            } else {
+                features.push({ text: 'Unlimited User Seats', available: true });
             }
-        ];
-
-        return features.map(feature => {
-            const isRestricted = restrictedArray.includes(feature.name) || feature.restricted;
-            const isAvailable = feature.available !== false;
             
-            return `
-                <li class="feature-item ${!isAvailable ? 'unavailable' : ''}">
-                    <i class="fas ${isAvailable ? 'fa-check' : 'fa-times'} feature-icon"></i>
-                    <span class="feature-text ${isRestricted ? 'restricted' : ''}">${feature.value}</span>
-                    ${isRestricted ? '<span class="restriction-note"> (Limited)</span>' : ''}
-                </li>
-            `;
-        }).join('');
-    }
-
-    formatSupportLevel(level) {
-        const levels = {
-            'none': 'No Support',
+            // Admin controls for team plans
+            if (plan.admin_controls) {
+                features.push({ text: 'Admin Controls & User Management', available: true });
+            }
+        }
+        
+        // Support
+        const supportLevels = {
+            'none': 'Community Support',
             'email': 'Email Support',
             'priority': 'Priority Support',
             'top_priority': 'Premium Support'
         };
-        return levels[level] || level;
-    }
-
-    renderFeaturesTable() {
-        if (!this.featuresTableBody || !this.plans.length) return;
-
-        // Ensure all plans are valid objects
-        const validPlans = this.plans.filter(plan => plan && typeof plan === 'object' && plan.plan_id);
-        if (!validPlans.length) {
-            console.error('No valid plans found for features table');
-            return;
-        }
-
-        // Ensure the table container is visible
-        const featuresTable = document.getElementById('featuresTable');
-        if (featuresTable) {
-            featuresTable.style.display = 'table';
-        }
-
-        const planOrder = ['free', 'solo', 'team', 'professional'];
-        const sortedPlans = planOrder.map(id => validPlans.find(plan => plan.plan_id === id)).filter(Boolean);
-
-        const features = [
-            { name: 'Email Writing', key: 'templates', formatter: (plan) => plan.templates === 'basic' ? '✓ Basic' : '✓ Advanced' },
-            { name: 'Article Writing', key: 'templates', formatter: (plan) => plan.templates === 'basic' ? '✓ Basic' : '✓ Advanced' },
-            { name: 'Social Media', key: 'templates', formatter: (plan) => plan.templates === 'basic' ? '✓ Basic' : '✓ Advanced' },
-            { name: 'Rewrite Tool', key: 'templates', formatter: (plan) => plan.templates === 'basic' ? '✓ Basic' : '✓ Advanced' },
-            { name: 'Summarize', key: 'analysis_brainstorm', formatter: (plan) => plan.plan_id === 'free' ? '✗ Not Available' : '✓ Available' },
-            { name: 'Brainstorm', key: 'analysis_brainstorm', formatter: (plan) => plan.plan_id === 'free' ? '✗ Not Available' : '✓ Available' },
-            { name: 'Analysis', key: 'analysis_brainstorm', formatter: (plan) => plan.plan_id === 'free' ? '✗ Not Available' : '✓ Available' },
-            { name: 'Monthly Tokens', key: 'token_limit', formatter: (plan) => plan.token_limit ? plan.token_limit.toLocaleString() : '0' },
-            { name: 'Brand Voices', key: 'brand_voices', formatter: (plan) => (plan.brand_voices || 0) === 0 ? 'None' : (plan.brand_voices || 0) },
-            { name: 'Chat History', key: 'chat_history_limit', formatter: (plan) => (plan.chat_history_limit || 0) === -1 ? 'Unlimited' : (plan.chat_history_limit || 0) + ' chats' },
-            { name: 'Team Seats', key: 'user_seats', formatter: (plan) => (plan.user_seats || 1) + ((plan.user_seats || 1) === 1 ? ' user' : ' users') },
-            { name: 'Admin Controls', key: 'admin_controls', formatter: (plan) => (plan.admin_controls || false) ? '✓ Yes' : '✗ No' },
-            { name: 'Support', key: 'support_level', formatter: (plan) => this.formatSupportLevel(plan.support_level) }
-        ];
-
-        this.featuresTableBody.innerHTML = features.map(feature => {
-            const cells = sortedPlans.map(plan => {
-                try {
-                    const value = feature.formatter(plan);
-                    // Ensure value is a string before calling includes
-                    const valueString = String(value || '');
-                    const isUnavailable = valueString.includes('✗');
-                    return `<td class="text-center ${isUnavailable ? 'text-muted' : ''}">${valueString}</td>`;
-                } catch (error) {
-                    console.error('Error formatting feature value:', error, 'for feature:', feature.name, 'plan:', plan);
-                    return `<td class="text-center text-muted">-</td>`;
-                }
-            }).join('');
-            
-            return `<tr><td class="fw-semibold">${feature.name}</td>${cells}</tr>`;
-        }).join('');
-
-        // Force table layout refresh
-        setTimeout(() => {
-            const featuresTable = document.getElementById('featuresTable');
-            if (featuresTable) {
-                featuresTable.style.tableLayout = 'fixed';
-                featuresTable.style.width = '100%';
-            }
-        }, 50);
+        
+        features.push({ 
+            text: supportLevels[plan.support_level] || 'Support', 
+            available: plan.support_level !== 'none' 
+        });
+        
+        return features;
     }
 
     updatePricing() {

@@ -31,6 +31,17 @@
                         <span class="billing-label" id="annualLabel">Annual <span class="badge badge-success">Save 15%</span></span>
                     </div>
                 </div>
+
+                <!-- Account Type Toggle -->
+                <div class="account-type-toggle mb-4">
+                    <div class="btn-group" role="group" aria-label="Account type selection">
+                        <input type="radio" class="btn-check" name="accountType" id="individualType" value="individual" checked>
+                        <label class="btn btn-outline-primary" for="individualType">Individual Plans</label>
+                        
+                        <input type="radio" class="btn-check" name="accountType" id="teamType" value="team">
+                        <label class="btn btn-outline-primary" for="teamType">Team Plans</label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -39,41 +50,24 @@
 <!-- Pricing Cards Section -->
 <section class="py-5">
     <div class="container">
-        <div class="row g-4" id="pricingContainer">
-            <!-- Pricing cards will be dynamically inserted here -->
+        <!-- Individual Plans -->
+        <div id="individualPlans">
+            <div class="row g-4 justify-content-center" id="individualPricingContainer">
+                <!-- Individual pricing cards will be dynamically inserted here -->
+            </div>
         </div>
-    </div>
-</section>
 
-<!-- Features Comparison Section -->
-<section class="py-5 bg-light">
-    <div class="container">
-        <div class="row">
-            <div class="col-12">
-                <h2 class="text-center mb-5 fw-bold text-primary">Feature Comparison</h2>
-                <div class="table-responsive" style="overflow-x: auto;">
-                    <table class="table table-bordered table-striped" id="featuresTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="min-width: 150px;">Features</th>
-                                <th class="text-center" style="min-width: 120px;">The Companion<br><small class="text-muted">Free</small></th>
-                                <th class="text-center" style="min-width: 120px;">The Practitioner<br><small class="text-muted">Solo</small></th>
-                                <th class="text-center" style="min-width: 120px;">The Organization<br><small class="text-muted">Team</small></th>
-                                <th class="text-center" style="min-width: 120px;">The Powerhouse<br><small class="text-muted">Professional</small></th>
-                            </tr>
-                        </thead>
-                        <tbody id="featuresTableBody">
-                            <!-- Features will be dynamically populated -->
-                        </tbody>
-                    </table>
-                </div>
+        <!-- Team Plans -->
+        <div id="teamPlans" style="display: none;">
+            <div class="row g-4 justify-content-center" id="teamPricingContainer">
+                <!-- Team pricing cards will be dynamically inserted here -->
             </div>
         </div>
     </div>
 </section>
 
 <!-- FAQ Section -->
-<section class="py-5">
+<section class="py-5 bg-light">
     <div class="container">
         <div class="row">
             <div class="col-lg-8 mx-auto">
@@ -112,6 +106,18 @@
                         <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                             <div class="accordion-body">
                                 Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we'll prorate any billing adjustments.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                                What's included in team collaboration features?
+                            </button>
+                        </h2>
+                        <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Team plans include shared brand voices, collaborative workspaces, admin controls for user management, and centralized billing. Perfect for organizations that need coordinated communication strategies.
                             </div>
                         </div>
                     </div>

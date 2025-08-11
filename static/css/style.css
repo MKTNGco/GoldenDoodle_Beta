@@ -1106,6 +1106,35 @@ h5 .fa-microphone {
     align-items: center;
 }
 
+.account-type-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.account-type-toggle .btn-group .btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    border-radius: 25px;
+}
+
+.account-type-toggle .btn-group .btn:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-right: -1px;
+}
+
+.account-type-toggle .btn-group .btn:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.account-type-toggle .btn-check:checked + .btn {
+    background-color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
+    color: var(--cloud-white);
+}
+
 .billing-toggle {
     display: flex;
     align-items: center;

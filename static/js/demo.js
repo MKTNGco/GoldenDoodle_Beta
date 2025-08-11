@@ -40,10 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Set default active mode
-    if (demoModeButtons.length > 0) {
-        demoModeButtons[0].classList.add('active');
-    }
+    // Don't set any default active mode - let user choose
 
     // More button functionality
     if (demoMoreBtn && demoSecondaryModes) {

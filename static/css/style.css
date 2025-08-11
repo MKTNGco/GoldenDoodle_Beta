@@ -338,6 +338,7 @@ a:hover {
     cursor: pointer;
     transition: all 0.2s ease;
     font-weight: 500;
+    gap: 4px;
 }
 
 .demo-mode-btn:hover {

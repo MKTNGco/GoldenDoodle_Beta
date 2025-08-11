@@ -239,8 +239,15 @@ class PricingPage {
     renderFeaturesTable() {
         if (!this.featuresTableBody || !this.plans.length) return;
 
+        // Ensure all plans are valid objects
+        const validPlans = this.plans.filter(plan => plan && typeof plan === 'object' && plan.plan_id);
+        if (!validPlans.length) {
+            console.error('No valid plans found for features table');
+            return;
+        }
+
         const planOrder = ['free', 'solo', 'team', 'professional'];
-        const sortedPlans = planOrder.map(id => this.plans.find(plan => plan.plan_id === id)).filter(Boolean);
+        const sortedPlans = planOrder.map(id => validPlans.find(plan => plan.plan_id === id)).filter(Boolean);
 
         const features = [
             { name: 'Email Writing', key: 'templates', formatter: (plan) => plan.templates === 'basic' ? '✓ Basic' : '✓ Advanced' },
@@ -250,11 +257,11 @@ class PricingPage {
             { name: 'Summarize', key: 'analysis_brainstorm', formatter: (plan) => plan.plan_id === 'free' ? '✗ Not Available' : '✓ Available' },
             { name: 'Brainstorm', key: 'analysis_brainstorm', formatter: (plan) => plan.plan_id === 'free' ? '✗ Not Available' : '✓ Available' },
             { name: 'Analysis', key: 'analysis_brainstorm', formatter: (plan) => plan.plan_id === 'free' ? '✗ Not Available' : '✓ Available' },
-            { name: 'Monthly Tokens', key: 'token_limit', formatter: (plan) => plan.token_limit.toLocaleString() },
-            { name: 'Brand Voices', key: 'brand_voices', formatter: (plan) => plan.brand_voices === 0 ? 'None' : plan.brand_voices },
-            { name: 'Chat History', key: 'chat_history_limit', formatter: (plan) => plan.chat_history_limit === -1 ? 'Unlimited' : plan.chat_history_limit + ' chats' },
-            { name: 'Team Seats', key: 'user_seats', formatter: (plan) => plan.user_seats + (plan.user_seats === 1 ? ' user' : ' users') },
-            { name: 'Admin Controls', key: 'admin_controls', formatter: (plan) => plan.admin_controls ? '✓ Yes' : '✗ No' },
+            { name: 'Monthly Tokens', key: 'token_limit', formatter: (plan) => plan.token_limit ? plan.token_limit.toLocaleString() : '0' },
+            { name: 'Brand Voices', key: 'brand_voices', formatter: (plan) => (plan.brand_voices || 0) === 0 ? 'None' : (plan.brand_voices || 0) },
+            { name: 'Chat History', key: 'chat_history_limit', formatter: (plan) => (plan.chat_history_limit || 0) === -1 ? 'Unlimited' : (plan.chat_history_limit || 0) + ' chats' },
+            { name: 'Team Seats', key: 'user_seats', formatter: (plan) => (plan.user_seats || 1) + ((plan.user_seats || 1) === 1 ? ' user' : ' users') },
+            { name: 'Admin Controls', key: 'admin_controls', formatter: (plan) => (plan.admin_controls || false) ? '✓ Yes' : '✗ No' },
             { name: 'Support', key: 'support_level', formatter: (plan) => this.formatSupportLevel(plan.support_level) }
         ];
 

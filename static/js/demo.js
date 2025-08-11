@@ -37,12 +37,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Remove active class from all buttons
-            demoModeButtons.forEach(btn => btn.classList.remove('active'));
-            // Add active class to clicked button
-            this.classList.add('active');
-            // Update selected mode
-            selectedMode = this.dataset.mode;
+            // Check if this button is already active (toggle behavior)
+            if (this.classList.contains('active')) {
+                // Deselect this button
+                this.classList.remove('active');
+                selectedMode = 'email'; // Reset to default mode
+            } else {
+                // Remove active class from all buttons
+                demoModeButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                // Update selected mode
+                selectedMode = this.dataset.mode;
+            }
         });
     });
 

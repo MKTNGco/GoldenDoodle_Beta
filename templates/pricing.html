@@ -1,0 +1,133 @@
+
+{% extends "base.html" %}
+
+{% block title %}Pricing - GoldenDoodleLM{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- Pricing Header Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-lg-8 mx-auto">
+                <h1 class="display-4 fw-bold text-primary mb-4">Choose Your Plan</h1>
+                <p class="lead text-muted mb-4">
+                    Secure, trauma-informed AI communication tools designed specifically for nonprofits and mission-driven organizations.
+                </p>
+                
+                <!-- Billing Toggle -->
+                <div class="billing-toggle-container mb-5">
+                    <div class="billing-toggle">
+                        <span class="billing-label" id="monthlyLabel">Monthly</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="billingToggle">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="billing-label" id="annualLabel">Annual <span class="badge badge-success">Save 15%</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing Cards Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row g-4" id="pricingContainer">
+            <!-- Pricing cards will be dynamically inserted here -->
+        </div>
+    </div>
+</section>
+
+<!-- Features Comparison Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="text-center mb-5 fw-bold text-primary">Feature Comparison</h2>
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="featuresTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Features</th>
+                                <th class="text-center">The Companion<br><small class="text-muted">Free</small></th>
+                                <th class="text-center">The Practitioner<br><small class="text-muted">Solo</small></th>
+                                <th class="text-center">The Organization<br><small class="text-muted">Team</small></th>
+                                <th class="text-center">The Powerhouse<br><small class="text-muted">Professional</small></th>
+                            </tr>
+                        </thead>
+                        <tbody id="featuresTableBody">
+                            <!-- Features will be dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="text-center mb-5 fw-bold text-primary">Frequently Asked Questions</h2>
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                What makes GoldenDoodleLM different from other AI tools?
+                            </button>
+                        </h2>
+                        <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                GoldenDoodleLM is specifically designed for trauma-informed communication. Our AI is trained on principles of safety, trustworthiness, and empowerment, ensuring all content respects the dignity and experiences of trauma survivors.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                Is my data secure and private?
+                            </button>
+                        </h2>
+                        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Absolutely. We maintain a zero training data policy - your conversations and organizational data never train our AI models. We're built with enterprise-grade security and HIPAA-conscious architecture.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                Can I change plans later?
+                            </button>
+                        </h2>
+                        <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, and we'll prorate any billing adjustments.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Loading indicator -->
+<div id="loadingIndicator" class="text-center py-5" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-3 text-muted">Loading pricing information...</p>
+</div>
+
+<script src="{{ url_for('static', filename='js/pricing.js') }}"></script>
+{% endblock %}

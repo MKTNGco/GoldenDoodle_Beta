@@ -195,7 +195,7 @@ def login():
 
             # Update last login timestamp
             db_manager.update_user_last_login(user.user_id)
-            
+
             login_user(user)
             flash('Welcome back!', 'success')
             next_page = request.args.get('next')
@@ -427,7 +427,7 @@ def generate():
         # Logged-in user - enforce plan limits
         # Estimate tokens needed (rough estimate: 1 token ≈ 4 characters)
         estimated_tokens = max(len(prompt) // 4, 100)  # Minimum 100 tokens
-        
+
         # Check user limits before proceeding
         limits_check = db_manager.check_user_limits(user.user_id, content_mode, estimated_tokens)
         if not limits_check['allowed']:
@@ -478,7 +478,7 @@ def generate():
                     db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
                     # Add assistant response
                     db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
-                    
+
                     # Update session title if this is the first exchange
                     messages = db_manager.get_chat_messages(session_id)
                     if len(messages) <= 2:  # First user message + first assistant response
@@ -491,7 +491,7 @@ def generate():
                 db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
                 # Add assistant response
                 db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
-                
+
                 # Update session title if this is the first exchange
                 messages = db_manager.get_chat_messages(session_id)
                 if len(messages) <= 2:  # First user message + first assistant response
@@ -512,8 +512,13 @@ def how_to():
 
 @app.route('/our-story')
 def our_story():
-    """Our story page"""
+    """Our story page - tells the story of GoldenDoodleLM"""
     return render_template('our_story.html')
+
+@app.route('/pricing')
+def pricing():
+    """Pricing page with four-tier pricing model"""
+    return render_template('pricing.html')
 
 @app.route('/account')
 @login_required
@@ -925,7 +930,7 @@ def create_brand_voice():
             logger.info(f"  voice_short_name: {voice_short_name}")
             logger.info(f"  user_id: {user_id}")
             logger.info(f"  markdown_content length: {len(markdown_content)}")
-            
+
             brand_voice = db_manager.create_comprehensive_brand_voice(
                 tenant_id=tenant.tenant_id,
                 wizard_data=wizard_data,
@@ -933,7 +938,7 @@ def create_brand_voice():
                 user_id=user_id
             )
             logger.info(f"✓ Successfully created brand voice: {brand_voice.brand_voice_id}")
-            
+
             # Debugging: Fetch all company voices again to see if the new one is present
             current_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
             logger.info(f"Company voices AFTER creation: {len(current_company_voices)}/{tenant.max_brand_voices}")
@@ -984,7 +989,7 @@ def get_brand_voice(brand_voice_id):
         if not selected_brand_voice.user_id and not user.is_admin:
             logger.warning(f"Permission denied for non-admin user {user.user_id} to access company brand voice {brand_voice_id}")
             return jsonify({'error': 'Permission denied'}), 403
-        
+
         logger.info(f"Successfully retrieved brand voice {brand_voice_id} for user {user.user_id}")
         return jsonify(selected_brand_voice.configuration)
 
@@ -1453,7 +1458,7 @@ def get_active_users(tenant_id):
 
         logger.info(f"Fetching active users for tenant {tenant_id} by admin user {user.user_id}.")
         organization_users = db_manager.get_organization_users(tenant_id)
-        
+
         # Convert users to JSON-serializable format
         users_data = []
         for org_user in organization_users:
@@ -1468,7 +1473,7 @@ def get_active_users(tenant_id):
                 'created_at': org_user.created_at.isoformat() if org_user.created_at else None,
                 'last_login': org_user.last_login.isoformat() if org_user.last_login else None
             })
-        
+
         logger.info(f"Found {len(users_data)} active users for tenant {tenant_id}.")
         return jsonify({'users': users_data})
 
@@ -1503,7 +1508,7 @@ def create_chat_session():
 
         data = request.get_json()
         title = data.get('title', 'New Chat')
-        
+
         session_id = db_manager.create_chat_session(user.user_id, title)
         if session_id:
             return jsonify({'session_id': session_id, 'title': title})
@@ -1606,7 +1611,7 @@ def get_chat(session_id):
         # Verify user owns this session
         sessions = db_manager.get_user_chat_sessions(user.user_id)
         session_exists = any(s['session_id'] == session_id for s in sessions)
-        
+
         if not session_exists:
             return jsonify({'error': 'Session not found'}), 404
 
@@ -1647,7 +1652,7 @@ def get_user_plan():
 
         plan = db_manager.get_user_plan(user.user_id)
         usage = db_manager.get_user_token_usage(user.user_id)
-        
+
         return jsonify({
             'plan': plan,
             'usage': usage

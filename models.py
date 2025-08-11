@@ -35,11 +35,11 @@ class User:
     created_at: Optional[str] = None
     last_login: Optional[str] = None
     plan_id: str = 'free'  # Default to free plan
-    
+
     @property
     def name(self) -> str:
         """Full name property for backward compatibility"""
-        return f"{self.first_name} {self.last_name}".strip()</dataclass>
+        return f"{self.first_name} {self.last_name}".strip()
 
 @dataclass
 class BrandVoice:

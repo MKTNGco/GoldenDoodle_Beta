@@ -156,7 +156,7 @@ class PricingPage {
             return '';
         }
         
-        const isPopular = plan.plan_id === 'solo' || (plan.plan_id === 'professional' && !this.showingTeamPlans) || (plan.plan_id === 'team' && this.showingTeamPlans);
+        const isPopular = plan.plan_id === 'solo' || (plan.plan_id === 'team' && this.showingTeamPlans);
         const isFree = plan.plan_id === 'free';
         
         // Get pricing based on billing toggle
@@ -185,7 +185,7 @@ class PricingPage {
         const features = this.getPlanFeatures(plan);
 
         return `
-            <div class="col-lg-6 col-md-8">
+            <div class="col-lg-4 col-md-6 col-sm-8">
                 <div class="card pricing-card h-100 ${isPopular ? 'popular-plan' : ''} ${isFree ? 'free-plan' : ''}">
                     ${isPopular ? '<div class="popular-badge">Most Popular</div>' : ''}
                     

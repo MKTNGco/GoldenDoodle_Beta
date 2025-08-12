@@ -6,9 +6,11 @@ from gemini_service import gemini_service
 from rag_service import rag_service
 from models import TenantType, SubscriptionLevel, CONTENT_MODE_CONFIG, BrandVoice
 from email_service import email_service, generate_verification_token, hash_token
+from stripe_service import stripe_service
 import json
 import logging
 import uuid
+from datetime import datetime
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -1671,6 +1673,239 @@ def get_user_plan():
     except Exception as e:
         logger.error(f"Error getting user plan: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    logger.warning(f"404 Not Found: {error}")
+    return render_template('404.html'), 404
+
+@app.route('/create-checkout-session', methods=['POST'])
+@login_required
+def create_checkout_session():
+    """Create Stripe checkout session"""
+    try:
+        data = request.get_json()
+        plan_id = data.get('plan_id')
+        
+        if not plan_id or plan_id == 'free':
+            return jsonify({'error': 'Invalid plan selected'}), 400
+            
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Map plan_id to Stripe price_id (we'll create these in Stripe dashboard)
+        price_mapping = {
+            'solo': 'price_solo_monthly',  # Replace with actual Stripe price IDs
+            'team': 'price_team_monthly',
+            'professional': 'price_professional_monthly'
+        }
+        
+        price_id = price_mapping.get(plan_id)
+        if not price_id:
+            return jsonify({'error': 'Plan not available'}), 400
+        
+        # Create or get Stripe customer
+        stripe_customer_id = user.stripe_customer_id if hasattr(user, 'stripe_customer_id') else None
+        
+        if not stripe_customer_id:
+            customer = stripe_service.create_customer(
+                email=user.email,
+                name=f"{user.first_name} {user.last_name}",
+                metadata={'user_id': user.user_id}
+            )
+            if customer:
+                stripe_customer_id = customer['id']
+                db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=stripe_customer_id)
+        
+        # Create checkout session
+        success_url = f"{request.url_root}payment-success?session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{request.url_root}pricing"
+        
+        session = stripe_service.create_checkout_session(
+            customer_email=user.email,
+            price_id=price_id,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer_id=stripe_customer_id,
+            metadata={
+                'user_id': user.user_id,
+                'plan_id': plan_id
+            }
+        )
+        
+        if session:
+            return jsonify({'checkout_url': session['url']})
+        else:
+            return jsonify({'error': 'Failed to create checkout session'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error creating checkout session: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/payment-success')
+@login_required
+def payment_success():
+    """Handle successful payment"""
+    session_id = request.args.get('session_id')
+    if not session_id:
+        flash('Invalid payment session.', 'error')
+        return redirect(url_for('pricing'))
+    
+    # Here you would verify the session and update user subscription
+    # This will be handled by webhooks in production
+    flash('Payment successful! Your subscription is being activated.', 'success')
+    return redirect(url_for('account'))
+
+@app.route('/billing-portal', methods=['POST'])
+@login_required
+def create_billing_portal():
+    """Create Stripe billing portal session"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        stripe_customer_id = getattr(user, 'stripe_customer_id', None)
+        if not stripe_customer_id:
+            return jsonify({'error': 'No billing account found'}), 400
+        
+        return_url = f"{request.url_root}account"
+        portal_url = stripe_service.create_billing_portal_session(
+            customer_id=stripe_customer_id,
+            return_url=return_url
+        )
+        
+        if portal_url:
+            return jsonify({'url': portal_url})
+        else:
+            return jsonify({'error': 'Failed to create billing portal'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error creating billing portal: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/stripe-webhook', methods=['POST'])
+def stripe_webhook():
+    """Handle Stripe webhooks"""
+    try:
+        payload = request.data
+        signature = request.headers.get('Stripe-Signature')
+        
+        event = stripe_service.verify_webhook_signature(payload, signature)
+        if not event:
+            return jsonify({'error': 'Invalid signature'}), 400
+        
+        logger.info(f"Received Stripe webhook: {event['type']}")
+        
+        # Handle different event types
+        if event['type'] == 'customer.subscription.created':
+            handle_subscription_created(event['data']['object'])
+        elif event['type'] == 'customer.subscription.updated':
+            handle_subscription_updated(event['data']['object'])
+        elif event['type'] == 'customer.subscription.deleted':
+            handle_subscription_deleted(event['data']['object'])
+        elif event['type'] == 'invoice.payment_succeeded':
+            handle_payment_succeeded(event['data']['object'])
+        elif event['type'] == 'invoice.payment_failed':
+            handle_payment_failed(event['data']['object'])
+        
+        return jsonify({'status': 'success'})
+        
+    except Exception as e:
+        logger.error(f"Error handling Stripe webhook: {e}")
+        return jsonify({'error': 'Webhook handler error'}), 500
+
+def handle_subscription_created(subscription):
+    """Handle subscription created event"""
+    try:
+        customer_id = subscription['customer']
+        subscription_id = subscription['id']
+        status = subscription['status']
+        current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
+        
+        user = db_manager.get_user_by_stripe_customer_id(customer_id)
+        if user:
+            db_manager.update_user_stripe_info(
+                user.user_id,
+                stripe_subscription_id=subscription_id,
+                subscription_status=status,
+                current_period_end=current_period_end
+            )
+            logger.info(f"Updated subscription for user {user.user_id}: {subscription_id}")
+            
+    except Exception as e:
+        logger.error(f"Error handling subscription created: {e}")
+
+def handle_subscription_updated(subscription):
+    """Handle subscription updated event"""
+    try:
+        customer_id = subscription['customer']
+        subscription_id = subscription['id']
+        status = subscription['status']
+        current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
+        
+        user = db_manager.get_user_by_stripe_customer_id(customer_id)
+        if user:
+            db_manager.update_user_stripe_info(
+                user.user_id,
+                subscription_status=status,
+                current_period_end=current_period_end
+            )
+            logger.info(f"Updated subscription status for user {user.user_id}: {status}")
+            
+    except Exception as e:
+        logger.error(f"Error handling subscription updated: {e}")
+
+def handle_subscription_deleted(subscription):
+    """Handle subscription cancelled/deleted event"""
+    try:
+        customer_id = subscription['customer']
+        
+        user = db_manager.get_user_by_stripe_customer_id(customer_id)
+        if user:
+            db_manager.update_user_stripe_info(
+                user.user_id,
+                subscription_status='cancelled',
+                stripe_subscription_id=None
+            )
+            logger.info(f"Cancelled subscription for user {user.user_id}")
+            
+    except Exception as e:
+        logger.error(f"Error handling subscription deleted: {e}")
+
+def handle_payment_succeeded(invoice):
+    """Handle successful payment"""
+    try:
+        customer_id = invoice['customer']
+        subscription_id = invoice.get('subscription')
+        
+        user = db_manager.get_user_by_stripe_customer_id(customer_id)
+        if user:
+            db_manager.update_user_stripe_info(
+                user.user_id,
+                subscription_status='active'
+            )
+            logger.info(f"Payment succeeded for user {user.user_id}")
+            
+    except Exception as e:
+        logger.error(f"Error handling payment succeeded: {e}")
+
+def handle_payment_failed(invoice):
+    """Handle failed payment"""
+    try:
+        customer_id = invoice['customer']
+        
+        user = db_manager.get_user_by_stripe_customer_id(customer_id)
+        if user:
+            db_manager.update_user_stripe_info(
+                user.user_id,
+                subscription_status='past_due'
+            )
+            logger.info(f"Payment failed for user {user.user_id}")
+            
+    except Exception as e:
+        logger.error(f"Error handling payment failed: {e}")
 
 @app.errorhandler(404)
 def not_found_error(error):

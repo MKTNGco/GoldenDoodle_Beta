@@ -227,6 +227,55 @@ class DatabaseManager:
                 END $$;
             """)
 
+            # Add Stripe-related columns to users table
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'stripe_customer_id'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN stripe_customer_id VARCHAR(255) NULL;
+                    END IF;
+                END $$;
+            """)
+
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'stripe_subscription_id'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN stripe_subscription_id VARCHAR(255) NULL;
+                    END IF;
+                END $$;
+            """)
+
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'subscription_status'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN subscription_status VARCHAR(50) DEFAULT 'free';
+                    END IF;
+                END $$;
+            """)
+
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'current_period_end'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN current_period_end TIMESTAMP NULL;
+                    END IF;
+                END $$;
+            """)
+
             # Chat sessions table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -1764,6 +1813,96 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error checking user limits: {e}")
             return {'allowed': False, 'error': 'Error checking user limits'}
+
+    def update_user_stripe_info(self, user_id: str, stripe_customer_id: str = None, 
+                               stripe_subscription_id: str = None, subscription_status: str = None,
+                               current_period_end = None) -> bool:
+        """Update user's Stripe information"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Build update query dynamically based on provided parameters
+            update_fields = []
+            update_values = []
+
+            if stripe_customer_id is not None:
+                update_fields.append("stripe_customer_id = %s")
+                update_values.append(stripe_customer_id)
+            
+            if stripe_subscription_id is not None:
+                update_fields.append("stripe_subscription_id = %s")
+                update_values.append(stripe_subscription_id)
+            
+            if subscription_status is not None:
+                update_fields.append("subscription_status = %s")
+                update_values.append(subscription_status)
+            
+            if current_period_end is not None:
+                update_fields.append("current_period_end = %s")
+                update_values.append(current_period_end)
+
+            if not update_fields:
+                return True  # Nothing to update
+
+            update_values.append(user_id)  # Add user_id for WHERE clause
+
+            query = f"""
+                UPDATE users 
+                SET {', '.join(update_fields)}
+                WHERE user_id = %s
+            """
+
+            cursor.execute(query, update_values)
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"Updated Stripe info for user {user_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating user Stripe info: {e}")
+            return False
+
+    def get_user_by_stripe_customer_id(self, stripe_customer_id: str) -> Optional[User]:
+        """Get user by Stripe customer ID"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cursor.execute("""
+                SELECT * FROM users WHERE stripe_customer_id = %s
+            """, (stripe_customer_id,))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                user = User(
+                    user_id=str(row['user_id']),
+                    tenant_id=str(row['tenant_id']),
+                    first_name=row['first_name'],
+                    last_name=row['last_name'],
+                    email=row['email'],
+                    password_hash=row['password_hash'],
+                    subscription_level=SubscriptionLevel(row['subscription_level']),
+                    is_admin=row['is_admin']
+                )
+                user.email_verified = row['email_verified']
+                user.created_at = row['created_at']
+                user.last_login = row['last_login']
+                user.stripe_customer_id = row.get('stripe_customer_id')
+                user.stripe_subscription_id = row.get('stripe_subscription_id')
+                user.subscription_status = row.get('subscription_status', 'free')
+                user.current_period_end = row.get('current_period_end')
+                return user
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting user by Stripe customer ID: {e}")
+            return None
 
 # Global database manager instance
 db_manager = DatabaseManager()

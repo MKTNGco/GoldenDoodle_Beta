@@ -25,9 +25,9 @@ class StripeService:
             
         # Plan mapping - maps your internal plan IDs to Stripe price IDs
         self.plan_price_mapping = {
-            'solo': 'price_1234567890abcdef',  # Replace with your actual Practitioner price ID
-            'team': 'price_1234567890ghijkl',   # Replace with your actual Organization price ID  
-            'professional': 'price_1234567890mnopqr'  # Replace with your actual Powerhouse price ID
+            'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',  # Replace with your actual Practitioner price ID
+            'team': 'price_1RvL4sHynku0jyEH4go1pRLM',   # Replace with your actual Organization price ID  
+            'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'  # Replace with your actual Powerhouse price ID
         }
     
     def get_publishable_key(self) -> str:

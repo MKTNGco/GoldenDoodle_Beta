@@ -7,6 +7,7 @@ import logging
 from typing import Optional, List, Dict, Any
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import Tenant, User, BrandVoice, TenantType, SubscriptionLevel
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -612,7 +613,6 @@ class DatabaseManager:
     def create_verification_token(self, user_id: str, token_hash: str) -> bool:
         """Create email verification token"""
         try:
-            from datetime import datetime, timedelta
             expires_at = datetime.utcnow() + timedelta(hours=24)
 
             conn = self.get_connection()
@@ -635,8 +635,6 @@ class DatabaseManager:
     def verify_email_token(self, token_hash: str) -> Optional[str]:
         """Verify email token and return user_id if valid"""
         try:
-            from datetime import datetime
-
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -680,7 +678,6 @@ class DatabaseManager:
     def create_password_reset_token(self, user_id: str, token_hash: str) -> bool:
         """Create password reset token"""
         try:
-            from datetime import datetime, timedelta
             expires_at = datetime.utcnow() + timedelta(hours=1)
 
             conn = self.get_connection()
@@ -709,8 +706,6 @@ class DatabaseManager:
     def verify_password_reset_token(self, token_hash: str) -> Optional[str]:
         """Verify password reset token and return user_id if valid"""
         try:
-            from datetime import datetime
-
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1221,18 +1216,147 @@ class DatabaseManager:
                 WHERE user_id = %s
             """, (subscription_level, user_id))
 
+            success = cursor.rowcount > 0
             conn.commit()
             cursor.close()
             conn.close()
-            return True
+            return success
         except Exception as e:
             logger.error(f"Error updating user subscription: {e}")
             return False
 
+    def update_user_stripe_info(self, user_id: str, stripe_customer_id: str = None, 
+                               stripe_subscription_id: str = None, subscription_status: str = None,
+                               current_period_end: datetime = None) -> bool:
+        """Update user's Stripe information"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Build dynamic query based on provided parameters
+            updates = []
+            params = []
+
+            if stripe_customer_id is not None:
+                updates.append("stripe_customer_id = %s")
+                params.append(stripe_customer_id)
+
+            if stripe_subscription_id is not None:
+                updates.append("stripe_subscription_id = %s")
+                params.append(stripe_subscription_id)
+
+            if subscription_status is not None:
+                updates.append("subscription_status = %s")
+                params.append(subscription_status)
+
+            if current_period_end is not None:
+                updates.append("current_period_end = %s")
+                params.append(current_period_end)
+
+            if not updates:
+                return True
+
+            params.append(user_id)
+            query = f"UPDATE users SET {', '.join(updates)} WHERE user_id = %s"
+
+            cursor.execute(query, params)
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+        except Exception as e:
+            logger.error(f"Error updating user Stripe info: {e}")
+            return False
+
+    def get_user_by_stripe_customer_id(self, customer_id: str):
+        """Get user by Stripe customer ID"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT * FROM users WHERE stripe_customer_id = %s
+            """, (customer_id,))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                from models import SubscriptionLevel
+                return User(
+                    user_id=str(row[0]),
+                    tenant_id=str(row[1]),
+                    first_name=row[2],
+                    last_name=row[3],
+                    email=row[4],
+                    password_hash=row[5],
+                    subscription_level=SubscriptionLevel(row[6]),
+                    is_admin=row[7],
+                    email_verified=row[8] if len(row) > 8 else False,
+                    last_login=row[9] if len(row) > 9 else None
+                )
+        except Exception as e:
+            logger.error(f"Error getting user by Stripe customer ID: {e}")
+        return None
+
+    def mark_email_verified(self, user_id: str) -> bool:
+        """Mark user's email as verified"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET email_verified = TRUE
+                WHERE user_id = %s
+            """, (user_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+        except Exception as e:
+            logger.error(f"Error marking email as verified: {e}")
+            return False
+
+    def get_user_by_id(self, user_id: str):
+        """Get user by user ID"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT * FROM users WHERE user_id = %s
+            """, (user_id,))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                from models import SubscriptionLevel
+                return User(
+                    user_id=str(row[0]),
+                    tenant_id=str(row[1]),
+                    first_name=row[2],
+                    last_name=row[3],
+                    email=row[4],
+                    password_hash=row[5],
+                    subscription_level=SubscriptionLevel(row[6]),
+                    is_admin=row[7],
+                    email_verified=row[8] if len(row) > 8 else False,
+                    last_login=row[9] if len(row) > 9 else None
+                )
+        except Exception as e:
+            logger.error(f"Error getting user by ID: {e}")
+        return None
+
     def create_organization_invite(self, tenant_id: str, invited_by_user_id: str, email: str, token_hash: str) -> bool:
         """Create an organization invite token"""
         try:
-            from datetime import datetime, timedelta
             expires_at = datetime.utcnow() + timedelta(days=7)  # 7 day expiry
 
             conn = self.get_connection()
@@ -1272,8 +1396,6 @@ class DatabaseManager:
     def verify_organization_invite_token(self, token_hash: str) -> Optional[tuple]:
         """Verify organization invite token and return (tenant_id, email) if valid"""
         try:
-            from datetime import datetime
-
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1344,8 +1466,6 @@ class DatabaseManager:
     def update_user_last_login(self, user_id: str) -> bool:
         """Update user's last login timestamp"""
         try:
-            from datetime import datetime
-
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1742,7 +1862,6 @@ class DatabaseManager:
     def update_user_token_usage(self, user_id, tokens_used):
         """Update user's token usage"""
         try:
-            from datetime import datetime
             current_month = datetime.now().month
             current_year = datetime.now().year
 

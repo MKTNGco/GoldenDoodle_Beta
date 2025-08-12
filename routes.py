@@ -29,6 +29,10 @@ def register():
     # Check if this is an organization invite
     is_organization_invite = request.args.get('invite') == 'organization'
     organization_invite = session.get('organization_invite') if is_organization_invite else None
+    
+    # Handle payment cancellation
+    if request.args.get('payment_cancelled'):
+        flash('Payment was cancelled. You can complete your registration with a free plan or try again with a paid plan.', 'info')
 
     if request.method == 'POST':
         try:
@@ -155,7 +159,58 @@ def register():
                 is_admin=is_admin
             )
 
-            # Generate and send verification email
+            # Check if this is a paid plan - redirect to checkout immediately
+            if subscription_level in ['solo', 'team', 'professional']:
+                # Create or get Stripe customer
+                customer = stripe_service.create_customer(
+                    email=email,
+                    name=f"{first_name} {last_name}",
+                    metadata={'user_id': user.user_id}
+                )
+                
+                if customer:
+                    db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=customer['id'])
+                
+                # Map subscription level to Stripe price ID
+                price_mapping = {
+                    'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
+                    'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
+                    'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
+                }
+                
+                price_id = price_mapping.get(subscription_level)
+                if price_id:
+                    # Create checkout session
+                    success_url = f"{request.url_root}payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
+                    cancel_url = f"{request.url_root}register?payment_cancelled=true"
+                    
+                    session = stripe_service.create_checkout_session(
+                        customer_email=email,
+                        price_id=price_id,
+                        success_url=success_url,
+                        cancel_url=cancel_url,
+                        customer_id=customer['id'] if customer else None,
+                        metadata={
+                            'user_id': user.user_id,
+                            'plan_id': subscription_level,
+                            'new_registration': 'true'
+                        }
+                    )
+                    
+                    if session:
+                        # Store pending registration in session for post-payment verification
+                        session['pending_registration'] = {
+                            'user_id': user.user_id,
+                            'email': email,
+                            'first_name': first_name,
+                            'needs_verification': True
+                        }
+                        return redirect(session['url'])
+                
+                # Fallback if Stripe fails - send to verification
+                flash('Payment setup failed. Please try again or contact support.', 'error')
+            
+            # For free plans or fallback, send verification email
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
 
@@ -1744,18 +1799,46 @@ def create_checkout_session():
         return jsonify({'error': 'An error occurred'}), 500
 
 @app.route('/payment-success')
-@login_required
 def payment_success():
     """Handle successful payment"""
     session_id = request.args.get('session_id')
+    new_user_id = request.args.get('new_user')
+    
     if not session_id:
         flash('Invalid payment session.', 'error')
         return redirect(url_for('pricing'))
     
-    # Here you would verify the session and update user subscription
-    # This will be handled by webhooks in production
-    flash('Payment successful! Your subscription is being activated.', 'success')
-    return redirect(url_for('account'))
+    # Handle new user registration flow
+    if new_user_id and 'pending_registration' in session:
+        pending_reg = session.get('pending_registration')
+        if pending_reg and pending_reg['user_id'] == new_user_id:
+            # Payment successful for new user - verify email and log them in
+            verification_token = generate_verification_token()
+            token_hash = hash_token(verification_token)
+            
+            # Mark email as verified since they completed payment
+            db_manager.mark_email_verified(new_user_id)
+            
+            # Get the user and log them in
+            user = db_manager.get_user_by_id(new_user_id)
+            if user:
+                login_user(user)
+                session.pop('pending_registration', None)
+                flash('Welcome to GoldenDoodleLM! Your subscription is active.', 'success')
+                return redirect(url_for('chat'))
+            else:
+                flash('Account setup completed. Please sign in with your credentials.', 'info')
+                return redirect(url_for('login'))
+    
+    # Regular logged-in user payment success
+    user = get_current_user()
+    if user:
+        flash('Payment successful! Your subscription is being activated.', 'success')
+        return redirect(url_for('account'))
+    
+    # Fallback
+    flash('Payment completed. Please sign in to access your account.', 'success')
+    return redirect(url_for('login'))
 
 @app.route('/billing-portal', methods=['POST'])
 @login_required

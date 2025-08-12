@@ -1694,11 +1694,11 @@ def create_checkout_session():
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
         
-        # Map plan_id to Stripe price_id (we'll create these in Stripe dashboard)
+        # Map plan_id to Stripe price_id 
         price_mapping = {
-            'solo': 'price_solo_monthly',  # Replace with actual Stripe price IDs
-            'team': 'price_team_monthly',
-            'professional': 'price_professional_monthly'
+            'solo': 'price_practitioner_monthly',    # The Practitioner
+            'team': 'price_organization_monthly',     # The Organization
+            'professional': 'price_powerhouse_monthly' # The Powerhouse
         }
         
         price_id = price_mapping.get(plan_id)

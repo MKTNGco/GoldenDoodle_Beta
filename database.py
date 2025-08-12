@@ -68,7 +68,11 @@ class DatabaseManager:
                     subscription_level subscription_level NOT NULL,
                     is_admin BOOLEAN DEFAULT FALSE,
                     email_verified BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    stripe_customer_id VARCHAR(255) UNIQUE,
+                    stripe_subscription_id VARCHAR(255) UNIQUE,
+                    subscription_status VARCHAR(50) DEFAULT 'inactive',
+                    current_period_end TIMESTAMP
                 );
             """)
 
@@ -346,10 +350,10 @@ class DatabaseManager:
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             # Populate default pricing plans
             self.populate_pricing_plans()
-            
+
             logger.info("Main database initialized successfully")
 
         except Exception as e:
@@ -1829,15 +1833,15 @@ class DatabaseManager:
             if stripe_customer_id is not None:
                 update_fields.append("stripe_customer_id = %s")
                 update_values.append(stripe_customer_id)
-            
+
             if stripe_subscription_id is not None:
                 update_fields.append("stripe_subscription_id = %s")
                 update_values.append(stripe_subscription_id)
-            
+
             if subscription_status is not None:
                 update_fields.append("subscription_status = %s")
                 update_values.append(subscription_status)
-            
+
             if current_period_end is not None:
                 update_fields.append("current_period_end = %s")
                 update_values.append(current_period_end)
@@ -1857,10 +1861,10 @@ class DatabaseManager:
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             logger.info(f"Updated Stripe info for user {user_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error updating user Stripe info: {e}")
             return False

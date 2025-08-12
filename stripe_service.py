@@ -25,9 +25,9 @@ class StripeService:
             
         # Plan mapping - maps your internal plan IDs to Stripe price IDs
         self.plan_price_mapping = {
-            'solo': None,  # We'll create these in Stripe
-            'team': None,
-            'professional': None
+            'solo': 'price_practitioner_monthly',  # The Practitioner
+            'team': 'price_organization_monthly',   # The Organization  
+            'professional': 'price_powerhouse_monthly'  # The Powerhouse
         }
     
     def get_publishable_key(self) -> str:

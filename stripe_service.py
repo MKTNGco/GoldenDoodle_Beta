@@ -70,7 +70,10 @@ class StripeService:
                 }],
                 'success_url': success_url,
                 'cancel_url': cancel_url,
-                'metadata': metadata or {}
+                'metadata': metadata or {},
+                'billing_address_collection': 'auto',
+                'allow_promotion_codes': True,
+                'automatic_tax': {'enabled': False}
             }
             
             if customer_id:

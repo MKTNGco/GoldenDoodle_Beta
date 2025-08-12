@@ -29,7 +29,7 @@ def register():
     # Check if this is an organization invite
     is_organization_invite = request.args.get('invite') == 'organization'
     organization_invite = session.get('organization_invite') if is_organization_invite else None
-    
+
     # Handle payment cancellation
     if request.args.get('payment_cancelled'):
         flash('Payment was cancelled. You can complete your registration with a free plan or try again with a paid plan.', 'info')
@@ -167,23 +167,24 @@ def register():
                     name=f"{first_name} {last_name}",
                     metadata={'user_id': user.user_id}
                 )
-                
+
                 if customer:
                     db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=customer['id'])
-                
+
                 # Map subscription level to Stripe price ID
                 price_mapping = {
                     'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
                     'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
                     'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
                 }
-                
+
                 price_id = price_mapping.get(subscription_level)
                 if price_id:
-                    # Create checkout session
-                    success_url = f"{request.url_root}payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
-                    cancel_url = f"{request.url_root}register?payment_cancelled=true"
-                    
+                    # Create checkout session with improved URLs for Replit
+                    base_url = request.url_root.rstrip('/')
+                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
+                    cancel_url = f"{base_url}/register?payment_cancelled=true"
+
                     session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
@@ -196,7 +197,7 @@ def register():
                             'new_registration': 'true'
                         }
                     )
-                    
+
                     if session:
                         # Store pending registration in session for post-payment verification
                         session['pending_registration'] = {
@@ -205,11 +206,16 @@ def register():
                             'first_name': first_name,
                             'needs_verification': True
                         }
+
+                        # Log the checkout URL for debugging
+                        logger.info(f"Redirecting to Stripe checkout: {session['url']}")
+
+                        # Add a slight delay and try a more direct redirect approach
                         return redirect(session['url'])
-                
+
                 # Fallback if Stripe fails - send to verification
                 flash('Payment setup failed. Please try again or contact support.', 'error')
-            
+
             # For free plans or fallback, send verification email
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
@@ -1695,13 +1701,13 @@ def get_plans():
         logger.info("Getting pricing plans...")
         plans = db_manager.get_all_pricing_plans()
         logger.info(f"Retrieved {len(plans)} pricing plans")
-        
+
         if not plans:
             logger.warning("No pricing plans found, attempting to populate...")
             db_manager.populate_pricing_plans()
             plans = db_manager.get_all_pricing_plans()
             logger.info(f"After population: {len(plans)} pricing plans")
-        
+
         return jsonify(plans)
     except Exception as e:
         logger.error(f"Error getting pricing plans: {e}")
@@ -1741,28 +1747,28 @@ def create_checkout_session():
     try:
         data = request.get_json()
         plan_id = data.get('plan_id')
-        
+
         if not plan_id or plan_id == 'free':
             return jsonify({'error': 'Invalid plan selected'}), 400
-            
+
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         # Map plan_id to Stripe price_id 
         price_mapping = {
             'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',    # The Practitioner
             'team': 'price_1RvL4sHynku0jyEH4go1pRLM',     # The Organization
             'professional': 'price_1RvL79Hynku0jyEHm7b89IPr' # The Powerhouse
         }
-        
+
         price_id = price_mapping.get(plan_id)
         if not price_id:
             return jsonify({'error': 'Plan not available'}), 400
-        
+
         # Create or get Stripe customer
         stripe_customer_id = user.stripe_customer_id if hasattr(user, 'stripe_customer_id') else None
-        
+
         if not stripe_customer_id:
             customer = stripe_service.create_customer(
                 email=user.email,
@@ -1772,11 +1778,12 @@ def create_checkout_session():
             if customer:
                 stripe_customer_id = customer['id']
                 db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=stripe_customer_id)
-        
+
         # Create checkout session
-        success_url = f"{request.url_root}payment-success?session_id={{CHECKOUT_SESSION_ID}}"
-        cancel_url = f"{request.url_root}pricing"
-        
+        base_url = request.url_root.rstrip('/')
+        success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{base_url}/pricing"
+
         session = stripe_service.create_checkout_session(
             customer_email=user.email,
             price_id=price_id,
@@ -1788,12 +1795,12 @@ def create_checkout_session():
                 'plan_id': plan_id
             }
         )
-        
+
         if session:
             return jsonify({'checkout_url': session['url']})
         else:
             return jsonify({'error': 'Failed to create checkout session'}), 500
-            
+
     except Exception as e:
         logger.error(f"Error creating checkout session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
@@ -1803,11 +1810,11 @@ def payment_success():
     """Handle successful payment"""
     session_id = request.args.get('session_id')
     new_user_id = request.args.get('new_user')
-    
+
     if not session_id:
         flash('Invalid payment session.', 'error')
         return redirect(url_for('pricing'))
-    
+
     # Handle new user registration flow
     if new_user_id and 'pending_registration' in session:
         pending_reg = session.get('pending_registration')
@@ -1815,10 +1822,10 @@ def payment_success():
             # Payment successful for new user - verify email and log them in
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
-            
+
             # Mark email as verified since they completed payment
             db_manager.mark_email_verified(new_user_id)
-            
+
             # Get the user and log them in
             user = db_manager.get_user_by_id(new_user_id)
             if user:
@@ -1829,13 +1836,13 @@ def payment_success():
             else:
                 flash('Account setup completed. Please sign in with your credentials.', 'info')
                 return redirect(url_for('login'))
-    
+
     # Regular logged-in user payment success
     user = get_current_user()
     if user:
         flash('Payment successful! Your subscription is being activated.', 'success')
         return redirect(url_for('account'))
-    
+
     # Fallback
     flash('Payment completed. Please sign in to access your account.', 'success')
     return redirect(url_for('login'))
@@ -1848,22 +1855,22 @@ def create_billing_portal():
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-            
+
         stripe_customer_id = getattr(user, 'stripe_customer_id', None)
         if not stripe_customer_id:
             return jsonify({'error': 'No billing account found'}), 400
-        
+
         return_url = f"{request.url_root}account"
         portal_url = stripe_service.create_billing_portal_session(
             customer_id=stripe_customer_id,
             return_url=return_url
         )
-        
+
         if portal_url:
             return jsonify({'url': portal_url})
         else:
             return jsonify({'error': 'Failed to create billing portal'}), 500
-            
+
     except Exception as e:
         logger.error(f"Error creating billing portal: {e}")
         return jsonify({'error': 'An error occurred'}), 500
@@ -1874,13 +1881,13 @@ def stripe_webhook():
     try:
         payload = request.data
         signature = request.headers.get('Stripe-Signature')
-        
+
         event = stripe_service.verify_webhook_signature(payload, signature)
         if not event:
             return jsonify({'error': 'Invalid signature'}), 400
-        
+
         logger.info(f"Received Stripe webhook: {event['type']}")
-        
+
         # Handle different event types
         if event['type'] == 'customer.subscription.created':
             handle_subscription_created(event['data']['object'])
@@ -1892,9 +1899,9 @@ def stripe_webhook():
             handle_payment_succeeded(event['data']['object'])
         elif event['type'] == 'invoice.payment_failed':
             handle_payment_failed(event['data']['object'])
-        
+
         return jsonify({'status': 'success'})
-        
+
     except Exception as e:
         logger.error(f"Error handling Stripe webhook: {e}")
         return jsonify({'error': 'Webhook handler error'}), 500
@@ -1906,7 +1913,7 @@ def handle_subscription_created(subscription):
         subscription_id = subscription['id']
         status = subscription['status']
         current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
-        
+
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
             db_manager.update_user_stripe_info(
@@ -1916,7 +1923,7 @@ def handle_subscription_created(subscription):
                 current_period_end=current_period_end
             )
             logger.info(f"Updated subscription for user {user.user_id}: {subscription_id}")
-            
+
     except Exception as e:
         logger.error(f"Error handling subscription created: {e}")
 
@@ -1927,7 +1934,7 @@ def handle_subscription_updated(subscription):
         subscription_id = subscription['id']
         status = subscription['status']
         current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
-        
+
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
             db_manager.update_user_stripe_info(
@@ -1936,7 +1943,7 @@ def handle_subscription_updated(subscription):
                 current_period_end=current_period_end
             )
             logger.info(f"Updated subscription status for user {user.user_id}: {status}")
-            
+
     except Exception as e:
         logger.error(f"Error handling subscription updated: {e}")
 
@@ -1944,7 +1951,7 @@ def handle_subscription_deleted(subscription):
     """Handle subscription cancelled/deleted event"""
     try:
         customer_id = subscription['customer']
-        
+
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
             db_manager.update_user_stripe_info(
@@ -1953,7 +1960,7 @@ def handle_subscription_deleted(subscription):
                 stripe_subscription_id=None
             )
             logger.info(f"Cancelled subscription for user {user.user_id}")
-            
+
     except Exception as e:
         logger.error(f"Error handling subscription deleted: {e}")
 
@@ -1962,7 +1969,7 @@ def handle_payment_succeeded(invoice):
     try:
         customer_id = invoice['customer']
         subscription_id = invoice.get('subscription')
-        
+
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
             db_manager.update_user_stripe_info(
@@ -1970,7 +1977,7 @@ def handle_payment_succeeded(invoice):
                 subscription_status='active'
             )
             logger.info(f"Payment succeeded for user {user.user_id}")
-            
+
     except Exception as e:
         logger.error(f"Error handling payment succeeded: {e}")
 
@@ -1978,7 +1985,7 @@ def handle_payment_failed(invoice):
     """Handle failed payment"""
     try:
         customer_id = invoice['customer']
-        
+
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
             db_manager.update_user_stripe_info(
@@ -1986,7 +1993,7 @@ def handle_payment_failed(invoice):
                 subscription_status='past_due'
             )
             logger.info(f"Payment failed for user {user.user_id}")
-            
+
     except Exception as e:
         logger.error(f"Error handling payment failed: {e}")
 

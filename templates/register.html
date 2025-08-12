@@ -116,9 +116,17 @@
                         </div>
                         {% endif %}
 
-                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <button type="submit" class="btn btn-primary w-100 mb-3" id="submitBtn">
                             <i class="fas fa-rocket me-2"></i>Create Account
                         </button>
+                        
+                        <!-- Loading state for payment processing -->
+                        <div id="paymentLoading" style="display: none;" class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Processing payment...</span>
+                            </div>
+                            <p class="small text-muted mt-2">Redirecting to secure payment...</p>
+                        </div>
                     </form>
 
                     <div class="text-center">
@@ -342,6 +350,29 @@ document.addEventListener('DOMContentLoaded', function() {
             if (radio) {
                 radio.checked = true;
             }
+        }
+    });
+
+    // Form submission handling
+    const registerForm = document.getElementById('registerForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const paymentLoading = document.getElementById('paymentLoading');
+    
+    registerForm.addEventListener('submit', function(e) {
+        const selectedPlan = document.querySelector('input[name="subscription_level"]:checked');
+        if (selectedPlan && ['solo', 'team', 'professional'].includes(selectedPlan.value)) {
+            // Show loading state for paid plans
+            submitBtn.style.display = 'none';
+            paymentLoading.style.display = 'block';
+            
+            // Set a timeout to show error if redirect takes too long
+            setTimeout(() => {
+                if (paymentLoading.style.display !== 'none') {
+                    alert('Payment processing is taking longer than expected. Please try again or contact support.');
+                    submitBtn.style.display = 'block';
+                    paymentLoading.style.display = 'none';
+                }
+            }, 10000); // 10 second timeout
         }
     });
 

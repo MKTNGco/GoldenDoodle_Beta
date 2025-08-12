@@ -1696,9 +1696,9 @@ def create_checkout_session():
         
         # Map plan_id to Stripe price_id 
         price_mapping = {
-            'solo': 'price_practitioner_monthly',    # The Practitioner
-            'team': 'price_organization_monthly',     # The Organization
-            'professional': 'price_powerhouse_monthly' # The Powerhouse
+            'solo': 'price_1234567890abcdef',    # The Practitioner
+            'team': 'price_1234567890ghijkl',     # The Organization
+            'professional': 'price_1234567890mnopqr' # The Powerhouse
         }
         
         price_id = price_mapping.get(plan_id)

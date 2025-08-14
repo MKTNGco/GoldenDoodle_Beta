@@ -72,7 +72,12 @@ class StripeService:
             # Verify Stripe keys are configured
             if not stripe.api_key:
                 logger.error("Stripe API key is not configured")
-                return None
+                raise Exception("Stripe is not properly configured")
+            
+            # Validate price ID exists
+            if price_id not in self.plan_price_mapping.values():
+                logger.error(f"Invalid price ID: {price_id}")
+                raise Exception(f"Invalid pricing plan: {price_id}")
                 
             session_params = {
                 'payment_method_types': ['card'],
@@ -86,7 +91,10 @@ class StripeService:
                 'metadata': metadata or {},
                 'billing_address_collection': 'auto',
                 'allow_promotion_codes': True,
-                'automatic_tax': {'enabled': False}
+                'automatic_tax': {'enabled': False},
+                'subscription_data': {
+                    'trial_period_days': 0  # Explicitly no trial
+                }
             }
             
             if customer_id:
@@ -104,14 +112,23 @@ class StripeService:
                 'id': session.id,
                 'url': session.url
             }
+        except stripe.error.InvalidRequestError as e:
+            logger.error(f"Invalid Stripe request: {e}")
+            raise Exception(f"Payment configuration error: {str(e)}")
+        except stripe.error.AuthenticationError as e:
+            logger.error(f"Stripe authentication error: {e}")
+            raise Exception("Payment service authentication failed")
+        except stripe.error.RateLimitError as e:
+            logger.error(f"Stripe rate limit error: {e}")
+            raise Exception("Payment service is temporarily unavailable")
         except stripe.error.StripeError as e:
             logger.error(f"Stripe API Error creating checkout session: {e}")
             logger.error(f"Error type: {type(e).__name__}")
             logger.error(f"Error code: {getattr(e, 'code', 'N/A')}")
-            return None
+            raise Exception(f"Payment processing error: {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error creating checkout session: {e}")
-            return None
+            raise
     
     def get_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:
         """Get subscription details"""

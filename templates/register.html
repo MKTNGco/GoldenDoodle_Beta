@@ -433,10 +433,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Show a more user-friendly error message
                 paymentLoading.innerHTML = `
-                    <div class="alert alert-warning">
+                    <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Connection Issue:</strong> There was a problem connecting to our payment processor. 
-                        This is usually temporary.
+                        <strong>Registration Failed:</strong> ${error.message || 'There was a problem with your registration.'} 
                         <div class="mt-2">
                             <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('registerForm').dispatchEvent(new Event('submit'))">
                                 Try Again
@@ -448,28 +447,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
                 
-                // Also restore the submit button after a delay
-                setTimeout(() => {
-                    submitBtn.style.display = 'block';
-                    paymentLoading.style.display = 'none';
-                }, 5000);
+                // Restore the submit button
+                submitBtn.style.display = 'block';
+                paymentLoading.style.display = 'none';
             }
             
-            // Set a longer timeout for payment processing
+            // Set a shorter timeout for payment processing
             setTimeout(() => {
                 if (paymentLoading.style.display !== 'none') {
-                    // Show a more helpful message and keep the loading state
+                    // Show timeout message and restore form
                     paymentLoading.innerHTML = `
-                        <div class="spinner-border spinner-border-sm text-primary" role="status">
-                            <span class="visually-hidden">Still processing...</span>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-clock me-2"></i>
+                            <strong>Payment Processing Timeout</strong><br>
+                            The payment setup is taking longer than expected. Please try again.
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('registerForm').dispatchEvent(new Event('submit'))">
+                                    Try Again
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                                    Refresh Page
+                                </button>
+                            </div>
                         </div>
-                        <p class="small text-muted mt-2">Payment is still processing... This may take a moment.</p>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
-                            Refresh Page
-                        </button>
                     `;
+                    
+                    // Restore the submit button
+                    submitBtn.style.display = 'block';
                 }
-            }, 30000); // 30 second timeout - more reasonable for payment processing
+            }, 15000); // 15 second timeout - more reasonable
         }
     });
 

@@ -185,44 +185,51 @@ def register():
                     success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
 
-                    stripe_session = stripe_service.create_checkout_session(
-                        customer_email=email,
-                        price_id=price_id,
-                        success_url=success_url,
-                        cancel_url=cancel_url,
-                        customer_id=customer['id'] if customer else None,
-                        metadata={
-                            'user_id': user.user_id,
-                            'plan_id': subscription_level,
-                            'new_registration': 'true'
-                        }
-                    )
+                    try:
+                        stripe_session = stripe_service.create_checkout_session(
+                            customer_email=email,
+                            price_id=price_id,
+                            success_url=success_url,
+                            cancel_url=cancel_url,
+                            customer_id=customer['id'] if customer else None,
+                            metadata={
+                                'user_id': user.user_id,
+                                'plan_id': subscription_level,
+                                'new_registration': 'true'
+                            }
+                        )
 
-                    if stripe_session:
-                        # Store pending registration in session for post-payment verification
-                        session['pending_registration'] = {
-                            'user_id': user.user_id,
-                            'email': email,
-                            'first_name': first_name,
-                            'needs_verification': True
-                        }
+                        if stripe_session:
+                            # Store pending registration in session for post-payment verification
+                            session['pending_registration'] = {
+                                'user_id': user.user_id,
+                                'email': email,
+                                'first_name': first_name,
+                                'needs_verification': True
+                            }
 
-                        # Log the checkout URL for debugging
-                        logger.info(f"✓ Stripe checkout session created successfully")
-                        logger.info(f"✓ Redirecting to: {stripe_session['url']}")
+                            # Log the checkout URL for debugging
+                            logger.info(f"✓ Stripe checkout session created successfully")
+                            logger.info(f"✓ Redirecting to: {stripe_session['url']}")
 
-                        # Return JSON response for AJAX handling with additional metadata
+                            # Return JSON response for AJAX handling with additional metadata
+                            return jsonify({
+                                'success': True,
+                                'redirect_to_stripe': True,
+                                'checkout_url': stripe_session['url'],
+                                'session_id': stripe_session['id'],
+                                'message': 'Redirecting to secure payment...'
+                            })
+                        else:
+                            logger.error("❌ Failed to create Stripe checkout session")
+                            return jsonify({
+                                'error': 'Payment setup failed. Please check your Stripe configuration or try again.',
+                                'retry': True
+                            }), 500
+                    except Exception as stripe_error:
+                        logger.error(f"❌ Stripe error during checkout session creation: {stripe_error}")
                         return jsonify({
-                            'success': True,
-                            'redirect_to_stripe': True,
-                            'checkout_url': stripe_session['url'],
-                            'session_id': stripe_session['id'],
-                            'message': 'Redirecting to secure payment...'
-                        })
-                    else:
-                        logger.error("❌ Failed to create Stripe checkout session")
-                        return jsonify({
-                            'error': 'Payment setup failed. This is usually temporary. Please try again in a moment.',
+                            'error': f'Payment setup error: {str(stripe_error)}',
                             'retry': True
                         }), 500
 

@@ -396,9 +396,9 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 // Submit form data via fetch
                 const formData = new FormData(registerForm);
-                
+
                 console.log('Submitting registration form...');
-                
+
                 const response = await fetch('/register', {
                     method: 'POST',
                     headers: {
@@ -428,8 +428,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('✓ Checkout session created successfully');
                     console.log('✓ Redirecting to:', data.checkout_url);
 
-                    // Immediate redirect without delay
-                    window.location.href = data.checkout_url;
+                    // Update button to show redirect status
+                    submitButton.innerHTML = `
+                        <i class="fas fa-credit-card me-2"></i>
+                        Redirecting to payment...
+                    `;
+
+                    // Add a small delay to ensure the UI updates, then redirect
+                    setTimeout(() => {
+                        // Use window.location.replace for better redirect handling
+                        window.location.replace(data.checkout_url);
+                    }, 100);
                     return;
 
                 } else if (data.error) {

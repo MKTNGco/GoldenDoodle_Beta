@@ -209,12 +209,27 @@ def register():
 
                     # Create checkout session with improved URLs for Replit
                     base_url = request.url_root.rstrip('/')
+                    
+                    # Ensure we're using the correct host for Replit
+                    if 'replit.dev' in base_url and not base_url.startswith('https://'):
+                        base_url = base_url.replace('http://', 'https://')
+                    
                     success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
+                    
+                    logger.info(f"Using base URL: {base_url}")
+                    logger.info(f"Full success URL: {success_url}")
+                    logger.info(f"Full cancel URL: {cancel_url}")
 
                     logger.info(f"Creating Stripe checkout session for user {user.user_id}")
                     logger.info(f"Price ID: {price_id}")
                     logger.info(f"Customer ID: {customer['id'] if customer else 'None'}")
+                    
+                    logger.info(f"About to create Stripe checkout session:")
+                    logger.info(f"  - Email: {email}")
+                    logger.info(f"  - Price ID: {price_id}")
+                    logger.info(f"  - Success URL: {success_url}")
+                    logger.info(f"  - Cancel URL: {cancel_url}")
                     
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
@@ -228,6 +243,17 @@ def register():
                             'new_registration': 'true'
                         }
                     )
+                    
+                    logger.info(f"Stripe session creation result: {stripe_session}")
+                    
+                    # Additional validation
+                    if stripe_session:
+                        if not stripe_session.get('url'):
+                            logger.error("❌ Stripe session created but URL is missing")
+                        elif not stripe_session.get('url').startswith('https://'):
+                            logger.error(f"❌ Invalid checkout URL format: {stripe_session.get('url')}")
+                        else:
+                            logger.info("✓ Stripe session validation passed")
 
                     if stripe_session and stripe_session.get('url'):
                         # Store pending registration in session for post-payment verification
@@ -2085,12 +2111,33 @@ def test_stripe():
             metadata={'test': 'true'}
         )
         
+        # Try to create a test checkout session
+        base_url = request.url_root.rstrip('/')
+        test_checkout = None
+        checkout_error = None
+        
+        try:
+            if test_customer:
+                test_checkout = stripe_service.create_checkout_session(
+                    customer_email="test@example.com",
+                    price_id='price_1RvL44Hynku0jyEH12IrEJuI',  # Solo plan
+                    success_url=f"{base_url}/test-success",
+                    cancel_url=f"{base_url}/test-cancel",
+                    customer_id=test_customer['id'],
+                    metadata={'test': 'true'}
+                )
+        except Exception as checkout_ex:
+            checkout_error = str(checkout_ex)
+        
         return jsonify({
             'stripe_configured': True,
             'test_mode': test_mode,
             'api_key_configured': api_key_configured,
             'customer_creation_test': 'success' if test_customer else 'failed',
-            'publishable_key': stripe_service.get_publishable_key()[:20] + "..." if stripe_service.get_publishable_key() else 'Not set'
+            'checkout_session_test': 'success' if test_checkout else 'failed',
+            'checkout_error': checkout_error,
+            'publishable_key': stripe_service.get_publishable_key()[:20] + "..." if stripe_service.get_publishable_key() else 'Not set',
+            'price_ids': stripe_service.plan_price_mapping
         })
         
     except Exception as e:
@@ -2099,6 +2146,22 @@ def test_stripe():
             'stripe_configured': False,
             'error': str(e)
         }), 500
+
+@app.route('/debug-env')
+@super_admin_required
+def debug_env():
+    """Debug environment variables - admin only"""
+    import os
+    
+    env_status = {
+        'STRIPE_SECRET_KEY_TEST': 'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
+        'STRIPE_PUBLISHABLE_KEY_TEST': 'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
+        'STRIPE_WEBHOOK_SECRET': 'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set',
+        'SENDGRID_API_KEY': 'Set' if os.environ.get("SENDGRID_API_KEY") else 'Not Set',
+        'GEMINI_API_KEY': 'Set' if os.environ.get("GEMINI_API_KEY") else 'Not Set'
+    }
+    
+    return jsonify(env_status)
 
 @app.errorhandler(500)
 def internal_error(error):

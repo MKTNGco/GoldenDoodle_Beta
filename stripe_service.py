@@ -109,18 +109,32 @@ class StripeService:
             logger.info(f"Making Stripe API call to create checkout session...")
             logger.info(f"Session params: {session_params}")
             
+            logger.info("About to call stripe.checkout.Session.create...")
             session = stripe.checkout.Session.create(**session_params)
+            logger.info(f"✓ Stripe API call completed. Session ID: {session.id}")
             
             if session and session.url:
                 logger.info(f"✓ Successfully created checkout session: {session.id}")
                 logger.info(f"✓ Checkout URL: {session.url}")
+                logger.info(f"✓ Session status: {session.status}")
+                logger.info(f"✓ Session mode: {session.mode}")
+                logger.info(f"✓ Session payment_status: {session.payment_status}")
+                
+                # Validate the URL format
+                if session.url.startswith('https://checkout.stripe.com/'):
+                    logger.info("✓ Checkout URL format validated")
+                else:
+                    logger.warning(f"⚠️ Unexpected URL format: {session.url}")
                 
                 return {
                     'id': session.id,
-                    'url': session.url
+                    'url': session.url,
+                    'status': session.status
                 }
             else:
-                logger.error(f"❌ Session created but missing URL: {session}")
+                logger.error(f"❌ Session created but missing URL")
+                logger.error(f"❌ Session object: {session}")
+                logger.error(f"❌ Session dict: {session.to_dict() if hasattr(session, 'to_dict') else 'No to_dict method'}")
                 return None
         except stripe.error.InvalidRequestError as e:
             logger.error(f"Invalid Stripe request: {e}")

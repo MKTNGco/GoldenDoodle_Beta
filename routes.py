@@ -211,25 +211,12 @@ def register():
                         logger.info(f"✓ Stripe checkout session created successfully")
                         logger.info(f"✓ Redirecting to: {stripe_session['url']}")
 
-                        # Instead of server-side redirect, return a page that does client-side redirect
-                        # This helps with popup blockers and gives better control
-                        return f"""
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <title>Redirecting to Payment...</title>
-                            <meta http-equiv="refresh" content="0;url={stripe_session['url']}">
-                        </head>
-                        <body>
-                            <p>Redirecting to payment page...</p>
-                            <p>If you are not redirected automatically, <a href="{stripe_session['url']}" target="_blank">click here</a></p>
-                            <script>
-                                // Immediate redirect
-                                window.location.href = "{stripe_session['url']}";
-                            </script>
-                        </body>
-                        </html>
-                        """
+                        # Return JSON response for AJAX handling
+                        return jsonify({
+                            'success': True,
+                            'redirect_to_stripe': True,
+                            'checkout_url': stripe_session['url']
+                        })
                     else:
                         logger.error("❌ Failed to create Stripe checkout session")
                         flash('Payment setup failed. Please try again or contact support.', 'error')

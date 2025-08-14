@@ -358,12 +358,60 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
     const paymentLoading = document.getElementById('paymentLoading');
     
-    registerForm.addEventListener('submit', function(e) {
+    registerForm.addEventListener('submit', async function(e) {
         const selectedPlan = document.querySelector('input[name="subscription_level"]:checked');
+        
         if (selectedPlan && ['solo', 'team', 'professional'].includes(selectedPlan.value)) {
+            e.preventDefault(); // Prevent default form submission for paid plans
+            
             // Show loading state for paid plans
             submitBtn.style.display = 'none';
             paymentLoading.style.display = 'block';
+            
+            try {
+                // Submit form data via fetch
+                const formData = new FormData(registerForm);
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.headers.get('content-type')?.includes('application/json')) {
+                    const data = await response.json();
+                    
+                    if (data.redirect_to_stripe && data.checkout_url) {
+                        // Open Stripe checkout in same window
+                        window.location.href = data.checkout_url;
+                        return;
+                    } else if (data.error) {
+                        alert(data.error);
+                        submitBtn.style.display = 'block';
+                        paymentLoading.style.display = 'none';
+                        return;
+                    }
+                }
+                
+                // If we get here, it might be an HTML response (error page)
+                const text = await response.text();
+                if (text.includes('checkout_url')) {
+                    // Handle the HTML response with redirect
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(text, 'text/html');
+                    const script = doc.querySelector('script');
+                    if (script) {
+                        eval(script.textContent);
+                    }
+                } else {
+                    // Some other error occurred
+                    throw new Error('Unexpected response format');
+                }
+                
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert('An error occurred during registration. Please try again.');
+                submitBtn.style.display = 'block';
+                paymentLoading.style.display = 'none';
+            }
             
             // Set a timeout to show error if redirect takes too long
             setTimeout(() => {

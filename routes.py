@@ -211,18 +211,26 @@ def register():
                         logger.info(f"✓ Stripe checkout session created successfully")
                         logger.info(f"✓ Redirecting to: {stripe_session['url']}")
 
-                        # Return JSON response for AJAX handling
+                        # Return JSON response for AJAX handling with additional metadata
                         return jsonify({
                             'success': True,
                             'redirect_to_stripe': True,
-                            'checkout_url': stripe_session['url']
+                            'checkout_url': stripe_session['url'],
+                            'session_id': stripe_session['id'],
+                            'message': 'Redirecting to secure payment...'
                         })
                     else:
                         logger.error("❌ Failed to create Stripe checkout session")
-                        flash('Payment setup failed. Please try again or contact support.', 'error')
+                        return jsonify({
+                            'error': 'Payment setup failed. This is usually temporary. Please try again in a moment.',
+                            'retry': True
+                        }), 500
 
-                # Fallback if Stripe fails - send to verification
-                flash('Payment setup failed. Please try again or contact support.', 'error')
+                # Fallback if Stripe fails - return error
+                return jsonify({
+                    'error': 'Payment setup failed. Please try again or contact support.',
+                    'retry': True
+                }), 500
 
             # For free plans or fallback, send verification email
             verification_token = generate_verification_token()

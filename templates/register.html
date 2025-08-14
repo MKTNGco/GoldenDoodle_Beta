@@ -379,14 +379,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.headers.get('content-type')?.includes('application/json')) {
                     const data = await response.json();
                     
-                    if (data.redirect_to_stripe && data.checkout_url) {
-                        // Open Stripe checkout in same window
-                        window.location.href = data.checkout_url;
+                    if (data.success && data.redirect_to_stripe && data.checkout_url) {
+                        // Log successful checkout creation
+                        console.log('Checkout session created:', data.session_id);
+                        
+                        // Update loading message before redirect
+                        paymentLoading.innerHTML = `
+                            <div class="spinner-border spinner-border-sm text-success" role="status">
+                                <span class="visually-hidden">Redirecting...</span>
+                            </div>
+                            <p class="small text-success mt-2">Payment session created! Redirecting...</p>
+                        `;
+                        
+                        // Small delay to show the success message, then redirect
+                        setTimeout(() => {
+                            window.location.href = data.checkout_url;
+                        }, 1000);
                         return;
                     } else if (data.error) {
-                        alert(data.error);
-                        submitBtn.style.display = 'block';
-                        paymentLoading.style.display = 'none';
+                        // Show the error with option to retry if indicated
+                        const retryButton = data.retry ? 
+                            '<button type="button" class="btn btn-sm btn-primary mt-2" onclick="document.getElementById(\'registerForm\').dispatchEvent(new Event(\'submit\'))">Try Again</button>' : 
+                            '';
+                        
+                        paymentLoading.innerHTML = `
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                ${data.error}
+                                ${retryButton}
+                            </div>
+                        `;
                         return;
                     }
                 }
@@ -408,19 +430,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 
             } catch (error) {
                 console.error('Registration error:', error);
-                alert('An error occurred during registration. Please try again.');
-                submitBtn.style.display = 'block';
-                paymentLoading.style.display = 'none';
-            }
-            
-            // Set a timeout to show error if redirect takes too long
-            setTimeout(() => {
-                if (paymentLoading.style.display !== 'none') {
-                    alert('Payment processing is taking longer than expected. Please try again or contact support.');
+                
+                // Show a more user-friendly error message
+                paymentLoading.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Connection Issue:</strong> There was a problem connecting to our payment processor. 
+                        This is usually temporary.
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('registerForm').dispatchEvent(new Event('submit'))">
+                                Try Again
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                                Refresh Page
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Also restore the submit button after a delay
+                setTimeout(() => {
                     submitBtn.style.display = 'block';
                     paymentLoading.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Set a longer timeout for payment processing
+            setTimeout(() => {
+                if (paymentLoading.style.display !== 'none') {
+                    // Show a more helpful message and keep the loading state
+                    paymentLoading.innerHTML = `
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Still processing...</span>
+                        </div>
+                        <p class="small text-muted mt-2">Payment is still processing... This may take a moment.</p>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                            Refresh Page
+                        </button>
+                    `;
                 }
-            }, 10000); // 10 second timeout
+            }, 30000); // 30 second timeout - more reasonable for payment processing
         }
     });
 

@@ -98,10 +98,7 @@ class StripeService:
                 'metadata': metadata or {},
                 'billing_address_collection': 'auto',
                 'allow_promotion_codes': True,
-                'automatic_tax': {'enabled': False},
-                'subscription_data': {
-                    'trial_period_days': 0  # Explicitly no trial
-                }
+                'automatic_tax': {'enabled': False}
             }
             
             if customer_id:

@@ -161,100 +161,103 @@ def register():
 
             # Check if this is a paid plan - redirect to checkout immediately
             if subscription_level in ['solo', 'team', 'professional']:
-                # Create or get Stripe customer
-                customer = stripe_service.create_customer(
-                    email=email,
-                    name=f"{first_name} {last_name}",
-                    metadata={'user_id': user.user_id}
-                )
+                try:
+                    # Create or get Stripe customer
+                    customer = stripe_service.create_customer(
+                        email=email,
+                        name=f"{first_name} {last_name}",
+                        metadata={'user_id': user.user_id}
+                    )
 
-                if customer:
-                    db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=customer['id'])
+                    if customer:
+                        db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=customer['id'])
 
-                # Map subscription level to Stripe price ID
-                price_mapping = {
-                    'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
-                    'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
-                    'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
-                }
+                    # Map subscription level to Stripe price ID
+                    price_mapping = {
+                        'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
+                        'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
+                        'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
+                    }
 
-                price_id = price_mapping.get(subscription_level)
-                if price_id:
-                    # Create checkout session with improved URLs for Replit
-                    base_url = request.url_root.rstrip('/')
-                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
-                    cancel_url = f"{base_url}/register?payment_cancelled=true"
-
-                    try:
-                        logger.info(f"Creating Stripe checkout session for user {user.user_id}")
-                        logger.info(f"Price ID: {price_id}")
-                        logger.info(f"Customer ID: {customer['id'] if customer else 'None'}")
-                        
-                        stripe_session = stripe_service.create_checkout_session(
-                            customer_email=email,
-                            price_id=price_id,
-                            success_url=success_url,
-                            cancel_url=cancel_url,
-                            customer_id=customer['id'] if customer else None,
-                            metadata={
-                                'user_id': user.user_id,
-                                'plan_id': subscription_level,
-                                'new_registration': 'true'
-                            }
-                        )
-
-                        if stripe_session and stripe_session.get('url'):
-                            # Store pending registration in session for post-payment verification
-                            session['pending_registration'] = {
-                                'user_id': user.user_id,
-                                'email': email,
-                                'first_name': first_name,
-                                'needs_verification': True
-                            }
-
-                            logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
-                            logger.info(f"✓ Checkout URL: {stripe_session['url']}")
-
-                            # Return clean JSON response
-                            return jsonify({
-                                'success': True,
-                                'redirect_to_stripe': True,
-                                'checkout_url': stripe_session['url'],
-                                'session_id': stripe_session['id']
-                            })
-                        else:
-                            logger.error("❌ Stripe session created but no URL returned")
-                            # Delete the user since payment setup failed
-                            db_manager.delete_user(user.user_id)
-                            db_manager.delete_tenant(tenant.tenant_id)
-                            return jsonify({
-                                'error': 'Payment session creation failed. Please try again.',
-                                'retry': True
-                            }), 400
-                            
-                    except Exception as stripe_error:
-                        logger.error(f"❌ Stripe error: {stripe_error}")
-                        # Clean up user and tenant on failure
+                    price_id = price_mapping.get(subscription_level)
+                    if not price_id:
+                        # Clean up user and tenant
                         try:
                             db_manager.delete_user(user.user_id)
                             db_manager.delete_tenant(tenant.tenant_id)
                         except:
                             pass
                         return jsonify({
-                            'error': 'Payment processing is temporarily unavailable. Please try again.',
+                            'error': 'Invalid subscription plan selected.',
                             'retry': True
                         }), 400
 
-                # Fallback if Stripe fails - return error
-                try:
-                    db_manager.delete_user(user.user_id)
-                    db_manager.delete_tenant(tenant.tenant_id)
-                except:
-                    pass
-                return jsonify({
-                    'error': 'Payment setup failed. Please try again or contact support.',
-                    'retry': True
-                }), 400
+                    # Create checkout session with improved URLs for Replit
+                    base_url = request.url_root.rstrip('/')
+                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
+                    cancel_url = f"{base_url}/register?payment_cancelled=true"
+
+                    logger.info(f"Creating Stripe checkout session for user {user.user_id}")
+                    logger.info(f"Price ID: {price_id}")
+                    logger.info(f"Customer ID: {customer['id'] if customer else 'None'}")
+                    
+                    stripe_session = stripe_service.create_checkout_session(
+                        customer_email=email,
+                        price_id=price_id,
+                        success_url=success_url,
+                        cancel_url=cancel_url,
+                        customer_id=customer['id'] if customer else None,
+                        metadata={
+                            'user_id': user.user_id,
+                            'plan_id': subscription_level,
+                            'new_registration': 'true'
+                        }
+                    )
+
+                    if stripe_session and stripe_session.get('url'):
+                        # Store pending registration in session for post-payment verification
+                        session['pending_registration'] = {
+                            'user_id': user.user_id,
+                            'email': email,
+                            'first_name': first_name,
+                            'needs_verification': True
+                        }
+
+                        logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
+                        logger.info(f"✓ Checkout URL: {stripe_session['url']}")
+
+                        # Return clean JSON response
+                        return jsonify({
+                            'success': True,
+                            'redirect_to_stripe': True,
+                            'checkout_url': stripe_session['url'],
+                            'session_id': stripe_session['id']
+                        })
+                    else:
+                        logger.error("❌ Stripe session created but no URL returned")
+                        # Delete the user since payment setup failed
+                        try:
+                            db_manager.delete_user(user.user_id)
+                            db_manager.delete_tenant(tenant.tenant_id)
+                        except:
+                            pass
+                        return jsonify({
+                            'error': 'Payment session creation failed. Please try again.',
+                            'retry': True
+                        }), 400
+
+                except Exception as stripe_error:
+                    logger.error(f"❌ Stripe error: {stripe_error}")
+                    # Clean up user and tenant on failure
+                    try:
+                        db_manager.delete_user(user.user_id)
+                        db_manager.delete_tenant(tenant.tenant_id)
+                    except:
+                        pass
+                    return jsonify({
+                        'error': f'Payment processing error: {str(stripe_error)}',
+                        'retry': True
+                    }), 400
 
             # For free plans or fallback, send verification email
             verification_token = generate_verification_token()
@@ -273,7 +276,15 @@ def register():
 
         except Exception as e:
             logger.error(f"Registration error: {e}")
-            flash('An error occurred during registration. Please try again.', 'error')
+            
+            # Check if this is an AJAX request (JSON expected)
+            if request.is_json or request.headers.get('Content-Type') == 'application/json' or 'application/json' in request.headers.get('Accept', ''):
+                return jsonify({
+                    'error': 'An error occurred during registration. Please try again.',
+                    'retry': True
+                }), 500
+            else:
+                flash('An error occurred during registration. Please try again.', 'error')
 
     return render_template('register.html', 
                          is_organization_invite=is_organization_invite,

@@ -103,15 +103,21 @@ class StripeService:
                 session_params['customer_email'] = customer_email
             
             logger.info(f"Making Stripe API call to create checkout session...")
+            logger.info(f"Session params: {session_params}")
+            
             session = stripe.checkout.Session.create(**session_params)
             
-            logger.info(f"✓ Successfully created checkout session: {session.id}")
-            logger.info(f"✓ Checkout URL: {session.url}")
-            
-            return {
-                'id': session.id,
-                'url': session.url
-            }
+            if session and session.url:
+                logger.info(f"✓ Successfully created checkout session: {session.id}")
+                logger.info(f"✓ Checkout URL: {session.url}")
+                
+                return {
+                    'id': session.id,
+                    'url': session.url
+                }
+            else:
+                logger.error(f"❌ Session created but missing URL: {session}")
+                return None
         except stripe.error.InvalidRequestError as e:
             logger.error(f"Invalid Stripe request: {e}")
             raise Exception(f"Payment configuration error: {str(e)}")

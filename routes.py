@@ -186,6 +186,10 @@ def register():
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
 
                     try:
+                        logger.info(f"Creating Stripe checkout session for user {user.user_id}")
+                        logger.info(f"Price ID: {price_id}")
+                        logger.info(f"Customer ID: {customer['id'] if customer else 'None'}")
+                        
                         stripe_session = stripe_service.create_checkout_session(
                             customer_email=email,
                             price_id=price_id,
@@ -199,7 +203,7 @@ def register():
                             }
                         )
 
-                        if stripe_session:
+                        if stripe_session and stripe_session.get('url'):
                             # Store pending registration in session for post-payment verification
                             session['pending_registration'] = {
                                 'user_id': user.user_id,
@@ -208,28 +212,27 @@ def register():
                                 'needs_verification': True
                             }
 
-                            # Log the checkout URL for debugging
-                            logger.info(f"✓ Stripe checkout session created successfully")
-                            logger.info(f"✓ Redirecting to: {stripe_session['url']}")
+                            logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
+                            logger.info(f"✓ Checkout URL: {stripe_session['url']}")
 
-                            # Return JSON response for AJAX handling with additional metadata
+                            # Return clean JSON response
                             return jsonify({
                                 'success': True,
                                 'redirect_to_stripe': True,
                                 'checkout_url': stripe_session['url'],
-                                'session_id': stripe_session['id'],
-                                'message': 'Redirecting to secure payment...'
+                                'session_id': stripe_session['id']
                             })
                         else:
-                            logger.error("❌ Failed to create Stripe checkout session")
+                            logger.error("❌ Stripe session created but no URL returned")
                             return jsonify({
-                                'error': 'Payment setup failed. Please check your Stripe configuration or try again.',
+                                'error': 'Payment session creation failed. Please try again.',
                                 'retry': True
                             }), 500
+                            
                     except Exception as stripe_error:
-                        logger.error(f"❌ Stripe error during checkout session creation: {stripe_error}")
+                        logger.error(f"❌ Stripe error: {stripe_error}")
                         return jsonify({
-                            'error': f'Payment setup error: {str(stripe_error)}',
+                            'error': 'Payment processing is temporarily unavailable. Please try again.',
                             'retry': True
                         }), 500
 

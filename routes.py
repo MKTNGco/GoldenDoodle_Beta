@@ -2136,6 +2136,7 @@ def test_stripe():
             'customer_creation_test': 'success' if test_customer else 'failed',
             'checkout_session_test': 'success' if test_checkout else 'failed',
             'checkout_error': checkout_error,
+            'checkout_url': test_checkout.get('url') if test_checkout else None,
             'publishable_key': stripe_service.get_publishable_key()[:20] + "..." if stripe_service.get_publishable_key() else 'Not set',
             'price_ids': stripe_service.plan_price_mapping
         })
@@ -2146,6 +2147,73 @@ def test_stripe():
             'stripe_configured': False,
             'error': str(e)
         }), 500
+
+@app.route('/test-stripe-direct')
+def test_stripe_direct():
+    """Create a direct test checkout session and redirect to it"""
+    try:
+        base_url = request.url_root.rstrip('/')
+        
+        # Create a simple test checkout session
+        test_checkout = stripe_service.create_checkout_session(
+            customer_email="test@example.com",
+            price_id='price_1RvL44Hynku0jyEH12IrEJuI',  # Solo plan
+            success_url=f"{base_url}/test-success",
+            cancel_url=f"{base_url}/test-cancel",
+            metadata={'test': 'direct_test'}
+        )
+        
+        if test_checkout and test_checkout.get('url'):
+            # Return an HTML page that immediately redirects
+            return f'''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Stripe Test Redirect</title>
+                <meta http-equiv="refresh" content="0; url={test_checkout['url']}">
+            </head>
+            <body>
+                <p>Redirecting to Stripe checkout... <a href="{test_checkout['url']}">Click here if you're not redirected</a></p>
+                <script>window.location.href = "{test_checkout['url']}";</script>
+            </body>
+            </html>
+            '''
+        else:
+            return "Failed to create checkout session", 500
+            
+    except Exception as e:
+        logger.error(f"Direct Stripe test failed: {e}")
+        return f"Error: {str(e)}", 500
+
+@app.route('/test-success')
+def test_success():
+    """Test success page"""
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head><title>Test Success</title></head>
+    <body>
+        <h1>✅ Stripe Test Successful!</h1>
+        <p>The payment flow completed successfully.</p>
+        <a href="/">Return to Home</a>
+    </body>
+    </html>
+    '''
+
+@app.route('/test-cancel')
+def test_cancel():
+    """Test cancel page"""
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head><title>Test Cancelled</title></head>
+    <body>
+        <h1>❌ Test Cancelled</h1>
+        <p>You cancelled the test payment.</p>
+        <a href="/">Return to Home</a>
+    </body>
+    </html>
+    '''
 
 @app.route('/debug-env')
 @super_admin_required

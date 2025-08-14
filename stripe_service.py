@@ -106,12 +106,8 @@ class StripeService:
                 session_params['subscription_data'] = {
                     'trial_period_days': int(trial_days)
                 }
-            elif trial_days == '0':
-                # Explicitly no trial - remove any trial settings from the price
-                session_params['subscription_data'] = {
-                    'trial_period_days': None
-                }
-            # If trial_days not specified, use whatever the price has configured
+            # For 0 days trial or no trial specified, don't add subscription_data
+            # This will use the default billing cycle without any trial period
 
             if customer_id:
                 session_params['customer'] = customer_id

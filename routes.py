@@ -35,6 +35,11 @@ def register():
         flash('Payment was cancelled. You can complete your registration with a free plan or try again with a paid plan.', 'info')
 
     if request.method == 'POST':
+        # Check if this is an AJAX request expecting JSON
+        expects_json = (request.is_json or 
+                       'application/json' in request.headers.get('Accept', '') or 
+                       request.headers.get('Content-Type') == 'application/x-www-form-urlencoded')
+        
         try:
             first_name = request.form.get('first_name', '').strip()
             last_name = request.form.get('last_name', '').strip()
@@ -46,6 +51,8 @@ def register():
 
             # Validation
             if not all([first_name, last_name, email, password]):
+                if expects_json:
+                    return jsonify({'error': 'All fields are required.', 'retry': True}), 400
                 flash('All fields are required.', 'error')
                 return render_template('register.html', 
                                      is_organization_invite=is_organization_invite,
@@ -54,6 +61,8 @@ def register():
             # Handle organization invite registration
             if organization_invite:
                 if email != organization_invite['email']:
+                    if expects_json:
+                        return jsonify({'error': 'You must use the invited email address to register.', 'retry': True}), 400
                     flash('You must use the invited email address to register.', 'error')
                     return render_template('register.html', 
                                          is_organization_invite=is_organization_invite,
@@ -62,6 +71,8 @@ def register():
                 # Check if user already exists
                 existing_user = db_manager.get_user_by_email(email)
                 if existing_user:
+                    if expects_json:
+                        return jsonify({'error': 'An account with this email already exists.', 'retry': True}), 400
                     flash('An account with this email already exists.', 'error')
                     return render_template('register.html', 
                                          is_organization_invite=is_organization_invite,
@@ -101,14 +112,18 @@ def register():
 
             # Regular registration flow
             if user_type == 'company' and not organization_name:
+                if expects_json:
+                    return jsonify({'error': 'Organization name is required for company accounts.', 'retry': True}), 400
                 flash('Organization name is required for company accounts.', 'error')
                 return render_template('register.html', 
                                      is_organization_invite=is_organization_invite,
                                      organization_invite=organization_invite)
 
-            # Check if user already exists
+            # Check if user already exists  
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
+                if expects_json:
+                    return jsonify({'error': 'An account with this email already exists.', 'retry': True}), 400
                 flash('An account with this email already exists.', 'error')
                 return render_template('register.html', 
                                      is_organization_invite=is_organization_invite,
@@ -276,9 +291,11 @@ def register():
 
         except Exception as e:
             logger.error(f"Registration error: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             
-            # Check if this is an AJAX request (JSON expected)
-            if request.is_json or request.headers.get('Content-Type') == 'application/json' or 'application/json' in request.headers.get('Accept', ''):
+            # Always return JSON for AJAX requests
+            if expects_json:
                 return jsonify({
                     'error': 'An error occurred during registration. Please try again.',
                     'retry': True

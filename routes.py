@@ -231,6 +231,10 @@ def register():
                     logger.info(f"  - Success URL: {success_url}")
                     logger.info(f"  - Cancel URL: {cancel_url}")
                     
+                    # For now, set trial to 0 days for testing Stripe integration
+                    # TODO: Change to 7 days once Stripe integration is confirmed working
+                    trial_days = '7'  # Set to '0' for testing, '7' for production trial
+                    
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
@@ -240,7 +244,8 @@ def register():
                         metadata={
                             'user_id': user.user_id,
                             'plan_id': subscription_level,
-                            'new_registration': 'true'
+                            'new_registration': 'true',
+                            'trial_days': trial_days
                         }
                     )
                     

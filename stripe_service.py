@@ -1,4 +1,3 @@
-
 import os
 import stripe
 import logging
@@ -17,23 +16,23 @@ class StripeService:
         else:
             stripe.api_key = os.environ.get("STRIPE_SECRET_KEY_LIVE")
             self.publishable_key = os.environ.get("STRIPE_PUBLISHABLE_KEY_LIVE")
-        
+
         self.webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
-        
+
         if not stripe.api_key:
             logger.error("Stripe API key not found in environment variables")
-            
+
         # Plan mapping - maps your internal plan IDs to Stripe price IDs
         self.plan_price_mapping = {
             'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',  # Replace with your actual Practitioner price ID
             'team': 'price_1RvL4sHynku0jyEH4go1pRLM',   # Replace with your actual Organization price ID  
             'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'  # Replace with your actual Powerhouse price ID
         }
-    
+
     def get_publishable_key(self) -> str:
         """Get the publishable key for frontend"""
         return self.publishable_key or ""
-    
+
     def create_customer(self, email: str, name: str, metadata: Dict[str, str] = None) -> Optional[Dict[str, Any]]:
         """Create a new Stripe customer"""
         try:
@@ -51,7 +50,7 @@ class StripeService:
         except stripe.error.StripeError as e:
             logger.error(f"Error creating Stripe customer: {e}")
             return None
-    
+
     def create_checkout_session(self, 
                               customer_email: str,
                               price_id: str,
@@ -70,22 +69,22 @@ class StripeService:
             logger.info(f"  Cancel URL: {cancel_url}")
             logger.info(f"  API Key configured: {bool(stripe.api_key)}")
             logger.info(f"  Test mode: {self.test_mode}")
-            
+
             # Verify Stripe keys are configured
             if not stripe.api_key:
                 logger.error("Stripe API key is not configured")
                 raise Exception("Stripe API key missing")
-            
+
             if not self.publishable_key:
                 logger.error("Stripe publishable key is not configured")
                 raise Exception("Stripe publishable key missing")
-            
+
             # Validate price ID exists
             if price_id not in self.plan_price_mapping.values():
                 logger.error(f"Invalid price ID: {price_id}")
                 logger.error(f"Available price IDs: {list(self.plan_price_mapping.values())}")
                 raise Exception(f"Invalid pricing plan: {price_id}")
-                
+
             session_params = {
                 'payment_method_types': ['card'],
                 'mode': 'subscription',
@@ -100,32 +99,45 @@ class StripeService:
                 'allow_promotion_codes': True,
                 'automatic_tax': {'enabled': False}
             }
-            
+
+            # Add trial period if specified in metadata
+            trial_days = (metadata or {}).get('trial_days')
+            if trial_days and int(trial_days) > 0:
+                session_params['subscription_data'] = {
+                    'trial_period_days': int(trial_days)
+                }
+            elif trial_days == '0':
+                # Explicitly no trial - remove any trial settings from the price
+                session_params['subscription_data'] = {
+                    'trial_period_days': None
+                }
+            # If trial_days not specified, use whatever the price has configured
+
             if customer_id:
                 session_params['customer'] = customer_id
             else:
                 session_params['customer_email'] = customer_email
-            
+
             logger.info(f"Making Stripe API call to create checkout session...")
             logger.info(f"Session params: {session_params}")
-            
+
             logger.info("About to call stripe.checkout.Session.create...")
             session = stripe.checkout.Session.create(**session_params)
             logger.info(f"✓ Stripe API call completed. Session ID: {session.id}")
-            
+
             if session and session.url:
                 logger.info(f"✓ Successfully created checkout session: {session.id}")
                 logger.info(f"✓ Checkout URL: {session.url}")
                 logger.info(f"✓ Session status: {session.status}")
                 logger.info(f"✓ Session mode: {session.mode}")
                 logger.info(f"✓ Session payment_status: {session.payment_status}")
-                
+
                 # Validate the URL format
                 if session.url.startswith('https://checkout.stripe.com/'):
                     logger.info("✓ Checkout URL format validated")
                 else:
                     logger.warning(f"⚠️ Unexpected URL format: {session.url}")
-                
+
                 return {
                     'id': session.id,
                     'url': session.url,
@@ -153,7 +165,7 @@ class StripeService:
         except Exception as e:
             logger.error(f"Unexpected error creating checkout session: {e}")
             raise
-    
+
     def get_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:
         """Get subscription details"""
         try:
@@ -169,7 +181,7 @@ class StripeService:
         except stripe.error.StripeError as e:
             logger.error(f"Error getting subscription: {e}")
             return None
-    
+
     def cancel_subscription(self, subscription_id: str, at_period_end: bool = True) -> bool:
         """Cancel a subscription"""
         try:
@@ -180,13 +192,13 @@ class StripeService:
                 )
             else:
                 stripe.Subscription.delete(subscription_id)
-            
+
             logger.info(f"Cancelled subscription: {subscription_id}")
             return True
         except stripe.error.StripeError as e:
             logger.error(f"Error cancelling subscription: {e}")
             return False
-    
+
     def create_billing_portal_session(self, customer_id: str, return_url: str) -> Optional[str]:
         """Create a billing portal session for customer self-service"""
         try:
@@ -198,7 +210,7 @@ class StripeService:
         except stripe.error.StripeError as e:
             logger.error(f"Error creating billing portal session: {e}")
             return None
-    
+
     def verify_webhook_signature(self, payload: bytes, signature: str) -> Optional[Dict[str, Any]]:
         """Verify webhook signature and return event"""
         try:

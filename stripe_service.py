@@ -61,6 +61,19 @@ class StripeService:
                               metadata: Dict[str, str] = None) -> Optional[Dict[str, Any]]:
         """Create a Stripe checkout session for subscription"""
         try:
+            # Log the parameters being used
+            logger.info(f"Creating checkout session with:")
+            logger.info(f"  Price ID: {price_id}")
+            logger.info(f"  Customer Email: {customer_email}")
+            logger.info(f"  Customer ID: {customer_id}")
+            logger.info(f"  Success URL: {success_url}")
+            logger.info(f"  Cancel URL: {cancel_url}")
+            
+            # Verify Stripe keys are configured
+            if not stripe.api_key:
+                logger.error("Stripe API key is not configured")
+                return None
+                
             session_params = {
                 'payment_method_types': ['card'],
                 'mode': 'subscription',
@@ -81,15 +94,23 @@ class StripeService:
             else:
                 session_params['customer_email'] = customer_email
             
+            logger.info(f"Making Stripe API call to create checkout session...")
             session = stripe.checkout.Session.create(**session_params)
             
-            logger.info(f"Created checkout session: {session.id}")
+            logger.info(f"✓ Successfully created checkout session: {session.id}")
+            logger.info(f"✓ Checkout URL: {session.url}")
+            
             return {
                 'id': session.id,
                 'url': session.url
             }
         except stripe.error.StripeError as e:
-            logger.error(f"Error creating checkout session: {e}")
+            logger.error(f"Stripe API Error creating checkout session: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error code: {getattr(e, 'code', 'N/A')}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating checkout session: {e}")
             return None
     
     def get_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:

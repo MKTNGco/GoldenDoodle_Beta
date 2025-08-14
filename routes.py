@@ -185,7 +185,7 @@ def register():
                     success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
 
-                    session = stripe_service.create_checkout_session(
+                    stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
                         success_url=success_url,
@@ -198,7 +198,7 @@ def register():
                         }
                     )
 
-                    if session:
+                    if stripe_session:
                         # Store pending registration in session for post-payment verification
                         session['pending_registration'] = {
                             'user_id': user.user_id,
@@ -208,10 +208,31 @@ def register():
                         }
 
                         # Log the checkout URL for debugging
-                        logger.info(f"Redirecting to Stripe checkout: {session['url']}")
+                        logger.info(f"✓ Stripe checkout session created successfully")
+                        logger.info(f"✓ Redirecting to: {stripe_session['url']}")
 
-                        # Add a slight delay and try a more direct redirect approach
-                        return redirect(session['url'])
+                        # Instead of server-side redirect, return a page that does client-side redirect
+                        # This helps with popup blockers and gives better control
+                        return f"""
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>Redirecting to Payment...</title>
+                            <meta http-equiv="refresh" content="0;url={stripe_session['url']}">
+                        </head>
+                        <body>
+                            <p>Redirecting to payment page...</p>
+                            <p>If you are not redirected automatically, <a href="{stripe_session['url']}" target="_blank">click here</a></p>
+                            <script>
+                                // Immediate redirect
+                                window.location.href = "{stripe_session['url']}";
+                            </script>
+                        </body>
+                        </html>
+                        """
+                    else:
+                        logger.error("❌ Failed to create Stripe checkout session")
+                        flash('Payment setup failed. Please try again or contact support.', 'error')
 
                 # Fallback if Stripe fails - send to verification
                 flash('Payment setup failed. Please try again or contact support.', 'error')
@@ -2001,6 +2022,36 @@ def handle_payment_failed(invoice):
 def not_found_error(error):
     logger.warning(f"404 Not Found: {error}")
     return render_template('404.html'), 404
+
+@app.route('/test-stripe')
+def test_stripe():
+    """Test Stripe configuration"""
+    try:
+        # Test if Stripe keys are configured
+        test_mode = stripe_service.test_mode
+        api_key_configured = bool(stripe_service.get_publishable_key())
+        
+        # Try to create a test customer
+        test_customer = stripe_service.create_customer(
+            email="test@example.com",
+            name="Test User",
+            metadata={'test': 'true'}
+        )
+        
+        return jsonify({
+            'stripe_configured': True,
+            'test_mode': test_mode,
+            'api_key_configured': api_key_configured,
+            'customer_creation_test': 'success' if test_customer else 'failed',
+            'publishable_key': stripe_service.get_publishable_key()[:20] + "..." if stripe_service.get_publishable_key() else 'Not set'
+        })
+        
+    except Exception as e:
+        logger.error(f"Stripe test failed: {e}")
+        return jsonify({
+            'stripe_configured': False,
+            'error': str(e)
+        }), 500
 
 @app.errorhandler(500)
 def internal_error(error):

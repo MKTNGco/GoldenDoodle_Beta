@@ -119,7 +119,7 @@
                         <button type="submit" class="btn btn-primary w-100 mb-3" id="submitBtn">
                             <i class="fas fa-rocket me-2"></i>Create Account
                         </button>
-                        
+
                         <!-- Loading state for payment processing -->
                         <div id="paymentLoading" style="display: none;" class="text-center py-3">
                             <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -160,6 +160,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let plansData = [];
 
+    // Helper function to display errors
+    function showError(message) {
+        const paymentLoadingDiv = document.getElementById('paymentLoading');
+        paymentLoadingDiv.innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Error:</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        paymentLoadingDiv.style.display = 'block';
+        document.getElementById('submitBtn').style.display = 'block'; // Show submit button again
+    }
+
+    // Helper function to hide error messages and show loading spinner
+    function hideError() {
+        document.getElementById('paymentLoading').style.display = 'none';
+    }
+
     // Load pricing plans
     async function loadPlans() {
         try {
@@ -167,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) {
                 throw new Error('Failed to load plans');
             }
-            
+
             plansData = await response.json();
             renderPlans();
             document.getElementById('plansLoadingIndicator').style.display = 'none';
@@ -286,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'email': 'Email Support',
             'priority': 'Priority Support'
         };
-        
+
         features.push({ 
             text: supportLevels[plan.support_level] || 'Support', 
             available: plan.support_level !== 'none' 
@@ -357,17 +376,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
     const submitBtn = document.getElementById('submitBtn');
     const paymentLoading = document.getElementById('paymentLoading');
-    
+
     registerForm.addEventListener('submit', async function(e) {
         const selectedPlan = document.querySelector('input[name="subscription_level"]:checked');
-        
+
         if (selectedPlan && ['solo', 'team', 'professional'].includes(selectedPlan.value)) {
             e.preventDefault(); // Prevent default form submission for paid plans
-            
+
             // Show loading state for paid plans
             submitBtn.style.display = 'none';
             paymentLoading.style.display = 'block';
-            
+            paymentLoading.innerHTML = `
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Processing payment...</span>
+                </div>
+                <p class="small text-muted mt-2">Redirecting to secure payment...</p>
+            `;
+
             try {
                 // Submit form data via fetch
                 const formData = new FormData(registerForm);
@@ -375,51 +400,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST',
                     body: formData
                 });
-                
+
+                // Check if the response is OK and if it's JSON
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response');
+                }
                 const data = await response.json();
-                
+
                 if (data.success && data.redirect_to_stripe && data.checkout_url) {
                     console.log('✓ Checkout session created successfully');
                     console.log('✓ Redirecting to:', data.checkout_url);
-                    
+
                     // Immediate redirect without delay
                     window.location.href = data.checkout_url;
                     return;
-                    
+
                 } else if (data.error) {
                     console.error('Registration error:', data.error);
-                    
-                    paymentLoading.innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Payment Error:</strong> ${data.error}
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-sm btn-primary" onclick="location.reload()">
-                                    Try Again
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    submitBtn.style.display = 'block';
+                    showError(data.error);
+                    if (data.retry) {
+                        setTimeout(() => {
+                            hideError();
+                        }, 5000);
+                    }
                     return;
                 }
-                
+
             } catch (error) {
                 console.error('Registration error:', error);
-                
-                paymentLoading.innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Connection Error:</strong> Unable to process payment. Please try again.
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-sm btn-primary" onclick="location.reload()">
-                                Try Again
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                submitBtn.style.display = 'block';
+                showError('Connection error: Unable to process payment. Please check your internet connection and try again.');
             }
         }
     });

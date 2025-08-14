@@ -224,23 +224,37 @@ def register():
                             })
                         else:
                             logger.error("❌ Stripe session created but no URL returned")
+                            # Delete the user since payment setup failed
+                            db_manager.delete_user(user.user_id)
+                            db_manager.delete_tenant(tenant.tenant_id)
                             return jsonify({
                                 'error': 'Payment session creation failed. Please try again.',
                                 'retry': True
-                            }), 500
+                            }), 400
                             
                     except Exception as stripe_error:
                         logger.error(f"❌ Stripe error: {stripe_error}")
+                        # Clean up user and tenant on failure
+                        try:
+                            db_manager.delete_user(user.user_id)
+                            db_manager.delete_tenant(tenant.tenant_id)
+                        except:
+                            pass
                         return jsonify({
                             'error': 'Payment processing is temporarily unavailable. Please try again.',
                             'retry': True
-                        }), 500
+                        }), 400
 
                 # Fallback if Stripe fails - return error
+                try:
+                    db_manager.delete_user(user.user_id)
+                    db_manager.delete_tenant(tenant.tenant_id)
+                except:
+                    pass
                 return jsonify({
                     'error': 'Payment setup failed. Please try again or contact support.',
                     'retry': True
-                }), 500
+                }), 400
 
             # For free plans or fallback, send verification email
             verification_token = generate_verification_token()

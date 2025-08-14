@@ -68,15 +68,22 @@ class StripeService:
             logger.info(f"  Customer ID: {customer_id}")
             logger.info(f"  Success URL: {success_url}")
             logger.info(f"  Cancel URL: {cancel_url}")
+            logger.info(f"  API Key configured: {bool(stripe.api_key)}")
+            logger.info(f"  Test mode: {self.test_mode}")
             
             # Verify Stripe keys are configured
             if not stripe.api_key:
                 logger.error("Stripe API key is not configured")
-                raise Exception("Stripe is not properly configured")
+                raise Exception("Stripe API key missing")
+            
+            if not self.publishable_key:
+                logger.error("Stripe publishable key is not configured")
+                raise Exception("Stripe publishable key missing")
             
             # Validate price ID exists
             if price_id not in self.plan_price_mapping.values():
                 logger.error(f"Invalid price ID: {price_id}")
+                logger.error(f"Available price IDs: {list(self.plan_price_mapping.values())}")
                 raise Exception(f"Invalid pricing plan: {price_id}")
                 
             session_params = {

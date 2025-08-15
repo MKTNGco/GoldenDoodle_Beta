@@ -537,6 +537,13 @@ class ChatInterface {
                 session_id: this.currentSessionId
             };
 
+            console.log('=== CHAT DEBUG: About to send request ===');
+            console.log('Request URL:', '/generate');
+            console.log('Request method:', 'POST');
+            console.log('Request headers:', {'Content-Type': 'application/json'});
+            console.log('Request data:', requestData);
+            console.log('Request body size:', JSON.stringify(requestData).length, 'characters');
+
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
@@ -545,17 +552,31 @@ class ChatInterface {
                 body: JSON.stringify(requestData)
             });
 
+            console.log('=== CHAT DEBUG: Response received ===');
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            console.log('Response headers:', Object.fromEntries(response.headers));
+
             const data = await response.json();
+            console.log('=== CHAT DEBUG: Response data ===');
+            console.log('Response data:', data);
+            console.log('Response data keys:', Object.keys(data));
+            
             this.removeLoadingMessage(loadingId);
 
             if (response.ok) {
+                console.log('✓ Request successful, adding AI message');
                 this.addMessage(data.response, 'ai');
             } else {
+                console.log('❌ Request failed with status:', response.status);
                 this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
             }
 
         } catch (error) {
-            console.error('Error generating content:', error);
+            console.error('❌ CHAT DEBUG: Fetch error occurred:', error);
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
             this.removeLoadingMessage(loadingId);
             this.addMessage('I apologize, but I\'m having trouble connecting right now. Please try again in a moment.', 'ai', true);
         }

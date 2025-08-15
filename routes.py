@@ -2306,7 +2306,7 @@ def submit_feedback():
 
         # Send feedback email
         if email_service.send_feedback_email(feedback_data, attachments):
-            logger.info(f"Feedback submitted: {feedback_type} - {subject}")
+            logger.info(f"Feedback submitted: {feedback_type}")
             return jsonify({'success': True, 'message': 'Feedback sent successfully'})
         else:
             logger.error("Failed to send feedback email")

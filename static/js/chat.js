@@ -263,7 +263,7 @@ class ChatInterface {
 
         // CRITICAL: Validate session ID before proceeding
         console.log('Sending message to session:', this.currentSessionId);
-        
+
         if (this.isLoggedIn && !this.currentSessionId) {
             console.error('No valid session ID for logged-in user!');
             // Force create a new session
@@ -288,11 +288,11 @@ class ChatInterface {
 
         try {
             console.log('🚀 Starting sendMessage request process');
-            
+
             // Get conversation history for context
             const conversationHistory = this.getConversationHistory();
             console.log('📚 Got conversation history, length:', conversationHistory.length);
-            
+
             const requestData = {
                 prompt: prompt,
                 conversation_history: conversationHistory,
@@ -315,10 +315,10 @@ class ChatInterface {
             if (!requestData.prompt || !requestData.prompt.trim()) {
                 throw new Error('Empty prompt detected');
             }
-            
+
             console.log('🌐 Making fetch request to /generate...');
             console.log('🔍 Request validation passed, proceeding with fetch');
-            
+
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
@@ -327,7 +327,7 @@ class ChatInterface {
                 body: JSON.stringify(requestData)
             });
             console.log('🌐 Fetch request completed, status:', response.status);
-            
+
             if (!response) {
                 throw new Error('No response received from server');
             }
@@ -337,14 +337,15 @@ class ChatInterface {
                 console.log('📄 Parsing JSON response...');
                 const responseText = await response.text();
                 console.log('📄 Raw response received:', responseText.substring(0, 200));
-                
+
                 // Check if response is actually JSON
                 if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
                     data = JSON.parse(responseText);
                     console.log('📄 JSON parsed successfully');
                 } else {
                     console.error('❌ Response is not JSON:', responseText.substring(0, 200));
-                    throw new Error('Server returned non-JSON response');
+                    // Don't throw error here, let it fall through to the parsing error catch
+                    data = null;
                 }
             } catch (parseError) {
                 console.error('❌ JSON parsing error:', parseError);
@@ -352,13 +353,13 @@ class ChatInterface {
                 this.addMessage('Server response error. Please refresh the page and try again.', 'ai', true);
                 return;
             }
-            
+
             this.removeLoadingMessage(loadingId);
 
             if (response.ok && data.response) {
                 console.log('✅ Response successful, adding message');
                 this.addMessage(data.response, 'ai');
-                
+
                 // Update chat title in sidebar if this is the first message
                 if (this.isLoggedIn && this.currentSessionId) {
                     console.log('📝 Updating chat title in sidebar');
@@ -376,18 +377,18 @@ class ChatInterface {
                 message: error.message,
                 stack: error.stack
             });
-            
+
             this.removeLoadingMessage(loadingId);
-            
+
             // More specific error messages
             let errorMessage = 'Network connection error. Please check your internet connection and try again.';
-            
+
             if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
                 errorMessage = 'Unable to connect to server. Please check your internet connection.';
             } else if (error.message && error.message.includes('non-JSON response')) {
-                errorMessage = 'Server configuration error. Please try again or contact support.';
+                errorMessage = 'Server response error. Please refresh the page and try again.';
             }
-            
+
             this.addMessage(errorMessage, 'ai', true);
         }
 
@@ -446,9 +447,9 @@ class ChatInterface {
         if (!this.currentSessionId && this.isLoggedIn) {
             console.warn('Adding message without valid session ID');
         }
-        
+
         chatContent.appendChild(messageDiv);
-        
+
         // Scroll to bottom smoothly
         setTimeout(() => {
             this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
@@ -581,7 +582,7 @@ class ChatInterface {
 
     async generateResponse(prompt) {
         console.log('🚀 STARTING generateResponse function with prompt:', prompt);
-        
+
         try {
             this.isGenerating = true;
             this.updateSendButtonLoading(true);
@@ -594,7 +595,7 @@ class ChatInterface {
                 // Get conversation history for context (excluding the last AI message that was removed)
                 const conversationHistory = this.getConversationHistory();
                 console.log('📚 Conversation history retrieved, length:', conversationHistory.length);
-                
+
                 const requestData = {
                     prompt: prompt,
                     conversation_history: conversationHistory,
@@ -617,10 +618,10 @@ class ChatInterface {
                 if (!requestData.prompt || !requestData.prompt.trim()) {
                     throw new Error('Empty prompt detected in generateResponse');
                 }
-                
+
                 console.log('🌐 About to make fetch request...');
                 console.log('🔍 Request validation passed, proceeding with fetch');
-                
+
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: {
@@ -629,7 +630,7 @@ class ChatInterface {
                     body: JSON.stringify(requestData)
                 });
                 console.log('🌐 Fetch request completed');
-                
+
                 if (!response) {
                     throw new Error('No response received from server');
                 }
@@ -644,13 +645,14 @@ class ChatInterface {
                     console.log('📄 About to parse JSON response...');
                     const responseText = await response.text();
                     console.log('📄 Raw response received:', responseText.substring(0, 200));
-                    
+
                     if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
                         data = JSON.parse(responseText);
                         console.log('📄 JSON response parsed successfully');
                     } else {
                         console.error('❌ Response is not JSON:', responseText.substring(0, 200));
-                        throw new Error('Server returned non-JSON response');
+                        // Don't throw error here, let it fall through to the parsing error catch
+                        data = null;
                     }
                 } catch (parseError) {
                     console.error('❌ JSON parsing error:', parseError);
@@ -658,11 +660,11 @@ class ChatInterface {
                     this.addMessage('Server response error. Please refresh the page and try again.', 'ai', true);
                     return;
                 }
-                
+
                 console.log('=== CHAT DEBUG: Response data ===');
                 console.log('Response data:', data);
                 console.log('Response data keys:', Object.keys(data));
-                
+
                 this.removeLoadingMessage(loadingId);
 
                 if (response.ok && data.response) {
@@ -681,18 +683,18 @@ class ChatInterface {
                     stack: fetchError.stack
                 });
                 this.removeLoadingMessage(loadingId);
-                
+
                 // More specific error handling
                 let errorMessage = 'Network error: Unable to connect to server. Please check your connection and try again.';
-                
+
                 if (fetchError.name === 'AbortError') {
                     errorMessage = 'Request was cancelled. Please try again.';
                 } else if (fetchError.message && fetchError.message.includes('Failed to fetch')) {
                     errorMessage = 'Connection failed. Please check your internet connection and try again.';
                 } else if (fetchError.message && fetchError.message.includes('non-JSON response')) {
-                    errorMessage = 'Server configuration error. Please try again or contact support.';
+                    errorMessage = 'Server response error. Please refresh the page and try again.';
                 }
-                
+
                 this.addMessage(errorMessage, 'ai', true);
             }
 
@@ -887,7 +889,7 @@ class ChatInterface {
 
             // Add the file content to the chat input
             const currentText = this.chatInput.value;
-            const newText = currentText + (currentText ? '\n\n' : '') + 
+            const newText = currentText + (currentText ? '\n\n' : '') +
                            `[Attached file: ${file.name}]\n${truncatedText}${text.length > 2000 ? '\n...(truncated)' : ''}`;
 
             this.chatInput.value = newText;
@@ -924,12 +926,12 @@ class ChatInterface {
     // Chat History Functionality
     async startNewChat(clearUI = true) {
         console.log('Starting new chat, clearUI:', clearUI, 'isLoggedIn:', this.isLoggedIn);
-        
+
         // CRITICAL: Always clear current session ID first to prevent message bleeding
         const previousSessionId = this.currentSessionId;
         this.currentSessionId = null;
         console.log('Cleared current session ID. Previous:', previousSessionId);
-        
+
         if (!this.isLoggedIn) {
             // For demo users, just clear the UI completely
             if (clearUI) {
@@ -945,7 +947,7 @@ class ChatInterface {
 
         // Fetch a new session ID for logged-in users
         try {
-            const response = await fetch('/new-session', { 
+            const response = await fetch('/new-session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -955,7 +957,7 @@ class ChatInterface {
                 throw new Error(`HTTP ${response.status}`);
             }
             const data = await response.json();
-            
+
             // Set the new session ID AFTER successful creation
             this.currentSessionId = data.session_id;
             console.log('New session created:', this.currentSessionId);
@@ -966,10 +968,10 @@ class ChatInterface {
                 document.querySelectorAll('.chat-history-item').forEach(item => {
                     item.classList.remove('active');
                 });
-                
+
                 // Completely clear the chat area
                 this.clearChatMessages();
-                
+
                 // Clear and reset input
                 this.chatInput.value = '';
                 this.autoResizeTextarea();
@@ -978,14 +980,14 @@ class ChatInterface {
             }
 
             // Add the new chat to sidebar and make it active
-            this.addChatToSidebar({ 
-                id: this.currentSessionId, 
-                title: 'New Chat', 
+            this.addChatToSidebar({
+                id: this.currentSessionId,
+                title: 'New Chat',
                 message_count: 0,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
-            
+
             // Make the new chat active in the sidebar
             setTimeout(() => {
                 const newChatItem = document.querySelector(`[data-session-id="${this.currentSessionId}"]`);
@@ -1013,28 +1015,28 @@ class ChatInterface {
     clearChatMessages() {
         // CRITICAL: Completely clear the entire chat messages container
         this.chatMessages.innerHTML = '';
-        
+
         // Create a fresh chat-content container
         const chatContent = document.createElement('div');
         chatContent.className = 'chat-content';
-        
+
         // Add clean welcome screen with proper structure
         const welcomeScreen = document.createElement('div');
         welcomeScreen.className = 'welcome-screen';
-        
+
         const welcomeContent = document.createElement('div');
         welcomeContent.className = 'welcome-content';
         welcomeContent.innerHTML = `
             <h1>Ready to create compassionate content?</h1>
             <p>Start a conversation with GoldenDoodleLM to generate trauma-informed, healing-centered communication.</p>
         `;
-        
+
         welcomeScreen.appendChild(welcomeContent);
         chatContent.appendChild(welcomeScreen);
-        
+
         // Append the fresh container
         this.chatMessages.appendChild(chatContent);
-        
+
         // Force scroll to top
         this.chatMessages.scrollTop = 0;
     }
@@ -1055,7 +1057,7 @@ class ChatInterface {
             // Update existing chat instead of creating duplicate
             const titleElement = existingChat.querySelector('.chat-session-title');
             const metaElement = existingChat.querySelector('.chat-session-meta span:first-child');
-            
+
             if (titleElement) titleElement.textContent = chat.title;
             if (metaElement) metaElement.textContent = `${chat.message_count || 0} messages`;
             console.log('Updated existing chat in sidebar:', chat.id);
@@ -1065,7 +1067,7 @@ class ChatInterface {
         const chatElement = document.createElement('div');
         chatElement.className = 'chat-history-item';
         chatElement.dataset.sessionId = chat.id;
-        
+
         chatElement.innerHTML = `
             <div class="chat-session-title">${chat.title}</div>
             <div class="chat-session-meta">
@@ -1135,10 +1137,10 @@ class ChatInterface {
             // CRITICAL: Clear previous session FIRST, then set new one
             console.log('Loading chat - clearing previous session:', this.currentSessionId);
             this.currentSessionId = null;
-            
+
             // COMPLETELY clear the chat area - no partial clearing
             this.clearChatMessages();
-            
+
             // NOW set the new session ID
             this.currentSessionId = sessionId;
             console.log('Set currentSessionId to:', this.currentSessionId);
@@ -1147,17 +1149,17 @@ class ChatInterface {
             if (chatData.messages && chatData.messages.length > 0) {
                 // Get the fresh chat-content container that was created in clearChatMessages
                 let chatContent = this.chatMessages.querySelector('.chat-content');
-                
+
                 // Remove welcome screen since we have messages
                 const welcomeScreen = chatContent.querySelector('.welcome-screen');
                 if (welcomeScreen) {
                     welcomeScreen.remove();
                 }
-                
+
                 chatData.messages.forEach(msg => {
                     this.addMessage(msg.content, msg.sender);
                 });
-                
+
                 // Scroll to bottom after loading all messages
                 setTimeout(() => {
                     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
@@ -1225,7 +1227,7 @@ class ChatInterface {
                 const title = firstMessage.length > 50 ? firstMessage.substring(0, 47) + '...' : firstMessage;
                 titleElement.textContent = title;
             }
-            
+
             // Update message count
             const metaElement = chatItem.querySelector('.chat-session-meta span:first-child');
             if (metaElement) {
@@ -1238,11 +1240,11 @@ class ChatInterface {
     getConversationHistory() {
         const messages = [];
         const messageElements = this.chatMessages.querySelectorAll('.message:not(#loading-*)');
-        
+
         messageElements.forEach(messageEl => {
             const isUser = messageEl.classList.contains('message-user');
             const isAi = messageEl.classList.contains('message-ai');
-            
+
             if (isUser || isAi) {
                 const bubbleEl = messageEl.querySelector('.message-bubble');
                 if (bubbleEl) {
@@ -1263,7 +1265,7 @@ class ChatInterface {
                             content = bubbleEl.textContent.trim();
                         }
                     }
-                    
+
                     if (content && content !== 'Thinking...') {
                         messages.push({
                             role: isUser ? 'user' : 'assistant',
@@ -1273,7 +1275,7 @@ class ChatInterface {
                 }
             }
         });
-        
+
         return messages;
     }
 
@@ -1297,7 +1299,7 @@ class ChatInterface {
                     console.log('Deleted current session, starting fresh');
                     this.currentSessionId = null;
                     this.clearChatMessages();
-                    
+
                     // Check if there are other sessions to load
                     const remainingSessions = document.querySelectorAll('.chat-history-item');
                     if (remainingSessions.length > 0) {
@@ -1336,7 +1338,7 @@ function startNewChat() {
                 </div>
             </div>
         `;
-        
+
         // Focus on the input
         const chatInput = document.getElementById('chatInput');
         if (chatInput) {

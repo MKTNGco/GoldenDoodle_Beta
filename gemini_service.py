@@ -14,10 +14,27 @@ class GeminiService:
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is required")
-
+        
+        logger.info(f"Initializing Gemini service with API key: {api_key[:10]}...")
         self.client = genai.Client(api_key=api_key)
         # Model name to use for generation
         self.model_name = 'gemini-2.5-flash'
+        
+        # Test the connection
+        try:
+            logger.info("Testing Gemini API connection...")
+            test_response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[types.Content(role="user", parts=[types.Part(text="Test")])],
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=100
+                )
+            )
+            logger.info(f"✓ Gemini API connection successful! Test response: {test_response.text[:50] if test_response.text else 'No text'}")
+        except Exception as e:
+            logger.error(f"❌ Gemini API connection failed during initialization: {e}")
+            raise
 
 
     def generate_content(self, prompt: str, content_mode: Optional[str] = None, 
@@ -62,6 +79,10 @@ class GeminiService:
                                     trauma_informed_context: str = None) -> str:
         """Generate content using Gemini with conversation history for context"""
         try:
+            logger.info(f"Generating content with history. Prompt length: {len(prompt)}")
+            logger.info(f"History length: {len(conversation_history) if conversation_history else 0}")
+            logger.info(f"Content mode: {content_mode}")
+            
             # Build conversation history string
             history_context = ""
             if conversation_history:
@@ -77,8 +98,10 @@ class GeminiService:
 
             # Build the full prompt with context and history
             full_prompt = self._build_prompt_with_history(prompt, history_context, content_mode, brand_voice_context, trauma_informed_context)
+            logger.info(f"Full prompt length: {len(full_prompt)}")
 
-            # Generate content
+            # Generate content with detailed logging
+            logger.info("Making API call to Gemini...")
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[types.Content(role="user", parts=[types.Part(text=full_prompt)])],
@@ -87,15 +110,22 @@ class GeminiService:
                     max_output_tokens=4096
                 )
             )
+            
+            logger.info(f"API call completed. Response type: {type(response)}")
+            logger.info(f"Response object: {response}")
 
-            if response and response.text:
+            if response and hasattr(response, 'text') and response.text:
+                logger.info(f"Success! Response length: {len(response.text)}")
                 return response.text.strip()
             else:
-                logger.warning("Empty response from Gemini")
+                logger.warning(f"Empty or invalid response from Gemini. Response: {response}")
+                logger.warning(f"Response has text attribute: {hasattr(response, 'text') if response else 'No response'}")
                 return "I apologize, but I wasn't able to generate a response. Please try again."
 
         except Exception as e:
-            logger.error(f"Error generating content with Gemini: {e}")
+            logger.error(f"Exception in generate_content_with_history: {type(e).__name__}: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return "I'm experiencing technical difficulties. Please try again in a moment."
 
     def _build_system_instruction(self, content_mode: Optional[str], 

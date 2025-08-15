@@ -618,6 +618,11 @@ def generate():
         trauma_informed_context = rag_service.get_trauma_informed_context()
 
         # Generate content with conversation history
+        logger.info(f"About to call gemini_service.generate_content_with_history")
+        logger.info(f"Prompt: {prompt[:100]}...")
+        logger.info(f"Content mode: {content_mode}")
+        logger.info(f"Brand voice context length: {len(brand_voice_context) if brand_voice_context else 0}")
+        
         response = gemini_service.generate_content_with_history(
             prompt=prompt,
             conversation_history=conversation_history,
@@ -625,6 +630,9 @@ def generate():
             brand_voice_context=brand_voice_context,
             trauma_informed_context=trauma_informed_context
         )
+        
+        logger.info(f"Gemini service returned response of length: {len(response) if response else 0}")
+        logger.info(f"Response preview: {response[:100] if response else 'No response'}")
 
         # Update token usage (rough calculation: input + output tokens)
         response_tokens = len(response) // 4  # Rough estimate

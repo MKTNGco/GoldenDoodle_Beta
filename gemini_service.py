@@ -79,7 +79,14 @@ class GeminiService:
             full_prompt = self._build_prompt_with_history(prompt, history_context, content_mode, brand_voice_context, trauma_informed_context)
 
             # Generate content
-            response = self.model.generate_content(full_prompt)
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[types.Content(role="user", parts=[types.Part(text=full_prompt)])],
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=4096
+                )
+            )
 
             if response and response.text:
                 return response.text.strip()

@@ -348,7 +348,7 @@ class ChatInterface {
 
         messageDiv.appendChild(bubbleDiv);
 
-        // Add to chat content
+        // Ensure we have a clean chat content container
         let chatContent = this.chatMessages.querySelector('.chat-content');
         if (!chatContent) {
             chatContent = document.createElement('div');
@@ -356,7 +356,16 @@ class ChatInterface {
             this.chatMessages.appendChild(chatContent);
         }
 
+        // Remove welcome screen if it exists (when adding real messages)
+        const welcomeScreen = chatContent.querySelector('.welcome-screen');
+        if (welcomeScreen) {
+            welcomeScreen.remove();
+        }
+
+        // Add the message to the current conversation
         chatContent.appendChild(messageDiv);
+        
+        // Scroll to bottom
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
 
         return messageDiv;
@@ -744,6 +753,7 @@ class ChatInterface {
         if (!this.isLoggedIn) {
             // For demo users, just clear the UI
             if (clearUI) {
+                this.currentSessionId = null; // Clear current session
                 this.clearChatMessages();
                 this.chatInput.value = '';
                 this.chatInput.focus();
@@ -763,12 +773,25 @@ class ChatInterface {
                 throw new Error(`HTTP ${response.status}`);
             }
             const data = await response.json();
+            
+            // Set the new session ID FIRST
             this.currentSessionId = data.session_id;
             console.log('New session started:', this.currentSessionId);
 
-            // Update the UI
+            // Update the UI if requested
             if (clearUI) {
+                // Completely clear the chat area
                 this.clearChatMessages();
+                
+                // Ensure we have a clean chat-content container
+                let chatContent = this.chatMessages.querySelector('.chat-content');
+                if (!chatContent) {
+                    chatContent = document.createElement('div');
+                    chatContent.className = 'chat-content';
+                    this.chatMessages.appendChild(chatContent);
+                }
+                
+                // Clear input and focus
                 this.chatInput.value = '';
                 this.chatInput.focus();
                 
@@ -778,7 +801,7 @@ class ChatInterface {
                 });
             }
 
-            // Update the sidebar with the new chat title (initially empty)
+            // Add the new chat to sidebar and make it active
             this.addChatToSidebar({ 
                 id: this.currentSessionId, 
                 title: 'New Chat', 
@@ -786,11 +809,20 @@ class ChatInterface {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
+            
+            // Make the new chat active in the sidebar
+            setTimeout(() => {
+                const newChatItem = document.querySelector(`[data-session-id="${this.currentSessionId}"]`);
+                if (newChatItem) {
+                    newChatItem.classList.add('active');
+                }
+            }, 100);
 
         } catch (error) {
             console.error('Error starting new chat session:', error);
             // For demo fallback, just clear UI
             if (clearUI) {
+                this.currentSessionId = null;
                 this.clearChatMessages();
                 this.chatInput.value = '';
                 this.chatInput.focus();
@@ -799,19 +831,36 @@ class ChatInterface {
     }
 
     clearChatMessages() {
-        const chatMessages = this.chatMessages.querySelector('.chat-content');
-        if (chatMessages) {
-            chatMessages.innerHTML = `
-                <div class="welcome-screen">
-                </div>
-            `;
+        // Find the chat-content div or create it if it doesn't exist
+        let chatContent = this.chatMessages.querySelector('.chat-content');
+        if (!chatContent) {
+            chatContent = document.createElement('div');
+            chatContent.className = 'chat-content';
+            this.chatMessages.appendChild(chatContent);
         }
-        this.clearWelcomeScreen(); // Ensure welcome screen is handled
+        
+        // Clear all messages completely
+        chatContent.innerHTML = `
+            <div class="welcome-screen">
+            </div>
+        `;
     }
 
     addChatToSidebar(chat) {
         const chatHistory = document.getElementById('chatHistory');
         if (!chatHistory) return;
+
+        // Check if this chat already exists in sidebar
+        const existingChat = document.querySelector(`[data-session-id="${chat.id}"]`);
+        if (existingChat) {
+            // Update existing chat instead of creating duplicate
+            const titleElement = existingChat.querySelector('.chat-session-title');
+            const metaElement = existingChat.querySelector('.chat-session-meta span:first-child');
+            
+            if (titleElement) titleElement.textContent = chat.title;
+            if (metaElement) metaElement.textContent = `${chat.message_count || 0} messages`;
+            return;
+        }
 
         const chatElement = document.createElement('div');
         chatElement.className = 'chat-history-item';
@@ -831,7 +880,7 @@ class ChatInterface {
         // Add click listener to load chat
         chatElement.addEventListener('click', () => this.loadChat(chat.id));
 
-        // Prepend to the list of chats
+        // Prepend to the list of chats (newest first)
         chatHistory.prepend(chatElement);
     }
 
@@ -879,10 +928,24 @@ class ChatInterface {
             }
             const chatData = await response.json();
 
+            // Set current session BEFORE clearing messages
             this.currentSessionId = sessionId;
+            
+            // Completely clear the chat area
             this.clearChatMessages();
+            
+            // Ensure we have a clean chat-content container
+            let chatContent = this.chatMessages.querySelector('.chat-content');
+            if (!chatContent) {
+                chatContent = document.createElement('div');
+                chatContent.className = 'chat-content';
+                this.chatMessages.appendChild(chatContent);
+            }
+            
+            // Clear any existing messages completely
+            chatContent.innerHTML = '';
 
-            // Add messages to the chat interface
+            // Add messages to the chat interface in order
             if (chatData.messages && chatData.messages.length > 0) {
                 chatData.messages.forEach(msg => {
                     this.addMessage(msg.content, msg.sender);

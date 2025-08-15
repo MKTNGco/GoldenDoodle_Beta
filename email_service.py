@@ -245,7 +245,7 @@ The GoldenDoodleLM Team
     def send_feedback_email(self, feedback_data: dict, attachments: list = None) -> bool:
         """Send feedback email to support"""
         try:
-            support_email = os.environ.get('SUPPORT_EMAIL', 'support@goldendoodlelm.com')
+            support_email = os.environ.get('SUPPORT_EMAIL', 'support@goldendoodlelm.ai')
 
             # Format feedback type for display
             feedback_types = {

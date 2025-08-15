@@ -359,9 +359,10 @@ class ChatInterface {
 
         messageDiv.appendChild(bubbleDiv);
 
-        // Ensure we have a clean chat content container
+        // CRITICAL: Ensure we have the correct chat content container
         let chatContent = this.chatMessages.querySelector('.chat-content');
         if (!chatContent) {
+            // Create fresh container if missing
             chatContent = document.createElement('div');
             chatContent.className = 'chat-content';
             this.chatMessages.appendChild(chatContent);
@@ -373,11 +374,13 @@ class ChatInterface {
             welcomeScreen.remove();
         }
 
-        // Add the message to the current conversation
+        // Add the message to the current conversation ONLY
         chatContent.appendChild(messageDiv);
         
-        // Scroll to bottom
-        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        // Scroll to bottom smoothly
+        setTimeout(() => {
+            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        }, 10);
 
         return messageDiv;
     }
@@ -763,12 +766,18 @@ class ChatInterface {
     async startNewChat(clearUI = true) {
         console.log('Starting new chat, clearUI:', clearUI, 'isLoggedIn:', this.isLoggedIn);
         
+        // CRITICAL: Always clear current session ID first to prevent message bleeding
+        const previousSessionId = this.currentSessionId;
+        this.currentSessionId = null;
+        console.log('Cleared current session ID. Previous:', previousSessionId);
+        
         if (!this.isLoggedIn) {
-            // For demo users, just clear the UI
+            // For demo users, just clear the UI completely
             if (clearUI) {
-                this.currentSessionId = null; // Clear current session
                 this.clearChatMessages();
                 this.chatInput.value = '';
+                this.autoResizeTextarea();
+                this.updateSendButton();
                 this.chatInput.focus();
             }
             console.log('Demo mode - session cleared');
@@ -788,32 +797,25 @@ class ChatInterface {
             }
             const data = await response.json();
             
-            // CRITICAL: Clear previous session BEFORE setting new one
-            const previousSessionId = this.currentSessionId;
+            // Set the new session ID AFTER successful creation
             this.currentSessionId = data.session_id;
-            console.log('New session created:', this.currentSessionId, '(previous:', previousSessionId, ')');
+            console.log('New session created:', this.currentSessionId);
 
-            // Update the UI if requested
+            // ALWAYS clear UI for new sessions to ensure isolation
             if (clearUI) {
-                // Completely clear the chat area
-                this.clearChatMessages();
-                
-                // Ensure we have a clean chat-content container
-                let chatContent = this.chatMessages.querySelector('.chat-content');
-                if (!chatContent) {
-                    chatContent = document.createElement('div');
-                    chatContent.className = 'chat-content';
-                    this.chatMessages.appendChild(chatContent);
-                }
-                
-                // Clear input and focus
-                this.chatInput.value = '';
-                this.chatInput.focus();
-                
-                // Remove active state from ALL sessions
+                // Remove active state from ALL sessions FIRST
                 document.querySelectorAll('.chat-history-item').forEach(item => {
                     item.classList.remove('active');
                 });
+                
+                // Completely clear the chat area
+                this.clearChatMessages();
+                
+                // Clear and reset input
+                this.chatInput.value = '';
+                this.autoResizeTextarea();
+                this.updateSendButton();
+                this.chatInput.focus();
             }
 
             // Add the new chat to sidebar and make it active
@@ -838,29 +840,40 @@ class ChatInterface {
             console.error('Error starting new chat session:', error);
             // Reset session state on error
             this.currentSessionId = null;
-            // For demo fallback, just clear UI
+            // Always clear UI on error for clean state
             if (clearUI) {
                 this.clearChatMessages();
                 this.chatInput.value = '';
+                this.autoResizeTextarea();
+                this.updateSendButton();
                 this.chatInput.focus();
             }
         }
     }
 
     clearChatMessages() {
-        // Find the chat-content div or create it if it doesn't exist
-        let chatContent = this.chatMessages.querySelector('.chat-content');
-        if (!chatContent) {
-            chatContent = document.createElement('div');
-            chatContent.className = 'chat-content';
-            this.chatMessages.appendChild(chatContent);
-        }
+        // CRITICAL: Completely clear the entire chat messages container
+        this.chatMessages.innerHTML = '';
         
-        // Clear all messages completely
+        // Create a fresh chat-content container
+        const chatContent = document.createElement('div');
+        chatContent.className = 'chat-content';
+        
+        // Add clean welcome screen
         chatContent.innerHTML = `
             <div class="welcome-screen">
+                <div class="welcome-content">
+                    <h1>Ready to create compassionate content?</h1>
+                    <p>Start a conversation with GoldenDoodleLM to generate trauma-informed, healing-centered communication.</p>
+                </div>
             </div>
         `;
+        
+        // Append the fresh container
+        this.chatMessages.appendChild(chatContent);
+        
+        // Force scroll to top
+        this.chatMessages.scrollTop = 0;
     }
 
     addChatToSidebar(chat) {
@@ -956,31 +969,43 @@ class ChatInterface {
             }
             const chatData = await response.json();
 
-            // CRITICAL: Set current session FIRST before any UI changes
+            // CRITICAL: Clear previous session FIRST, then set new one
+            console.log('Loading chat - clearing previous session:', this.currentSessionId);
+            this.currentSessionId = null;
+            
+            // COMPLETELY clear the chat area - no partial clearing
+            this.clearChatMessages();
+            
+            // NOW set the new session ID
             this.currentSessionId = sessionId;
             console.log('Set currentSessionId to:', this.currentSessionId);
             
-            // Completely clear the chat area
-            this.clearChatMessages();
-            
-            // Ensure we have a clean chat-content container
+            // Get the fresh chat-content container
             let chatContent = this.chatMessages.querySelector('.chat-content');
             if (!chatContent) {
                 chatContent = document.createElement('div');
                 chatContent.className = 'chat-content';
                 this.chatMessages.appendChild(chatContent);
             }
-            
-            // Clear any existing messages completely
-            chatContent.innerHTML = '';
 
             // Add messages to the chat interface in order
             if (chatData.messages && chatData.messages.length > 0) {
+                // Remove welcome screen if it exists
+                const welcomeScreen = chatContent.querySelector('.welcome-screen');
+                if (welcomeScreen) {
+                    welcomeScreen.remove();
+                }
+                
                 chatData.messages.forEach(msg => {
                     this.addMessage(msg.content, msg.sender);
                 });
+                
+                // Scroll to bottom after loading all messages
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
             } else {
-                // If no messages, show empty state but keep session active
+                // If no messages, keep welcome screen but session is active
                 console.log('No messages found for session:', sessionId);
             }
 
@@ -996,8 +1021,9 @@ class ChatInterface {
 
         } catch (error) {
             console.error(`Error loading chat ${sessionId}:`, error);
-            // Reset session ID on error
+            // Reset session ID on error and clear UI
             this.currentSessionId = null;
+            this.clearChatMessages();
             // If chat fails to load, start a new chat
             await this.startNewChat();
         }

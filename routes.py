@@ -559,6 +559,7 @@ def generate():
     try:
         data = request.get_json()
         prompt = data.get('prompt', '').strip()
+        conversation_history = data.get('conversation_history', [])
         content_mode = data.get('content_mode')
         brand_voice_id = data.get('brand_voice_id')
         is_demo = data.get('is_demo', False)
@@ -576,9 +577,10 @@ def generate():
             # Get trauma-informed context only
             trauma_informed_context = rag_service.get_trauma_informed_context()
 
-            # Generate content without brand voice
-            response = gemini_service.generate_content(
+            # Generate content without brand voice but with conversation history
+            response = gemini_service.generate_content_with_history(
                 prompt=prompt,
+                conversation_history=conversation_history,
                 content_mode=content_mode,
                 brand_voice_context=None,
                 trauma_informed_context=trauma_informed_context
@@ -589,6 +591,9 @@ def generate():
         # Logged-in user - enforce plan limits
         # Estimate tokens needed (rough estimate: 1 token ≈ 4 characters)
         estimated_tokens = max(len(prompt) // 4, 100)  # Minimum 100 tokens
+        # Add history tokens to estimate
+        for msg in conversation_history:
+            estimated_tokens += len(msg.get('content', '')) // 4
 
         # Check user limits before proceeding
         limits_check = db_manager.check_user_limits(user.user_id, content_mode, estimated_tokens)
@@ -612,9 +617,10 @@ def generate():
         # Get trauma-informed context
         trauma_informed_context = rag_service.get_trauma_informed_context()
 
-        # Generate content
-        response = gemini_service.generate_content(
+        # Generate content with conversation history
+        response = gemini_service.generate_content_with_history(
             prompt=prompt,
+            conversation_history=conversation_history,
             content_mode=content_mode,
             brand_voice_context=brand_voice_context,
             trauma_informed_context=trauma_informed_context

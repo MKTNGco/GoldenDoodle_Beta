@@ -287,8 +287,12 @@ class ChatInterface {
         const loadingId = this.addLoadingMessage();
 
         try {
+            // Get conversation history for context
+            const conversationHistory = this.getConversationHistory();
+            
             const requestData = {
                 prompt: prompt,
+                conversation_history: conversationHistory,
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
                 is_demo: this.isDemoMode,
@@ -521,8 +525,12 @@ class ChatInterface {
         const loadingId = this.addLoadingMessage();
 
         try {
+            // Get conversation history for context (excluding the last AI message that was removed)
+            const conversationHistory = this.getConversationHistory();
+            
             const requestData = {
                 prompt: prompt,
+                conversation_history: conversationHistory,
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
                 is_demo: this.isDemoMode,
@@ -1080,6 +1088,48 @@ class ChatInterface {
                 metaElement.textContent = `${currentCount + 2} messages`; // +2 for user message and AI response
             }
         }
+    }
+
+    getConversationHistory() {
+        const messages = [];
+        const messageElements = this.chatMessages.querySelectorAll('.message:not(#loading-*)');
+        
+        messageElements.forEach(messageEl => {
+            const isUser = messageEl.classList.contains('message-user');
+            const isAi = messageEl.classList.contains('message-ai');
+            
+            if (isUser || isAi) {
+                const bubbleEl = messageEl.querySelector('.message-bubble');
+                if (bubbleEl) {
+                    let content;
+                    if (isUser) {
+                        content = bubbleEl.textContent.trim();
+                    } else {
+                        // For AI messages, get text content without action buttons
+                        const actionsEl = bubbleEl.querySelector('.message-actions');
+                        if (actionsEl) {
+                            const tempDiv = bubbleEl.cloneNode(true);
+                            const tempActions = tempDiv.querySelector('.message-actions');
+                            if (tempActions) {
+                                tempActions.remove();
+                            }
+                            content = tempDiv.textContent.trim();
+                        } else {
+                            content = bubbleEl.textContent.trim();
+                        }
+                    }
+                    
+                    if (content && content !== 'Thinking...') {
+                        messages.push({
+                            role: isUser ? 'user' : 'assistant',
+                            content: content
+                        });
+                    }
+                }
+            }
+        });
+        
+        return messages;
     }
 
     async deleteSession(sessionId) {

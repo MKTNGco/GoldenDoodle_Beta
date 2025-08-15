@@ -4,7 +4,7 @@ import logging
 from typing import Optional, Dict, Any
 from google import genai
 from google.genai import types
-from models import CONTENT_MODE_TEMPERATURES, ContentMode
+from models import CONTENT_MODE_TEMPERATURES, ContentMode, CONTENT_MODE_CONFIG
 from rag_service import rag_service
 
 logger = logging.getLogger(__name__)
@@ -14,8 +14,11 @@ class GeminiService:
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is required")
-        
+
         self.client = genai.Client(api_key=api_key)
+        # Assuming model is initialized here. Adjust if 'gemini-2.5-flash' is not the correct way to access the model.
+        self.model = self.client.GenerativeModel('gemini-2.5-flash')
+
 
     def generate_content(self, prompt: str, content_mode: Optional[str] = None, 
                         brand_voice_context: Optional[str] = None,
@@ -24,17 +27,17 @@ class GeminiService:
         try:
             # Get temperature based on content mode
             temperature = CONTENT_MODE_TEMPERATURES.get(content_mode or 'general', 0.7)
-            
+
             # Build system instruction
             system_instruction = self._build_system_instruction(
                 content_mode, brand_voice_context, trauma_informed_context
             )
-            
+
             # Build final prompt with context
             final_prompt = self._build_prompt_with_context(
                 prompt, content_mode, brand_voice_context, trauma_informed_context
             )
-            
+
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[types.Content(role="user", parts=[types.Part(text=final_prompt)])],
@@ -44,21 +47,55 @@ class GeminiService:
                     max_output_tokens=4096
                 )
             )
-            
+
             if response.text:
                 return response.text
             else:
                 return "I apologize, but I wasn't able to generate a response. Please try again."
-                
+
         except Exception as e:
             logger.error(f"Error generating content: {e}")
             return f"I'm sorry, but I encountered an error while processing your request. Please try again."
+
+    def generate_content_with_history(self, prompt: str, conversation_history: list = None,
+                                    content_mode: str = None, brand_voice_context: str = None, 
+                                    trauma_informed_context: str = None) -> str:
+        """Generate content using Gemini with conversation history for context"""
+        try:
+            # Build conversation history string
+            history_context = ""
+            if conversation_history:
+                history_context = "\n\n=== CONVERSATION HISTORY ===\n"
+                for msg in conversation_history:
+                    role = msg.get('role', '').upper()
+                    content = msg.get('content', '')
+                    if role == 'USER':
+                        history_context += f"USER: {content}\n"
+                    elif role == 'ASSISTANT':
+                        history_context += f"ASSISTANT: {content}\n"
+                history_context += "=== END CONVERSATION HISTORY ===\n\n"
+
+            # Build the full prompt with context and history
+            full_prompt = self._build_prompt_with_history(prompt, history_context, content_mode, brand_voice_context, trauma_informed_context)
+
+            # Generate content
+            response = self.model.generate_content(full_prompt)
+
+            if response and response.text:
+                return response.text.strip()
+            else:
+                logger.warning("Empty response from Gemini")
+                return "I apologize, but I wasn't able to generate a response. Please try again."
+
+        except Exception as e:
+            logger.error(f"Error generating content with Gemini: {e}")
+            return "I'm experiencing technical difficulties. Please try again in a moment."
 
     def _build_system_instruction(self, content_mode: Optional[str], 
                                  brand_voice_context: Optional[str],
                                  trauma_informed_context: Optional[str]) -> str:
         """Build the system instruction for Gemini"""
-        
+
         base_instruction = """You are GoldenDoodleLM, an empathetic, encouraging, and supportive AI assistant designed specifically for trauma-informed nonprofit organizations. Your primary mission is to help communications and marketing teams create high-quality, on-brand, trauma-informed content.
 
 Core Response Philosophy - The Gracious Approach:
@@ -97,7 +134,7 @@ Natural Language Modeling:
                 ContentMode.BRAINSTORM: "Generate creative, innovative ideas while ensuring all suggestions are trauma-informed.",
                 ContentMode.ANALYZE: "Provide thoughtful analysis that considers trauma-informed perspectives and implications."
             }
-            
+
             if content_mode in mode_instructions:
                 base_instruction += f"\n\nCurrent Mode: {mode_instructions[content_mode]}"
 
@@ -118,17 +155,72 @@ Natural Language Modeling:
                                   brand_voice_context: Optional[str],
                                   trauma_informed_context: Optional[str]) -> str:
         """Build the final prompt with all context"""
-        
+
         context_parts = []
-        
+
         if content_mode:
-            from models import CONTENT_MODE_CONFIG
             mode_config = CONTENT_MODE_CONFIG.get(content_mode, {})
             mode_name = mode_config.get('name', content_mode)
             context_parts.append(f"Content Mode: {mode_name}")
 
         prompt_parts = context_parts + [user_prompt]
         return "\n\n".join(prompt_parts)
+
+    def _build_prompt_with_history(self, user_prompt: str, history_context: str = "", 
+                                  content_mode: str = None, brand_voice_context: str = None, 
+                                  trauma_informed_context: str = None) -> str:
+        """Build a comprehensive prompt with conversation history and all context"""
+
+        # Start with system instructions
+        prompt_parts = [
+            "You are GoldenDoodleLM, a trauma-informed AI assistant specializing in compassionate, healing-centered communication.",
+            "Your responses should always prioritize psychological safety, cultural responsiveness, and strengths-based language.",
+            "You maintain conversation context and can reference previous exchanges to provide more helpful and relevant responses.",
+            ""
+        ]
+
+        # Add conversation history if provided
+        if history_context:
+            prompt_parts.extend([
+                history_context
+            ])
+
+        # Add trauma-informed context
+        if trauma_informed_context:
+            prompt_parts.extend([
+                "=== TRAUMA-INFORMED COMMUNICATION GUIDELINES ===",
+                trauma_informed_context,
+                ""
+            ])
+
+        # Add brand voice context if provided
+        if brand_voice_context:
+            prompt_parts.extend([
+                "=== BRAND VOICE GUIDELINES ===",
+                brand_voice_context,
+                ""
+            ])
+
+        # Add content mode specific instructions
+        if content_mode and content_mode in CONTENT_MODE_CONFIG:
+            mode_config = CONTENT_MODE_CONFIG[content_mode]
+            prompt_parts.extend([
+                f"=== {mode_config['name'].upper()} MODE ===",
+                f"Context: {mode_config['description']}",
+                f"Focus: {mode_config['focus']}",
+                ""
+            ])
+
+        # Add the user's current request
+        prompt_parts.extend([
+            "=== CURRENT USER REQUEST ===",
+            user_prompt,
+            "",
+            "Please respond to the current request, taking into account the conversation history and following all the guidelines above. Ensure your communication is trauma-informed, culturally responsive, and aligned with any provided brand voice."
+        ])
+
+        return "\n".join(prompt_parts)
+
 
 # Global service instance
 gemini_service = GeminiService()

@@ -52,12 +52,28 @@ body {
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: 120px;
+    top: 0; /* Changed to 0 to extend to the top */
     left: 0;
-    height: calc(100vh - 120px);
+    height: 100vh; /* Changed to 100vh */
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
     z-index: 100;
+    align-items: center; /* Center items horizontally */
+}
+
+.sidebar-logo {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border-light); /* Add a line below the logo */
+}
+
+.sidebar-logo img {
+    width: 32px; /* Smaller logo size */
+    height: 32px;
+    object-fit: contain;
 }
 
 .sidebar:hover {
@@ -72,6 +88,7 @@ body {
     height: 100%;
     display: flex;
     flex-direction: column;
+    width: 100%; /* Occupy full width when expanded */
 }
 
 .sidebar:hover .sidebar-content {
@@ -92,9 +109,9 @@ body {
     cursor: pointer;
     transition: all 0.2s ease;
     margin: 16px auto;
-    position: absolute;
+    position: relative; /* Changed from absolute to relative */
     top: 0;
-    left: 8px;
+    left: 0;
     z-index: 2;
 }
 
@@ -141,10 +158,15 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 120px);
+    height: 100vh; /* Changed to 100vh */
     overflow: hidden;
     margin-left: 60px;
-    margin-top: 120px;
+    margin-top: 0; /* Changed to 0 */
+    transition: margin-left 0.6s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth transition for margin */
+}
+
+.sidebar:hover ~ .main-chat { /* Adjust margin when sidebar expands */
+    margin-left: 280px;
 }
 
 .chat-messages {
@@ -236,7 +258,13 @@ body {
     background: var(--bg-light);
     border-top: 1px solid var(--border-light);
     z-index: 50;
+    transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth transition for left */
 }
+
+.sidebar:hover ~ .prompt-area { /* Adjust left when sidebar expands */
+    left: 280px;
+}
+
 
 .prompt-container {
     width: 100%;
@@ -561,6 +589,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding-top: 16px;
+    width: 100%; /* Ensure history takes full width */
 }
 
 .chat-history-item {
@@ -696,9 +725,12 @@ body {
 <div class="chat-container">
     <!-- Sidebar -->
     <div class="sidebar">
+        <div class="sidebar-logo">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GoldenDoodleLM">
+        </div>
         <button class="new-chat-btn" onclick="startNewChat()">
-            <i class="fa-solid fa-comment-dots" style="color: var(--cloud-white); font-size: 16px;"></i>
-            <span class="new-chat-text">New Conversation</span>
+            <i class="fas fa-plus"></i>
+            <span class="new-chat-text">New Chat</span>
         </button>
         <div class="sidebar-content">
             <div class="chat-history" id="chatHistory">

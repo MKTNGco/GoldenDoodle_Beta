@@ -1731,8 +1731,10 @@ def new_session():
 
         session_id = db_manager.create_chat_session(user.user_id, "New Chat")
         if session_id:
-            return jsonify({'session_id': session_id})
+            logger.info(f"Created new chat session {session_id} for user {user.user_id}")
+            return jsonify({'session_id': session_id, 'success': True})
         else:
+            logger.error(f"Failed to create chat session for user {user.user_id}")
             return jsonify({'error': 'Failed to create session'}), 500
 
     except Exception as e:

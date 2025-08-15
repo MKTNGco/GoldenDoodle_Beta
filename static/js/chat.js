@@ -256,8 +256,8 @@ class ChatInterface {
             return;
         }
 
-        // If no current session, start a new one
-        if (!this.currentSessionId) {
+        // If no current session and logged in, start a new one
+        if (!this.currentSessionId && this.isLoggedIn) {
             await this.startNewChat(false); // Start new chat without clearing UI immediately
         }
 
@@ -299,6 +299,11 @@ class ChatInterface {
 
             if (response.ok) {
                 this.addMessage(data.response, 'ai');
+                
+                // Update chat title in sidebar if this is the first message
+                if (this.isLoggedIn && this.currentSessionId) {
+                    this.updateChatTitleInSidebar(this.currentSessionId, prompt);
+                }
             } else {
                 this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
             }
@@ -748,7 +753,12 @@ class ChatInterface {
 
         // Fetch a new session ID for logged-in users
         try {
-            const response = await fetch('/new-session', { method: 'POST' });
+            const response = await fetch('/new-session', { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -773,7 +783,8 @@ class ChatInterface {
                 id: this.currentSessionId, 
                 title: 'New Chat', 
                 message_count: 0,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             });
 
         } catch (error) {
@@ -845,7 +856,7 @@ class ChatInterface {
 
             // If there are chats, load the most recent one
             if (chats.length > 0) {
-                this.loadChat(chats[0].id); // Load the first chat in the history
+                await this.loadChat(chats[0].id); // Load the first chat in the history
             } else {
                 // If no history, start a new chat
                 await this.startNewChat();
@@ -863,15 +874,20 @@ class ChatInterface {
 
         try {
             const response = await fetch(`/chat/${sessionId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
             const chatData = await response.json();
 
             this.currentSessionId = sessionId;
             this.clearChatMessages();
 
             // Add messages to the chat interface
-            chatData.messages.forEach(msg => {
-                this.addMessage(msg.content, msg.sender);
-            });
+            if (chatData.messages && chatData.messages.length > 0) {
+                chatData.messages.forEach(msg => {
+                    this.addMessage(msg.content, msg.sender);
+                });
+            }
 
             // Update sidebar to highlight the current chat
             document.querySelectorAll('.chat-history-item').forEach(item => {
@@ -881,15 +897,12 @@ class ChatInterface {
                 }
             });
 
-            // Optionally update title if available
-            const chatTitleElement = document.querySelector('.sidebar-chat-item.active .chat-title');
-            if (chatTitleElement) {
-                chatTitleElement.textContent = chatData.title || 'New Chat';
-            }
+            console.log('Loaded chat:', sessionId);
 
         } catch (error) {
             console.error(`Error loading chat ${sessionId}:`, error);
-            // Handle error, e.g., show a message to the user
+            // If chat fails to load, start a new chat
+            await this.startNewChat();
         }
     }
 
@@ -920,6 +933,25 @@ class ChatInterface {
         if (diffDays === 2) return 'Yesterday';
         if (diffDays <= 7) return `${diffDays} days ago`;
         return date.toLocaleDateString();
+    }
+
+    updateChatTitleInSidebar(sessionId, firstMessage) {
+        const chatItem = document.querySelector(`[data-session-id="${sessionId}"]`);
+        if (chatItem) {
+            const titleElement = chatItem.querySelector('.chat-session-title');
+            if (titleElement) {
+                // Generate a short title from the first message
+                const title = firstMessage.length > 50 ? firstMessage.substring(0, 47) + '...' : firstMessage;
+                titleElement.textContent = title;
+            }
+            
+            // Update message count
+            const metaElement = chatItem.querySelector('.chat-session-meta span:first-child');
+            if (metaElement) {
+                const currentCount = parseInt(metaElement.textContent) || 0;
+                metaElement.textContent = `${currentCount + 2} messages`; // +2 for user message and AI response
+            }
+        }
     }
 
     async deleteSession(sessionId) {

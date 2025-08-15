@@ -557,19 +557,31 @@ def chat():
 def generate():
     """Generate AI content - supports both logged-in users and demo mode"""
     try:
+        logger.info("=== /generate route called ===")
         data = request.get_json()
+        logger.info(f"Request data received: {bool(data)}")
+        
         prompt = data.get('prompt', '').strip()
         conversation_history = data.get('conversation_history', [])
         content_mode = data.get('content_mode')
         brand_voice_id = data.get('brand_voice_id')
         is_demo = data.get('is_demo', False)
+        
+        logger.info(f"Prompt length: {len(prompt)}")
+        logger.info(f"Content mode: {content_mode}")
+        logger.info(f"Brand voice ID: {brand_voice_id}")
+        logger.info(f"Is demo: {is_demo}")
+        logger.info(f"Conversation history length: {len(conversation_history)}")
 
         if not prompt:
+            logger.warning("No prompt provided")
             return jsonify({'error': 'Prompt is required'}), 400
 
         user = get_current_user()
+        logger.info(f"Current user: {user.user_id if user else 'None'}")
 
         if not user and not is_demo:
+            logger.warning("No user and not demo mode")
             return jsonify({'error': 'Authentication required'}), 401
 
         # Demo mode - limited functionality
@@ -618,21 +630,27 @@ def generate():
         trauma_informed_context = rag_service.get_trauma_informed_context()
 
         # Generate content with conversation history
+        logger.info(f"=== CALLING GEMINI SERVICE ===")
         logger.info(f"About to call gemini_service.generate_content_with_history")
         logger.info(f"Prompt: {prompt[:100]}...")
         logger.info(f"Content mode: {content_mode}")
         logger.info(f"Brand voice context length: {len(brand_voice_context) if brand_voice_context else 0}")
+        logger.info(f"Trauma informed context length: {len(trauma_informed_context) if trauma_informed_context else 0}")
         
-        response = gemini_service.generate_content_with_history(
-            prompt=prompt,
-            conversation_history=conversation_history,
-            content_mode=content_mode,
-            brand_voice_context=brand_voice_context,
-            trauma_informed_context=trauma_informed_context
-        )
-        
-        logger.info(f"Gemini service returned response of length: {len(response) if response else 0}")
-        logger.info(f"Response preview: {response[:100] if response else 'No response'}")
+        try:
+            response = gemini_service.generate_content_with_history(
+                prompt=prompt,
+                conversation_history=conversation_history,
+                content_mode=content_mode,
+                brand_voice_context=brand_voice_context,
+                trauma_informed_context=trauma_informed_context
+            )
+            
+            logger.info(f"✓ Gemini service returned response of length: {len(response) if response else 0}")
+            logger.info(f"Response preview: {response[:100] if response else 'No response'}")
+        except Exception as gemini_error:
+            logger.error(f"❌ Error in Gemini service call: {gemini_error}")
+            raise
 
         # Update token usage (rough calculation: input + output tokens)
         response_tokens = len(response) // 4  # Rough estimate
@@ -684,10 +702,13 @@ def generate():
                     title = prompt[:50] + "..." if len(prompt) > 50 else prompt
                     db_manager.update_chat_session_title(session_id, title)
 
+        logger.info(f"=== ROUTE COMPLETING SUCCESSFULLY ===")
         return jsonify({'response': response})
 
     except Exception as e:
-        logger.error(f"Generation error: {e}")
+        logger.error(f"❌ Generation error: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return jsonify({'error': 'An error occurred while generating content. Please try again.'}), 500
 
 @app.route('/how-to')

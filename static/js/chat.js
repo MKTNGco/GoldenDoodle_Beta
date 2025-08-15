@@ -261,6 +261,15 @@ class ChatInterface {
             await this.startNewChat(false); // Start new chat without clearing UI immediately
         }
 
+        // CRITICAL: Validate session ID before proceeding
+        console.log('Sending message to session:', this.currentSessionId);
+        
+        if (this.isLoggedIn && !this.currentSessionId) {
+            console.error('No valid session ID for logged-in user!');
+            // Force create a new session
+            await this.startNewChat(false);
+        }
+
         // Clear input and update UI
         this.chatInput.value = '';
         this.autoResizeTextarea();
@@ -285,6 +294,8 @@ class ChatInterface {
                 is_demo: this.isDemoMode,
                 session_id: this.currentSessionId
             };
+
+            console.log('Sending request with session_id:', this.currentSessionId);
 
             const response = await fetch('/generate', {
                 method: 'POST',
@@ -750,6 +761,8 @@ class ChatInterface {
 
     // Chat History Functionality
     async startNewChat(clearUI = true) {
+        console.log('Starting new chat, clearUI:', clearUI, 'isLoggedIn:', this.isLoggedIn);
+        
         if (!this.isLoggedIn) {
             // For demo users, just clear the UI
             if (clearUI) {
@@ -758,6 +771,7 @@ class ChatInterface {
                 this.chatInput.value = '';
                 this.chatInput.focus();
             }
+            console.log('Demo mode - session cleared');
             return;
         }
 
@@ -774,9 +788,10 @@ class ChatInterface {
             }
             const data = await response.json();
             
-            // Set the new session ID FIRST
+            // CRITICAL: Clear previous session BEFORE setting new one
+            const previousSessionId = this.currentSessionId;
             this.currentSessionId = data.session_id;
-            console.log('New session started:', this.currentSessionId);
+            console.log('New session created:', this.currentSessionId, '(previous:', previousSessionId, ')');
 
             // Update the UI if requested
             if (clearUI) {
@@ -795,7 +810,7 @@ class ChatInterface {
                 this.chatInput.value = '';
                 this.chatInput.focus();
                 
-                // Remove active state from other sessions
+                // Remove active state from ALL sessions
                 document.querySelectorAll('.chat-history-item').forEach(item => {
                     item.classList.remove('active');
                 });
@@ -815,14 +830,16 @@ class ChatInterface {
                 const newChatItem = document.querySelector(`[data-session-id="${this.currentSessionId}"]`);
                 if (newChatItem) {
                     newChatItem.classList.add('active');
+                    console.log('New chat item made active in sidebar');
                 }
             }, 100);
 
         } catch (error) {
             console.error('Error starting new chat session:', error);
+            // Reset session state on error
+            this.currentSessionId = null;
             // For demo fallback, just clear UI
             if (clearUI) {
-                this.currentSessionId = null;
                 this.clearChatMessages();
                 this.chatInput.value = '';
                 this.chatInput.focus();
@@ -850,6 +867,12 @@ class ChatInterface {
         const chatHistory = document.getElementById('chatHistory');
         if (!chatHistory) return;
 
+        // Validate chat data
+        if (!chat || !chat.id) {
+            console.error('Invalid chat data provided to addChatToSidebar:', chat);
+            return;
+        }
+
         // Check if this chat already exists in sidebar
         const existingChat = document.querySelector(`[data-session-id="${chat.id}"]`);
         if (existingChat) {
@@ -859,6 +882,7 @@ class ChatInterface {
             
             if (titleElement) titleElement.textContent = chat.title;
             if (metaElement) metaElement.textContent = `${chat.message_count || 0} messages`;
+            console.log('Updated existing chat in sidebar:', chat.id);
             return;
         }
 
@@ -877,11 +901,15 @@ class ChatInterface {
             </button>
         `;
 
-        // Add click listener to load chat
-        chatElement.addEventListener('click', () => this.loadChat(chat.id));
+        // Add click listener to load chat with proper session isolation
+        chatElement.addEventListener('click', () => {
+            console.log('Clicking chat item, loading session:', chat.id);
+            this.loadChat(chat.id);
+        });
 
         // Prepend to the list of chats (newest first)
         chatHistory.prepend(chatElement);
+        console.log('Added new chat to sidebar:', chat.id);
     }
 
     async loadChatHistory() {
@@ -928,8 +956,9 @@ class ChatInterface {
             }
             const chatData = await response.json();
 
-            // Set current session BEFORE clearing messages
+            // CRITICAL: Set current session FIRST before any UI changes
             this.currentSessionId = sessionId;
+            console.log('Set currentSessionId to:', this.currentSessionId);
             
             // Completely clear the chat area
             this.clearChatMessages();
@@ -950,6 +979,9 @@ class ChatInterface {
                 chatData.messages.forEach(msg => {
                     this.addMessage(msg.content, msg.sender);
                 });
+            } else {
+                // If no messages, show empty state but keep session active
+                console.log('No messages found for session:', sessionId);
             }
 
             // Update sidebar to highlight the current chat
@@ -960,10 +992,12 @@ class ChatInterface {
                 }
             });
 
-            console.log('Loaded chat:', sessionId);
+            console.log('Successfully loaded chat:', sessionId, 'with', chatData.messages ? chatData.messages.length : 0, 'messages');
 
         } catch (error) {
             console.error(`Error loading chat ${sessionId}:`, error);
+            // Reset session ID on error
+            this.currentSessionId = null;
             // If chat fails to load, start a new chat
             await this.startNewChat();
         }

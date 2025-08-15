@@ -628,10 +628,19 @@ def generate():
         # Save to chat history if user is logged in
         session_id = data.get('session_id')
         if user and session_id:
+            # Verify session belongs to user before saving
+            user_sessions = db_manager.get_user_chat_sessions(user.user_id)
+            session_belongs_to_user = any(s['session_id'] == session_id for s in user_sessions)
+            
+            if not session_belongs_to_user:
+                logger.warning(f"Session {session_id} does not belong to user {user.user_id}")
+                return jsonify({'error': 'Invalid session'}), 400
+            
+            logger.info(f"Saving message to session {session_id} for user {user.user_id}")
+            
             # Check chat history limits first
             user_plan = db_manager.get_user_plan(user.user_id)
             if user_plan and user_plan['chat_history_limit'] != -1:  # -1 means unlimited
-                user_sessions = db_manager.get_user_chat_sessions(user.user_id, user_plan['chat_history_limit'])
                 if len(user_sessions) >= user_plan['chat_history_limit']:
                     # Don't save to history if limit reached
                     pass

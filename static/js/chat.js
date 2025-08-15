@@ -390,7 +390,7 @@ class ChatInterface {
         console.error('❌ All retry attempts failed. Last error:', lastError);
         this.addMessage('Connection failed after multiple attempts. Please try again.', 'ai', true);
 
-        // Reset UI
+        // Reset UI in finally block to ensure it always happens
         this.isGenerating = false;
         this.updateSendButton();
         this.updateSendButtonLoading(false);
@@ -696,6 +696,7 @@ class ChatInterface {
             // Reset UI in finally block to ensure it always happens
             console.log('🔄 Resetting UI state');
             this.isGenerating = false;
+            this.updateSendButton();
             this.updateSendButtonLoading(false);
         }
     }

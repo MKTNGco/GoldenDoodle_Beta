@@ -9,7 +9,8 @@ class ChatInterface {
         this.placeholderInterval = null;
         this.isDemoMode = window.isDemoMode || false;
         this.isLoggedIn = window.isLoggedIn || false;
-        this.currentSessionId = null; // Added for chat history
+        this.currentSessionId = null;
+        this.isInitialized = false; // Prevent double initialization
 
         this.placeholders = [
             "Message GoldenDoodleLM...",
@@ -23,16 +24,55 @@ class ChatInterface {
             "Draft culturally responsive outreach..."
         ];
 
-        // Only initialize if we're on the chat page
-        if (this.initializeElements()) {
+        // Add global error handlers to prevent unhandled rejections
+        this.setupGlobalErrorHandlers();
+
+        // Only initialize if we're on the chat page and not already initialized
+        if (this.initializeElements() && !this.isInitialized) {
+            this.isInitialized = true;
             this.bindEvents();
             this.autoResizeTextarea();
             this.startPlaceholderRotation();
             this.updateSendButton();
             this.handleInitialPrompt();
             this.setupDemoMode();
-            this.loadChatHistory(); // Load chat history on initialization
+            this.loadChatHistory();
         }
+    }
+
+    setupGlobalErrorHandlers() {
+        // Handle unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            event.preventDefault(); // Prevent the default console error
+
+            // Reset UI state if we're in a generating state
+            if (this.isGenerating) {
+                console.log('Resetting UI due to unhandled rejection');
+                this.isGenerating = false;
+                this.updateSendButton();
+                this.updateSendButtonLoading(false);
+
+                // Remove any loading messages
+                const loadingMessages = document.querySelectorAll('[id^="loading-"]');
+                loadingMessages.forEach(msg => msg.remove());
+
+                // Show error message
+                this.addMessage('Connection error occurred. Please try again.', 'ai', true);
+            }
+        });
+
+        // Handle general errors
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+
+            // Reset UI state if we're in a generating state
+            if (this.isGenerating) {
+                this.isGenerating = false;
+                this.updateSendButton();
+                this.updateSendButtonLoading(false);
+            }
+        });
     }
 
     initializeElements() {
@@ -45,7 +85,7 @@ class ChatInterface {
         this.modeButtons = document.querySelectorAll('.mode-btn[data-mode]');
         this.moreModesBtn = document.getElementById('moreModesBtn');
         this.secondaryModes = document.getElementById('secondaryModes');
-        this.newChatBtn = document.getElementById('newChatBtn'); // New chat button
+        this.newChatBtn = document.getElementById('newChatBtn');
 
         // Check if we're on the chat page
         if (!this.chatInput || !this.sendBtn || !this.chatMessages) {
@@ -56,63 +96,35 @@ class ChatInterface {
     }
 
     bindEvents() {
+        // Prevent double binding by removing existing listeners first
+        this.unbindEvents();
+
         // Textarea events
         if (this.chatInput) {
-            this.chatInput.addEventListener('input', () => {
-                this.autoResizeTextarea();
-                this.updateSendButton();
-            });
-
-            this.chatInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            });
-
-            this.chatInput.addEventListener('focus', () => {
-                this.stopPlaceholderRotation();
-            });
-
-            this.chatInput.addEventListener('blur', () => {
-                if (!this.chatInput.value.trim()) {
-                    this.startPlaceholderRotation();
-                }
-            });
+            this.chatInput.addEventListener('input', this.handleInput.bind(this));
+            this.chatInput.addEventListener('keydown', this.handleKeydown.bind(this));
+            this.chatInput.addEventListener('focus', this.handleFocus.bind(this));
+            this.chatInput.addEventListener('blur', this.handleBlur.bind(this));
         }
 
         // Send button
         if (this.sendBtn) {
-            this.sendBtn.addEventListener('click', () => this.sendMessage());
+            this.sendBtn.addEventListener('click', this.handleSendClick.bind(this));
         }
 
         // Attachment button
         const attachmentBtn = document.querySelector('.attachment-btn');
         if (attachmentBtn) {
-            attachmentBtn.addEventListener('click', () => {
-                this.handleAttachment();
-            });
+            attachmentBtn.addEventListener('click', this.handleAttachment.bind(this));
         }
 
         // Brand voice selector
         if (this.brandVoiceBtn) {
-            this.brandVoiceBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('Brand voice button clicked');
-                this.toggleBrandVoiceDropdown();
-            });
+            this.brandVoiceBtn.addEventListener('click', this.handleBrandVoiceClick.bind(this));
         }
 
-        // Brand voice options
-        document.querySelectorAll('.brand-voice-option').forEach(option => {
-            option.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('Brand voice option selected:', option.textContent.trim());
-                this.selectBrandVoice(option.dataset.value, option.textContent.trim());
-            });
-        });
+        // Brand voice options - use event delegation to prevent duplicates
+        document.addEventListener('click', this.handleBrandVoiceOptionClick.bind(this));
 
         // Mode buttons
         if (this.modeButtons) {
@@ -123,20 +135,96 @@ class ChatInterface {
 
         // More modes toggle
         if (this.moreModesBtn) {
-            this.moreModesBtn.addEventListener('click', () => this.toggleMoreModes());
+            this.moreModesBtn.addEventListener('click', this.toggleMoreModes.bind(this));
         }
 
-        // New chat button event listener
+        // New chat button
         if (this.newChatBtn) {
-            this.newChatBtn.addEventListener('click', () => this.startNewChat());
+            this.newChatBtn.addEventListener('click', this.handleNewChatClick.bind(this));
         }
 
         // Global click to close dropdown
-        document.addEventListener('click', (e) => {
-            if (this.brandVoiceDropdown && !this.brandVoiceDropdown.contains(e.target) && !this.brandVoiceBtn.contains(e.target)) {
-                this.closeBrandVoiceDropdown();
-            }
-        });
+        document.addEventListener('click', this.handleGlobalClick.bind(this));
+    }
+
+    unbindEvents() {
+        // Remove existing event listeners to prevent duplicates
+        if (this.chatInput) {
+            this.chatInput.removeEventListener('input', this.handleInput);
+            this.chatInput.removeEventListener('keydown', this.handleKeydown);
+            this.chatInput.removeEventListener('focus', this.handleFocus);
+            this.chatInput.removeEventListener('blur', this.handleBlur);
+        }
+
+        if (this.sendBtn) {
+            this.sendBtn.removeEventListener('click', this.handleSendClick);
+        }
+
+        if (this.brandVoiceBtn) {
+            this.brandVoiceBtn.removeEventListener('click', this.handleBrandVoiceClick);
+        }
+
+        if (this.moreModesBtn) {
+            this.moreModesBtn.removeEventListener('click', this.toggleMoreModes);
+        }
+
+        if (this.newChatBtn) {
+            this.newChatBtn.removeEventListener('click', this.handleNewChatClick);
+        }
+    }
+
+    // Event handler methods
+    handleInput() {
+        this.autoResizeTextarea();
+        this.updateSendButton();
+    }
+
+    handleKeydown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            this.sendMessage();
+        }
+    }
+
+    handleFocus() {
+        this.stopPlaceholderRotation();
+    }
+
+    handleBlur() {
+        if (!this.chatInput.value.trim()) {
+            this.startPlaceholderRotation();
+        }
+    }
+
+    handleSendClick() {
+        this.sendMessage();
+    }
+
+    handleBrandVoiceClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggleBrandVoiceDropdown();
+    }
+
+    handleBrandVoiceOptionClick(e) {
+        const option = e.target.closest('.brand-voice-option');
+        if (option) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.selectBrandVoice(option.dataset.value, option.textContent.trim());
+        }
+    }
+
+    handleNewChatClick() {
+        this.startNewChat();
+    }
+
+    handleGlobalClick(e) {
+        if (this.brandVoiceDropdown && 
+            !this.brandVoiceDropdown.contains(e.target) && 
+            !this.brandVoiceBtn.contains(e.target)) {
+            this.closeBrandVoiceDropdown();
+        }
     }
 
     autoResizeTextarea() {
@@ -144,7 +232,7 @@ class ChatInterface {
 
         this.chatInput.style.height = 'auto';
         const scrollHeight = this.chatInput.scrollHeight;
-        const maxHeight = 168; // Max height for ~7 lines
+        const maxHeight = 168;
 
         if (scrollHeight > maxHeight) {
             this.chatInput.style.height = maxHeight + 'px';
@@ -175,20 +263,15 @@ class ChatInterface {
         if (this.brandVoiceDropdown) {
             const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
 
-            // Close any other dropdowns first
             document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
             });
 
-            // Toggle this dropdown
             if (!isCurrentlyShown) {
-                // Position the dropdown relative to the button
                 const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
                 this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
                 this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
-
                 this.brandVoiceDropdown.classList.add('show');
-                console.log('Brand voice dropdown shown');
             }
         }
     }
@@ -196,7 +279,6 @@ class ChatInterface {
     closeBrandVoiceDropdown() {
         if (this.brandVoiceDropdown) {
             this.brandVoiceDropdown.classList.remove('show');
-            console.log('Brand voice dropdown closed');
         }
     }
 
@@ -256,145 +338,114 @@ class ChatInterface {
             return;
         }
 
-        // If no current session and logged in, start a new one
-        if (!this.currentSessionId && this.isLoggedIn) {
-            await this.startNewChat(false); // Start new chat without clearing UI immediately
+        try {
+            // If no current session and logged in, start a new one
+            if (!this.currentSessionId && this.isLoggedIn) {
+                await this.startNewChat(false);
+            }
+
+            // Validate session ID
+            if (this.isLoggedIn && !this.currentSessionId) {
+                console.error('No valid session ID for logged-in user!');
+                await this.startNewChat(false);
+            }
+
+            // Clear input and update UI
+            this.chatInput.value = '';
+            this.autoResizeTextarea();
+            this.isGenerating = true;
+            this.updateSendButton();
+            this.updateSendButtonLoading(true);
+
+            // Clear welcome screen if present
+            this.clearWelcomeScreen();
+
+            // Add user message
+            this.addMessage(prompt, 'user');
+
+            // Add loading message
+            const loadingId = this.addLoadingMessage();
+
+            // Get conversation history for context
+            const conversationHistory = this.getConversationHistory();
+
+            const requestData = {
+                prompt: prompt,
+                conversation_history: conversationHistory,
+                content_mode: this.currentMode,
+                brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
+                is_demo: this.isDemoMode,
+                session_id: this.currentSessionId
+            };
+
+            // Make the request with proper error handling
+            const response = await this.makeRequest('/generate', requestData);
+
+            this.removeLoadingMessage(loadingId);
+
+            if (response && response.response) {
+                this.addMessage(response.response, 'ai');
+
+                // Update chat title in sidebar
+                if (this.isLoggedIn && this.currentSessionId) {
+                    this.updateChatTitleInSidebar(this.currentSessionId, prompt);
+                }
+            } else {
+                this.addMessage(response?.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
+            }
+
+        } catch (error) {
+            console.error('Error in sendMessage:', error);
+
+            // Remove any loading messages
+            const loadingMessages = document.querySelectorAll('[id^="loading-"]');
+            loadingMessages.forEach(msg => msg.remove());
+
+            this.addMessage('Connection error. Please try again.', 'ai', true);
+        } finally {
+            // Always reset UI state
+            this.isGenerating = false;
+            this.updateSendButton();
+            this.updateSendButtonLoading(false);
+            this.chatInput.focus();
         }
+    }
 
-        // CRITICAL: Validate session ID before proceeding
-        console.log('Sending message to session:', this.currentSessionId);
-
-        if (this.isLoggedIn && !this.currentSessionId) {
-            console.error('No valid session ID for logged-in user!');
-            // Force create a new session
-            await this.startNewChat(false);
-        }
-
-        // Clear input and update UI
-        this.chatInput.value = '';
-        this.autoResizeTextarea();
-        this.isGenerating = true;
-        this.updateSendButton();
-        this.updateSendButtonLoading(true);
-
-        // Clear welcome screen if present
-        this.clearWelcomeScreen();
-
-        // Add user message
-        this.addMessage(prompt, 'user');
-
-        // Add loading message
-        const loadingId = this.addLoadingMessage();
-        console.log('🚀 Starting sendMessage request process');
-
-        // Get conversation history for context
-        const conversationHistory = this.getConversationHistory();
-        console.log('📚 Got conversation history, length:', conversationHistory.length);
-
-        const requestData = {
-            prompt: prompt,
-            conversation_history: conversationHistory,
-            content_mode: this.currentMode,
-            brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
-            is_demo: this.isDemoMode,
-            session_id: this.currentSessionId
-        };
-
-        console.log('📦 Request data prepared:', {
-            promptLength: prompt.length,
-            conversationHistoryLength: conversationHistory.length,
-            contentMode: this.currentMode,
-            brandVoiceId: requestData.brand_voice_id,
-            isDemo: this.isDemoMode,
-            sessionId: this.currentSessionId
-        });
-
-        // Pre-fetch validation
-        if (!requestData.prompt || !requestData.prompt.trim()) {
-            throw new Error('Empty prompt detected');
-        }
-
-        console.log('🌐 Making fetch request to /generate...');
-        console.log('🔍 Request validation passed, proceeding with fetch');
-
-        // Retry mechanism with exponential backoff
-        let lastError;
-        for (let attempt = 1; attempt <= 3; attempt++) {
+    async makeRequest(url, data, maxRetries = 3) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-                const response = await fetch('/generate', {
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(requestData),
+                    body: JSON.stringify(data),
                     signal: controller.signal
                 });
 
                 clearTimeout(timeoutId);
-
-                console.log(`🌐 Attempt ${attempt}: Fetch completed, status:`, response.status);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const responseText = await response.text();
-                console.log('📄 Raw response received, length:', responseText.length);
-
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                    console.log('📄 JSON parsed successfully');
-                } catch (parseError) {
-                    console.error('❌ JSON parsing error:', parseError);
-                    console.error('Response was:', responseText.substring(0, 500));
-                    throw new Error('Invalid JSON response from server');
-                }
-
-                this.removeLoadingMessage(loadingId);
-
-                if (data && data.response) {
-                    console.log('✅ Response successful, adding message');
-                    this.addMessage(data.response, 'ai');
-
-                    // Update chat title in sidebar if this is the first message
-                    if (this.isLoggedIn && this.currentSessionId) {
-                        console.log('📝 Updating chat title in sidebar');
-                        this.updateChatTitleInSidebar(this.currentSessionId, prompt);
-                    }
-                    return; // Success - exit retry loop
-                } else {
-                    console.log('❌ Invalid response data:', data);
-                    this.addMessage(data?.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
-                    return; // Exit retry loop
-                }
+                return JSON.parse(responseText);
 
             } catch (error) {
-                console.error(`❌ Attempt ${attempt} failed:`, error);
-                lastError = error;
+                console.error(`Attempt ${attempt} failed:`, error);
 
-                if (attempt < 3) {
-                    // Wait before retrying (exponential backoff)
-                    const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
-                    console.log(`⏳ Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                if (attempt === maxRetries) {
+                    throw error;
                 }
+
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             }
         }
-
-        // All retries failed
-        this.removeLoadingMessage(loadingId);
-        console.error('❌ All retry attempts failed. Last error:', lastError);
-        this.addMessage('Connection failed after multiple attempts. Please try again.', 'ai', true);
-
-        // Reset UI in finally block to ensure it always happens
-        this.isGenerating = false;
-        this.updateSendButton();
-        this.updateSendButtonLoading(false);
-        this.chatInput.focus();
     }
 
     clearWelcomeScreen() {
@@ -413,8 +464,6 @@ class ChatInterface {
 
         if (sender === 'ai') {
             bubbleDiv.innerHTML = this.formatMessage(content);
-
-            // Add action buttons for AI responses (not for errors)
             if (!isError) {
                 this.addActionButtons(bubbleDiv, content);
             }
@@ -424,31 +473,20 @@ class ChatInterface {
 
         messageDiv.appendChild(bubbleDiv);
 
-        // CRITICAL: Ensure we have the correct chat content container for THIS session
         let chatContent = this.chatMessages.querySelector('.chat-content');
         if (!chatContent) {
-            console.error('No chat content container found when adding message');
-            // Create fresh container if missing - this should not normally happen
             chatContent = document.createElement('div');
             chatContent.className = 'chat-content';
             this.chatMessages.appendChild(chatContent);
         }
 
-        // Remove welcome screen if it exists (when adding real messages)
         const welcomeScreen = chatContent.querySelector('.welcome-screen');
         if (welcomeScreen) {
             welcomeScreen.remove();
         }
 
-        // Add the message to the current conversation ONLY
-        // Verify we have a valid session before adding
-        if (!this.currentSessionId && this.isLoggedIn) {
-            console.warn('Adding message without valid session ID');
-        }
-
         chatContent.appendChild(messageDiv);
 
-        // Scroll to bottom smoothly
         setTimeout(() => {
             this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
         }, 10);
@@ -487,20 +525,16 @@ class ChatInterface {
         bubbleDiv.appendChild(actionsDiv);
     }
 
-    async copyToClipboard(content, button) {
+    async copyToClipboard(content) {
         try {
-            // Strip HTML tags for plain text copying
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = content;
             const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
             await navigator.clipboard.writeText(plainText);
-
-            // Show success feedback
             this.showCopyFeedback();
         } catch (err) {
             console.error('Failed to copy text: ', err);
-            // Fallback for older browsers
             this.fallbackCopyToClipboard(content);
         }
     }
@@ -549,7 +583,6 @@ class ChatInterface {
             return;
         }
 
-        // Get the last user message to regenerate response
         const messages = this.chatMessages.querySelectorAll('.message');
         let lastUserMessage = null;
 
@@ -568,137 +601,14 @@ class ChatInterface {
             return;
         }
 
-        // Remove the last AI response
         const lastAiMessage = this.chatMessages.querySelector('.message-ai:last-child');
         if (lastAiMessage) {
             lastAiMessage.remove();
         }
 
-        // Generate new response
-        this.generateResponse(lastUserMessage);
-    }
-
-    async generateResponse(prompt) {
-        console.log('🚀 STARTING generateResponse function with prompt:', prompt);
-
-        try {
-            this.isGenerating = true;
-            this.updateSendButtonLoading(true);
-
-            // Add loading message
-            const loadingId = this.addLoadingMessage();
-            console.log('📝 Loading message added with ID:', loadingId);
-
-            // Get conversation history for context (excluding the last AI message that was removed)
-            const conversationHistory = this.getConversationHistory();
-            console.log('📚 Conversation history retrieved, length:', conversationHistory.length);
-
-            const requestData = {
-                prompt: prompt,
-                conversation_history: conversationHistory,
-                content_mode: this.currentMode,
-                brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
-                is_demo: this.isDemoMode,
-                session_id: this.currentSessionId
-            };
-
-            console.log('=== CHAT DEBUG: About to send request ===');
-            console.log('Request URL:', '/generate');
-            console.log('Request method:', 'POST');
-            console.log('Request headers:', {'Content-Type': 'application/json'});
-            console.log('Request data:', requestData);
-            console.log('Request body size:', JSON.stringify(requestData).length, 'characters');
-            console.log('Current session ID:', this.currentSessionId);
-            console.log('Is demo mode:', this.isDemoMode);
-
-            // Pre-fetch validation
-            if (!requestData.prompt || !requestData.prompt.trim()) {
-                throw new Error('Empty prompt detected in generateResponse');
-            }
-
-            console.log('🌐 About to make fetch request...');
-            console.log('🔍 Request validation passed, proceeding with fetch');
-
-            // Retry mechanism with exponential backoff
-            let lastError;
-            for (let attempt = 1; attempt <= 3; attempt++) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
-
-                    const response = await fetch('/generate', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(requestData),
-                        signal: controller.signal
-                    });
-
-                    clearTimeout(timeoutId);
-
-                    console.log(`🌐 Attempt ${attempt}: Fetch completed, status:`, response.status);
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    const responseText = await response.text();
-                    console.log('📄 Raw response received, length:', responseText.length);
-
-                    let data;
-                    try {
-                        data = JSON.parse(responseText);
-                        console.log('📄 JSON parsed successfully');
-                    } catch (parseError) {
-                        console.error('❌ JSON parsing error:', parseError);
-                        console.error('Response was:', responseText.substring(0, 500));
-                        throw new Error('Invalid JSON response from server');
-                    }
-
-                    this.removeLoadingMessage(loadingId);
-
-                    if (data && data.response) {
-                        console.log('✅ Request successful, adding AI message');
-                        this.addMessage(data.response, 'ai');
-                        return; // Success - exit retry loop
-                    } else {
-                        console.log('❌ Invalid response data:', data);
-                        this.addMessage(data?.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
-                        return; // Exit retry loop
-                    }
-
-                } catch (error) {
-                    console.error(`❌ Attempt ${attempt} failed:`, error);
-                    lastError = error;
-
-                    if (attempt < 3) {
-                        // Wait before retrying (exponential backoff)
-                        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
-                        console.log(`⏳ Retrying in ${delay}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    }
-                }
-            }
-
-            // All retries failed
-            this.removeLoadingMessage(loadingId);
-            console.error('❌ All retry attempts failed. Last error:', lastError);
-            this.addMessage('Connection failed after multiple attempts. Please try again.', 'ai', true);
-
-        } catch (outerError) {
-            console.error('❌ OUTER FUNCTION ERROR:', outerError);
-            console.error('Outer error name:', outerError.name);
-            console.error('Outer error message:', outerError.message);
-            console.error('Outer error stack:', outerError.stack);
-            this.addMessage('An unexpected error occurred. Please refresh the page and try again.', 'ai', true);
-        } finally {
-            // Reset UI in finally block to ensure it always happens
-            console.log('🔄 Resetting UI state');
-            this.isGenerating = false;
-            this.updateSendButton();
-            this.updateSendButtonLoading(false);
-        }
+        // Set the prompt and send message
+        this.chatInput.value = lastUserMessage;
+        this.sendMessage();
     }
 
     addLoadingMessage() {
@@ -751,27 +661,21 @@ class ChatInterface {
     }
 
     handleInitialPrompt() {
-        // Only handle session storage if user is logged in
-        // Demo users should experience the response on the homepage instead
         if (!this.isLoggedIn) {
             return;
         }
 
-        // Check for demo prompt from homepage (only for logged-in users)
         const demoPrompt = sessionStorage.getItem('demoPrompt');
         const demoMode = sessionStorage.getItem('demoMode');
 
         if (demoPrompt && this.chatInput) {
-            // Clear the session storage
             sessionStorage.removeItem('demoPrompt');
             sessionStorage.removeItem('demoMode');
 
-            // Set the prompt in the textarea
             this.chatInput.value = demoPrompt;
             this.autoResizeTextarea();
             this.updateSendButton();
 
-            // Set the mode if available
             if (demoMode) {
                 const modeButton = document.querySelector(`[data-mode="${demoMode}"]`);
                 if (modeButton) {
@@ -779,7 +683,6 @@ class ChatInterface {
                 }
             }
 
-            // Auto-send the message after a brief delay
             setTimeout(() => {
                 this.sendMessage();
             }, 500);
@@ -788,13 +691,11 @@ class ChatInterface {
 
     setupDemoMode() {
         if (this.isDemoMode) {
-            // Disable brand voice dropdown if it exists
             if (this.brandVoiceBtn) {
                 this.brandVoiceBtn.style.cursor = 'not-allowed';
                 this.brandVoiceBtn.style.opacity = '0.7';
             }
 
-            // Disable attachment button
             const attachmentBtn = document.querySelector('.attachment-btn');
             if (attachmentBtn) {
                 attachmentBtn.style.cursor = 'not-allowed';
@@ -805,7 +706,6 @@ class ChatInterface {
                 });
             }
 
-            // Update welcome screen message for demo users
             const welcomeScreen = document.querySelector('.welcome-screen');
             if (welcomeScreen && !this.isLoggedIn) {
                 const heading = welcomeScreen.querySelector('h1');
@@ -818,7 +718,6 @@ class ChatInterface {
     }
 
     showPremiumMessage() {
-        // Show a tooltip-like message for premium features
         const tooltip = document.createElement('div');
         tooltip.innerHTML = `
             <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--charcoal); color: var(--cloud-white); padding: 16px 20px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
@@ -832,7 +731,6 @@ class ChatInterface {
 
         document.body.appendChild(tooltip);
 
-        // Remove after 3 seconds
         setTimeout(() => {
             if (tooltip.parentNode) {
                 tooltip.parentNode.removeChild(tooltip);
@@ -841,13 +739,11 @@ class ChatInterface {
     }
 
     handleAttachment() {
-        // Check if in demo mode
         if (this.isDemoMode) {
             this.showPremiumMessage();
             return;
         }
 
-        // Create a hidden file input
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.txt,.pdf,.doc,.docx,.md';
@@ -866,7 +762,6 @@ class ChatInterface {
     }
 
     async processAttachment(file) {
-        // Check file size (limit to 5MB)
         if (file.size > 5 * 1024 * 1024) {
             alert('File size must be less than 5MB');
             return;
@@ -874,9 +769,8 @@ class ChatInterface {
 
         try {
             const text = await this.readFileAsText(file);
-            const truncatedText = text.substring(0, 2000); // Limit to first 2000 characters
+            const truncatedText = text.substring(0, 2000);
 
-            // Add the file content to the chat input
             const currentText = this.chatInput.value;
             const newText = currentText + (currentText ? '\n\n' : '') +
                            `[Attached file: ${file.name}]\n${truncatedText}${text.length > 2000 ? '\n...(truncated)' : ''}`;
@@ -912,17 +806,11 @@ class ChatInterface {
             .replace(/<p><\/p>/g, '');
     }
 
-    // Chat History Functionality
     async startNewChat(clearUI = true) {
-        console.log('Starting new chat, clearUI:', clearUI, 'isLoggedIn:', this.isLoggedIn);
-
-        // CRITICAL: Always clear current session ID first to prevent message bleeding
         const previousSessionId = this.currentSessionId;
         this.currentSessionId = null;
-        console.log('Cleared current session ID. Previous:', previousSessionId);
 
         if (!this.isLoggedIn) {
-            // For demo users, just clear the UI completely
             if (clearUI) {
                 this.clearChatMessages();
                 this.chatInput.value = '';
@@ -930,11 +818,9 @@ class ChatInterface {
                 this.updateSendButton();
                 this.chatInput.focus();
             }
-            console.log('Demo mode - session cleared');
             return;
         }
 
-        // Fetch a new session ID for logged-in users
         try {
             const response = await fetch('/new-session', {
                 method: 'POST',
@@ -942,33 +828,26 @@ class ChatInterface {
                     'Content-Type': 'application/json',
                 },
             });
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
+
             const data = await response.json();
-
-            // Set the new session ID AFTER successful creation
             this.currentSessionId = data.session_id;
-            console.log('New session created:', this.currentSessionId);
 
-            // ALWAYS clear UI for new sessions to ensure isolation
             if (clearUI) {
-                // Remove active state from ALL sessions FIRST
                 document.querySelectorAll('.chat-history-item').forEach(item => {
                     item.classList.remove('active');
                 });
 
-                // Completely clear the chat area
                 this.clearChatMessages();
-
-                // Clear and reset input
                 this.chatInput.value = '';
                 this.autoResizeTextarea();
                 this.updateSendButton();
                 this.chatInput.focus();
             }
 
-            // Add the new chat to sidebar and make it active
             this.addChatToSidebar({
                 id: this.currentSessionId,
                 title: 'New Chat',
@@ -977,20 +856,16 @@ class ChatInterface {
                 updated_at: new Date().toISOString()
             });
 
-            // Make the new chat active in the sidebar
             setTimeout(() => {
                 const newChatItem = document.querySelector(`[data-session-id="${this.currentSessionId}"]`);
                 if (newChatItem) {
                     newChatItem.classList.add('active');
-                    console.log('New chat item made active in sidebar');
                 }
             }, 100);
 
         } catch (error) {
             console.error('Error starting new chat session:', error);
-            // Reset session state on error
             this.currentSessionId = null;
-            // Always clear UI on error for clean state
             if (clearUI) {
                 this.clearChatMessages();
                 this.chatInput.value = '';
@@ -1002,14 +877,11 @@ class ChatInterface {
     }
 
     clearChatMessages() {
-        // CRITICAL: Completely clear the entire chat messages container
         this.chatMessages.innerHTML = '';
 
-        // Create a fresh chat-content container
         const chatContent = document.createElement('div');
         chatContent.className = 'chat-content';
 
-        // Add clean welcome screen with proper structure
         const welcomeScreen = document.createElement('div');
         welcomeScreen.className = 'welcome-screen';
 
@@ -1022,11 +894,7 @@ class ChatInterface {
 
         welcomeScreen.appendChild(welcomeContent);
         chatContent.appendChild(welcomeScreen);
-
-        // Append the fresh container
         this.chatMessages.appendChild(chatContent);
-
-        // Force scroll to top
         this.chatMessages.scrollTop = 0;
     }
 
@@ -1034,22 +902,19 @@ class ChatInterface {
         const chatHistory = document.getElementById('chatHistory');
         if (!chatHistory) return;
 
-        // Validate chat data
         if (!chat || !chat.id) {
             console.error('Invalid chat data provided to addChatToSidebar:', chat);
             return;
         }
 
-        // Check if this chat already exists in sidebar
+        // Prevent duplicates
         const existingChat = document.querySelector(`[data-session-id="${chat.id}"]`);
         if (existingChat) {
-            // Update existing chat instead of creating duplicate
             const titleElement = existingChat.querySelector('.chat-session-title');
             const metaElement = existingChat.querySelector('.chat-session-meta span:first-child');
 
             if (titleElement) titleElement.textContent = chat.title;
             if (metaElement) metaElement.textContent = `${chat.message_count || 0} messages`;
-            console.log('Updated existing chat in sidebar:', chat.id);
             return;
         }
 
@@ -1068,19 +933,15 @@ class ChatInterface {
             </button>
         `;
 
-        // Add click listener to load chat with proper session isolation
         chatElement.addEventListener('click', () => {
-            console.log('Clicking chat item, loading session:', chat.id);
             this.loadChat(chat.id);
         });
 
-        // Prepend to the list of chats (newest first)
         chatHistory.prepend(chatElement);
-        console.log('Added new chat to sidebar:', chat.id);
     }
 
     async loadChatHistory() {
-        if (!this.isLoggedIn) return; // Don't load history for demo users
+        if (!this.isLoggedIn) return;
 
         try {
             const response = await fetch('/chat-history');
@@ -1092,29 +953,26 @@ class ChatInterface {
             const chatHistory = document.getElementById('chatHistory');
             if (!chatHistory) return;
 
-            // Clear existing chats and add loaded ones
+            // Clear existing chats to prevent duplicates
             chatHistory.innerHTML = '';
             chats.forEach(chat => {
                 this.addChatToSidebar(chat);
             });
 
-            // If there are chats, load the most recent one
             if (chats.length > 0) {
-                await this.loadChat(chats[0].id); // Load the first chat in the history
+                await this.loadChat(chats[0].id);
             } else {
-                // If no history, start a new chat
                 await this.startNewChat();
             }
 
         } catch (error) {
             console.error('Error loading chat history:', error);
-            // Fallback: start a new chat if history fails to load
             await this.startNewChat();
         }
     }
 
     async loadChat(sessionId) {
-        if (this.currentSessionId === sessionId) return; // Already loaded
+        if (this.currentSessionId === sessionId) return;
 
         try {
             const response = await fetch(`/chat/${sessionId}`);
@@ -1123,23 +981,12 @@ class ChatInterface {
             }
             const chatData = await response.json();
 
-            // CRITICAL: Clear previous session FIRST, then set new one
-            console.log('Loading chat - clearing previous session:', this.currentSessionId);
             this.currentSessionId = null;
-
-            // COMPLETELY clear the chat area - no partial clearing
             this.clearChatMessages();
-
-            // NOW set the new session ID
             this.currentSessionId = sessionId;
-            console.log('Set currentSessionId to:', this.currentSessionId);
 
-            // Add messages to the chat interface in order
             if (chatData.messages && chatData.messages.length > 0) {
-                // Get the fresh chat-content container that was created in clearChatMessages
                 let chatContent = this.chatMessages.querySelector('.chat-content');
-
-                // Remove welcome screen since we have messages
                 const welcomeScreen = chatContent.querySelector('.welcome-screen');
                 if (welcomeScreen) {
                     welcomeScreen.remove();
@@ -1149,16 +996,11 @@ class ChatInterface {
                     this.addMessage(msg.content, msg.sender);
                 });
 
-                // Scroll to bottom after loading all messages
                 setTimeout(() => {
                     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
                 }, 100);
-            } else {
-                // If no messages, the welcome screen from clearChatMessages is kept
-                console.log('No messages found for session:', sessionId);
             }
 
-            // Update sidebar to highlight the current chat
             document.querySelectorAll('.chat-history-item').forEach(item => {
                 item.classList.remove('active');
                 if (item.dataset.sessionId === sessionId) {
@@ -1166,31 +1008,11 @@ class ChatInterface {
                 }
             });
 
-            console.log('Successfully loaded chat:', sessionId, 'with', chatData.messages ? chatData.messages.length : 0, 'messages');
-
         } catch (error) {
             console.error(`Error loading chat ${sessionId}:`, error);
-            // Reset session ID on error and clear UI
             this.currentSessionId = null;
             this.clearChatMessages();
-            // If chat fails to load, start a new chat
             await this.startNewChat();
-        }
-    }
-
-    // Helper to generate title for a chat session
-    async generateChatTitle(sessionId) {
-        try {
-            const response = await fetch('/generate-title', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId })
-            });
-            const data = await response.json();
-            return data.title;
-        } catch (error) {
-            console.error('Error generating chat title:', error);
-            return 'New Chat'; // Fallback title
         }
     }
 
@@ -1212,23 +1034,21 @@ class ChatInterface {
         if (chatItem) {
             const titleElement = chatItem.querySelector('.chat-session-title');
             if (titleElement) {
-                // Generate a short title from the first message
                 const title = firstMessage.length > 50 ? firstMessage.substring(0, 47) + '...' : firstMessage;
                 titleElement.textContent = title;
             }
 
-            // Update message count
             const metaElement = chatItem.querySelector('.chat-session-meta span:first-child');
             if (metaElement) {
                 const currentCount = parseInt(metaElement.textContent) || 0;
-                metaElement.textContent = `${currentCount + 2} messages`; // +2 for user message and AI response
+                metaElement.textContent = `${currentCount + 2} messages`;
             }
         }
     }
 
     getConversationHistory() {
         const messages = [];
-        const messageElements = this.chatMessages.querySelectorAll('.message:not(#loading-*)');
+        const messageElements = this.chatMessages.querySelectorAll('.message:not([id^="loading-"])');
 
         messageElements.forEach(messageEl => {
             const isUser = messageEl.classList.contains('message-user');
@@ -1241,7 +1061,6 @@ class ChatInterface {
                     if (isUser) {
                         content = bubbleEl.textContent.trim();
                     } else {
-                        // For AI messages, get text content without action buttons
                         const actionsEl = bubbleEl.querySelector('.message-actions');
                         if (actionsEl) {
                             const tempDiv = bubbleEl.cloneNode(true);
@@ -1277,27 +1096,21 @@ class ChatInterface {
             });
 
             if (response.ok) {
-                // Remove from sidebar
                 const sessionElement = document.querySelector(`[data-session-id="${sessionId}"]`);
                 if (sessionElement) {
                     sessionElement.remove();
                 }
 
-                // If this was the current session, clear everything and start fresh
                 if (this.currentSessionId === sessionId) {
-                    console.log('Deleted current session, starting fresh');
                     this.currentSessionId = null;
                     this.clearChatMessages();
 
-                    // Check if there are other sessions to load
                     const remainingSessions = document.querySelectorAll('.chat-history-item');
                     if (remainingSessions.length > 0) {
-                        // Load the first remaining session
                         const firstSession = remainingSessions[0];
                         const firstSessionId = firstSession.dataset.sessionId;
                         await this.loadChat(firstSessionId);
                     } else {
-                        // No sessions left, start a completely new one
                         await this.startNewChat();
                     }
                 }
@@ -1315,7 +1128,6 @@ function startNewChat() {
     if (chatInterface) {
         chatInterface.startNewChat(true);
     } else {
-        // Fallback if chatInterface not available
         const chatMessages = document.getElementById('chatMessages');
         chatMessages.innerHTML = `
             <div class="chat-content">
@@ -1328,7 +1140,6 @@ function startNewChat() {
             </div>
         `;
 
-        // Focus on the input
         const chatInput = document.getElementById('chatInput');
         if (chatInput) {
             chatInput.focus();
@@ -1339,7 +1150,9 @@ function startNewChat() {
 // Global chat interface reference
 let chatInterface;
 
-// Initialize chat interface
+// Initialize chat interface - prevent double initialization
 document.addEventListener('DOMContentLoaded', function() {
-    chatInterface = new ChatInterface();
+    if (!chatInterface) {
+        chatInterface = new ChatInterface();
+    }
 });

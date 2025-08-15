@@ -114,10 +114,18 @@ class GeminiService:
                 )
             )
 
+            # Debug the response object
+            logger.info(f"Response object type: {type(response)}")
+            logger.info(f"Response has text attr: {hasattr(response, 'text')}")
+            if hasattr(response, 'text'):
+                logger.info(f"Response.text type: {type(response.text)}")
+                logger.info(f"Response.text value: {response.text[:100] if response.text else 'None'}")
+            
             # Use identical response handling as the working generate_content method
             if response.text:
                 return response.text
             else:
+                logger.warning("No response.text found, returning fallback message")
                 return "I apologize, but I wasn't able to generate a response. Please try again."
 
         except Exception as e:

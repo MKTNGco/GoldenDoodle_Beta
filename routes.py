@@ -2242,19 +2242,17 @@ def submit_feedback():
     try:
         # Get form data
         feedback_type = request.form.get('feedback_type', '').strip()
-        subject = request.form.get('subject', '').strip()
         message = request.form.get('message', '').strip()
         email = request.form.get('email', '').strip()
         name = request.form.get('name', '').strip()
         system_info = request.form.get('system_info', '').strip()
 
-        if not all([feedback_type, subject, message]):
-            return jsonify({'error': 'Feedback type, subject, and message are required'}), 400
+        if not all([feedback_type, message]):
+            return jsonify({'error': 'Feedback type and message are required'}), 400
 
         # Prepare feedback data
         feedback_data = {
             'feedback_type': feedback_type,
-            'subject': subject,
             'message': message,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
         }

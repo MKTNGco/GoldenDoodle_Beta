@@ -246,7 +246,7 @@ The GoldenDoodleLM Team
         """Send feedback email to support"""
         try:
             support_email = os.environ.get('SUPPORT_EMAIL', 'support@goldendoodlelm.com')
-            
+
             # Format feedback type for display
             feedback_types = {
                 'bug': 'Bug Report',
@@ -255,17 +255,18 @@ The GoldenDoodleLM Team
                 'support': 'Support Request',
                 'other': 'Other'
             }
-            
+
             feedback_type_display = feedback_types.get(feedback_data.get('feedback_type', 'other'), 'Other')
-            subject = f"[{feedback_type_display}] {feedback_data.get('subject', 'No subject')}"
-            
+            # Create email subject from feedback type
+            subject = f"[{feedback_type_display}] New {feedback_type_display} Submission"
+
             # Build email content
             html_content = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background-color: #32808c; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
                     <h2>New Feedback Submission</h2>
                 </div>
-                
+
                 <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
@@ -277,7 +278,7 @@ The GoldenDoodleLM Team
                             <td style="padding: 8px 0;">{feedback_data.get('subject', 'N/A')}</td>
                         </tr>
             """
-            
+
             # Add user information
             if feedback_data.get('user_info'):
                 user_info = feedback_data['user_info']
@@ -305,14 +306,14 @@ The GoldenDoodleLM Team
                             <td style="padding: 8px 0;">Anonymous submission</td>
                         </tr>
                 """
-            
+
             html_content += f"""
                         <tr>
                             <td style="padding: 8px 0; font-weight: bold;">Timestamp:</td>
                             <td style="padding: 8px 0;">{feedback_data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'))}</td>
                         </tr>
                     </table>
-                    
+
                     <div style="margin-top: 20px;">
                         <h3 style="color: #32808c; margin-bottom: 10px;">Message:</h3>
                         <div style="background-color: white; padding: 15px; border-radius: 5px; border-left: 4px solid #32808c;">
@@ -320,7 +321,7 @@ The GoldenDoodleLM Team
                         </div>
                     </div>
             """
-            
+
             # Add system information if provided
             if feedback_data.get('system_info'):
                 html_content += f"""
@@ -331,7 +332,7 @@ The GoldenDoodleLM Team
                         </div>
                     </div>
                 """
-            
+
             # Add attachment info
             if attachments:
                 html_content += f"""
@@ -347,12 +348,12 @@ The GoldenDoodleLM Team
                         </ul>
                     </div>
                 """
-            
+
             html_content += """
                 </div>
             </div>
             """
-            
+
             # Create plain text version
             plain_content = f"""
 New Feedback Submission
@@ -360,7 +361,7 @@ New Feedback Submission
 Type: {feedback_type_display}
 Subject: {feedback_data.get('subject', 'N/A')}
 """
-            
+
             if feedback_data.get('user_info'):
                 user_info = feedback_data['user_info']
                 plain_content += f"User: {user_info.get('name', 'N/A')} ({user_info.get('email', 'N/A')})\n"
@@ -369,13 +370,13 @@ Subject: {feedback_data.get('subject', 'N/A')}
                 plain_content += f"Contact: {feedback_data.get('name', 'Anonymous')} ({feedback_data.get('email', 'No email provided')})\n"
             else:
                 plain_content += "Contact: Anonymous submission\n"
-            
+
             plain_content += f"Timestamp: {feedback_data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'))}\n\n"
             plain_content += f"Message:\n{feedback_data.get('message', 'No message provided')}\n"
-            
+
             if feedback_data.get('system_info'):
                 plain_content += f"\nSystem Information:\n{feedback_data['system_info']}\n"
-            
+
             if attachments:
                 plain_content += "\nAttachments:\n"
                 for attachment in attachments:
@@ -393,12 +394,12 @@ Subject: {feedback_data.get('subject', 'N/A')}
             if attachments:
                 from sendgrid.helpers.mail import Attachment, FileContent, FileName, FileType, Disposition
                 import base64
-                
+
                 for attachment_data in attachments:
                     try:
                         # Encode file content
                         encoded_content = base64.b64encode(attachment_data['content']).decode()
-                        
+
                         attachment = Attachment(
                             FileContent(encoded_content),
                             FileName(attachment_data['filename']),

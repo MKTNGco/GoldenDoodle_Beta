@@ -919,33 +919,7 @@ a:hover {
     z-index: 1040 !important;
 }
 
-/* Mobile Menu */
-.mobile-menu-content {
-    background-color: var(--cloud-white);
-    border: 1px solid var(--vapor-gray);
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    margin-top: 8px;
-}
 
-.mobile-menu-item {
-    display: block;
-    padding: 12px 0;
-    color: var(--charcoal);
-    text-decoration: none;
-    font-weight: 500;
-    border-bottom: 1px solid var(--vapor-gray);
-    transition: color 0.2s ease;
-}
-
-.mobile-menu-item:last-child {
-    border-bottom: none;
-}
-
-.mobile-menu-item:hover {
-    color: var(--clearwater-teal);
-    text-decoration: none;
-}
 
 .dropdown-item {
     color: var(--charcoal);

@@ -30,13 +30,9 @@
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GoldenDoodleLM Logo" height="64">
             </a>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown d-none d-md-block">
+                    <li class="nav-item dropdown">
                         <a class="nav-link" href="#" id="mainMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.1rem; font-weight: 500; padding: 8px 16px; border-radius: 6px; background-color: var(--clearwater-teal); color: white !important;">
                             Menu
                         </a>
@@ -97,65 +93,6 @@
                         </ul>
                     </li>
                 </ul>
-
-                <!-- Mobile Menu -->
-                <div class="d-md-none">
-                    <div class="collapse" id="navbarNav">
-                            <div class="mobile-menu-content p-3">
-                            {% if not session.user_id %}
-                            <a class="mobile-menu-item" href="{{ url_for('login') }}">
-                                Login
-                            </a>
-                            <a class="mobile-menu-item" href="{{ url_for('register') }}">
-                                Sign Up
-                            </a>
-                            <hr class="my-2">
-                            {% endif %}
-
-                            <a class="mobile-menu-item" href="{{ url_for('chat') if session.user_id else url_for('index') }}">
-                                Chat
-                            </a>
-
-                            <a class="mobile-menu-item" href="{{ url_for('pricing') }}">
-                                Pricing
-                            </a>
-                            <a class="mobile-menu-item" href="#" data-bs-toggle="modal" data-bs-target="#feedbackModal">
-                                <i class="fas fa-comment me-1"></i>Feedback
-                            </a>
-
-                            <a class="mobile-menu-item" href="{{ url_for('how_to') }}">
-                                How to GoldenDoodleLM
-                            </a>
-
-                            <a class="mobile-menu-item" href="{{ url_for('our_story') }}">
-                                Our Story
-                            </a>
-
-                            {% if session.user_id %}
-                            <a class="mobile-menu-item" href="{{ url_for('brand_voices') }}">
-                                Brand Voices
-                            </a>
-
-                            <hr class="my-2">
-
-                            <a class="mobile-menu-item" href="{{ url_for('account') }}">
-                                Account
-                            </a>
-
-                            {% if session.user_id and get_current_user().email == 'sunny@goldendoodlelm.ai' %}
-                            <hr class="my-2">
-                            <a class="mobile-menu-item text-warning" href="{{ url_for('platform_admin') }}">
-                                <i class="fas fa-cog me-1"></i>Platform Admin
-                            </a>
-                            {% endif %}
-
-                            <a class="mobile-menu-item" href="{{ url_for('logout') }}">
-                                Logout
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </nav>

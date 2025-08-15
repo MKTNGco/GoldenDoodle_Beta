@@ -316,7 +316,7 @@ The GoldenDoodleLM Team
                     <div style="margin-top: 20px;">
                         <h3 style="color: #32808c; margin-bottom: 10px;">Message:</h3>
                         <div style="background-color: white; padding: 15px; border-radius: 5px; border-left: 4px solid #32808c;">
-                            {feedback_data.get('message', 'No message provided').replace('\n', '<br>')}
+                            {feedback_data.get('message', 'No message provided').replace(chr(10), '<br>')}
                         </div>
                     </div>
             """

@@ -66,8 +66,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--border-light); /* Add a line below the logo */
+    padding: 16px 0 8px 0;
 }
 
 .sidebar-logo img {
@@ -75,6 +74,37 @@ body {
     height: 28px;
     object-fit: contain;
     border-radius: 4px; /* Slight rounding for the dog icon */
+}
+
+.chat-menu-button {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.menu-btn {
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    padding: 4px 12px !important;
+    border-radius: 16px !important;
+    background-color: var(--clearwater-teal) !important;
+    color: white !important;
+    text-decoration: none !important;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.menu-btn:hover {
+    background-color: var(--deep-teal) !important;
+    color: white !important;
+    text-decoration: none !important;
+}
+
+.sidebar:hover .menu-btn {
+    font-size: 0.9rem !important;
+    padding: 6px 16px !important;
 }
 
 .sidebar:hover {
@@ -734,6 +764,58 @@ body {
         <div class="sidebar-logo">
             <img src="{{ url_for('static', filename='images/dog-icon.png') }}" alt="GoldenDoodleLM">
         </div>
+        <div class="chat-menu-button">
+            <div class="nav-item dropdown">
+                <a class="nav-link menu-btn" href="#" id="chatMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Menu
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% if not session.user_id %}
+                    <li><a class="dropdown-item" href="{{ url_for('login') }}">
+                        Login
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('register') }}">
+                        Sign Up
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+
+                    <li><a class="dropdown-item" href="{{ url_for('chat') if session.user_id else url_for('index') }}">
+                        Chat
+                    </a></li>
+
+                    <li><a class="dropdown-item" href="{{ url_for('how_to') }}">
+                        How to GoldenDoodleLM
+                    </a></li>
+
+                    <li><a class="dropdown-item" href="{{ url_for('our_story') }}">
+                        Our Story
+                    </a></li>
+
+                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#feedbackModal">
+                        <i class="fas fa-comment me-1"></i>Feedback
+                    </a></li>
+
+                    <li><a class="dropdown-item" href="{{ url_for('pricing') }}">
+                        Pricing
+                    </a></li>
+
+                    {% if session.user_id %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('brand_voices') }}">
+                        <i class="fas fa-microphone me-1"></i>Brand Voices
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('account') }}">
+                        Account
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                        Logout
+                    </a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
         <button class="new-chat-btn" onclick="startNewChat()">
             <i class="fas fa-plus"></i>
             <span class="new-chat-text">New Chat</span>
@@ -871,6 +953,9 @@ body {
         </div>
     </div>
 </div>
+
+<!-- Include feedback modal -->
+{% include 'feedback_modal.html' %}
 
 <script>
 // Pass demo mode and user status to JavaScript

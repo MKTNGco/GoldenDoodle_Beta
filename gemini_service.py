@@ -79,10 +79,6 @@ class GeminiService:
                                     trauma_informed_context: str = None) -> str:
         """Generate content using Gemini with conversation history for context"""
         try:
-            logger.info(f"Generating content with history. Prompt length: {len(prompt)}")
-            logger.info(f"History length: {len(conversation_history) if conversation_history else 0}")
-            logger.info(f"Content mode: {content_mode}")
-            
             # Build conversation history string
             history_context = ""
             if conversation_history:
@@ -98,18 +94,16 @@ class GeminiService:
 
             # Build the full prompt with context and history
             full_prompt = self._build_prompt_with_history(prompt, history_context, content_mode, brand_voice_context, trauma_informed_context)
-            logger.info(f"Full prompt length: {len(full_prompt)}")
 
-            # Get temperature based on content mode (same as the working generate_content method)
+            # Get temperature based on content mode
             temperature = CONTENT_MODE_TEMPERATURES.get(content_mode or 'general', 0.7)
             
-            # Build system instruction (same approach as working method)
+            # Build system instruction
             system_instruction = self._build_system_instruction(
                 content_mode, brand_voice_context, trauma_informed_context
             )
             
-            # Generate content with detailed logging (using same structure as working method)
-            logger.info("Making API call to Gemini...")
+            # Generate content using exact same approach as working generate_content method
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[types.Content(role="user", parts=[types.Part(text=full_prompt)])],
@@ -119,25 +113,16 @@ class GeminiService:
                     max_output_tokens=4096
                 )
             )
-            
-            logger.info(f"API call completed. Response type: {type(response)}")
-            logger.info(f"Response object: {response}")
 
-            # Use exact same response handling as working generate_content method
-            if response and hasattr(response, 'text') and response.text:
-                logger.info(f"Success! Response length: {len(response.text)}")
-                return response.text.strip()
+            # Use identical response handling as the working generate_content method
+            if response.text:
+                return response.text
             else:
-                logger.warning("No response text received from Gemini API")
-                logger.warning(f"Response object: {response}")
-                logger.warning(f"Response type: {type(response)}")
                 return "I apologize, but I wasn't able to generate a response. Please try again."
 
         except Exception as e:
-            logger.error(f"Exception in generate_content_with_history: {type(e).__name__}: {str(e)}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
-            return "I'm experiencing technical difficulties. Please try again in a moment."
+            logger.error(f"Error generating content with history: {e}")
+            return f"I'm sorry, but I encountered an error while processing your request. Please try again."
 
     def _build_system_instruction(self, content_mode: Optional[str], 
                                  brand_voice_context: Optional[str],

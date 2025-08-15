@@ -285,112 +285,110 @@ class ChatInterface {
 
         // Add loading message
         const loadingId = this.addLoadingMessage();
+        console.log('🚀 Starting sendMessage request process');
 
-        try {
-            console.log('🚀 Starting sendMessage request process');
+        // Get conversation history for context
+        const conversationHistory = this.getConversationHistory();
+        console.log('📚 Got conversation history, length:', conversationHistory.length);
 
-            // Get conversation history for context
-            const conversationHistory = this.getConversationHistory();
-            console.log('📚 Got conversation history, length:', conversationHistory.length);
+        const requestData = {
+            prompt: prompt,
+            conversation_history: conversationHistory,
+            content_mode: this.currentMode,
+            brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
+            is_demo: this.isDemoMode,
+            session_id: this.currentSessionId
+        };
 
-            const requestData = {
-                prompt: prompt,
-                conversation_history: conversationHistory,
-                content_mode: this.currentMode,
-                brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
-                is_demo: this.isDemoMode,
-                session_id: this.currentSessionId
-            };
+        console.log('📦 Request data prepared:', {
+            promptLength: prompt.length,
+            conversationHistoryLength: conversationHistory.length,
+            contentMode: this.currentMode,
+            brandVoiceId: requestData.brand_voice_id,
+            isDemo: this.isDemoMode,
+            sessionId: this.currentSessionId
+        });
 
-            console.log('📦 Request data prepared:', {
-                promptLength: prompt.length,
-                conversationHistoryLength: conversationHistory.length,
-                contentMode: this.currentMode,
-                brandVoiceId: requestData.brand_voice_id,
-                isDemo: this.isDemoMode,
-                sessionId: this.currentSessionId
-            });
+        // Pre-fetch validation
+        if (!requestData.prompt || !requestData.prompt.trim()) {
+            throw new Error('Empty prompt detected');
+        }
 
-            // Pre-fetch validation
-            if (!requestData.prompt || !requestData.prompt.trim()) {
-                throw new Error('Empty prompt detected');
-            }
+        console.log('🌐 Making fetch request to /generate...');
+        console.log('🔍 Request validation passed, proceeding with fetch');
 
-            console.log('🌐 Making fetch request to /generate...');
-            console.log('🔍 Request validation passed, proceeding with fetch');
-
-            const response = await fetch('/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
-            console.log('🌐 Fetch request completed, status:', response.status);
-
-            if (!response) {
-                throw new Error('No response received from server');
-            }
-
-            let data;
+        // Retry mechanism with exponential backoff
+        let lastError;
+        for (let attempt = 1; attempt <= 3; attempt++) {
             try {
-                console.log('📄 Parsing JSON response...');
-                const responseText = await response.text();
-                console.log('📄 Raw response received:', responseText.substring(0, 200));
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
-                // Check if response is actually JSON
-                if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                console.log(`🌐 Attempt ${attempt}: Fetch completed, status:`, response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const responseText = await response.text();
+                console.log('📄 Raw response received, length:', responseText.length);
+
+                let data;
+                try {
                     data = JSON.parse(responseText);
                     console.log('📄 JSON parsed successfully');
-                } else {
-                    console.error('❌ Response is not JSON:', responseText.substring(0, 200));
-                    // Don't throw error here, let it fall through to the parsing error catch
-                    data = null;
+                } catch (parseError) {
+                    console.error('❌ JSON parsing error:', parseError);
+                    console.error('Response was:', responseText.substring(0, 500));
+                    throw new Error('Invalid JSON response from server');
                 }
-            } catch (parseError) {
-                console.error('❌ JSON parsing error:', parseError);
+
                 this.removeLoadingMessage(loadingId);
-                this.addMessage('Server response error. Please refresh the page and try again.', 'ai', true);
-                return;
-            }
 
-            this.removeLoadingMessage(loadingId);
+                if (data && data.response) {
+                    console.log('✅ Response successful, adding message');
+                    this.addMessage(data.response, 'ai');
 
-            if (response.ok && data.response) {
-                console.log('✅ Response successful, adding message');
-                this.addMessage(data.response, 'ai');
-
-                // Update chat title in sidebar if this is the first message
-                if (this.isLoggedIn && this.currentSessionId) {
-                    console.log('📝 Updating chat title in sidebar');
-                    this.updateChatTitleInSidebar(this.currentSessionId, prompt);
+                    // Update chat title in sidebar if this is the first message
+                    if (this.isLoggedIn && this.currentSessionId) {
+                        console.log('📝 Updating chat title in sidebar');
+                        this.updateChatTitleInSidebar(this.currentSessionId, prompt);
+                    }
+                    return; // Success - exit retry loop
+                } else {
+                    console.log('❌ Invalid response data:', data);
+                    this.addMessage(data?.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
+                    return; // Exit retry loop
                 }
-            } else {
-                console.log('❌ Response not ok, status:', response.status, 'error:', data.error);
-                this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
+
+            } catch (error) {
+                console.error(`❌ Attempt ${attempt} failed:`, error);
+                lastError = error;
+
+                if (attempt < 3) {
+                    // Wait before retrying (exponential backoff)
+                    const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
+                    console.log(`⏳ Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
             }
-
-        } catch (error) {
-            console.error('❌ NETWORK ERROR CAUGHT:', error);
-            console.error('Error details:', {
-                name: error.name,
-                message: error.message,
-                stack: error.stack
-            });
-
-            this.removeLoadingMessage(loadingId);
-
-            // More specific error messages
-            let errorMessage = 'Network connection error. Please check your internet connection and try again.';
-
-            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-                errorMessage = 'Unable to connect to server. Please check your internet connection.';
-            } else if (error.message && error.message.includes('non-JSON response')) {
-                errorMessage = 'Server response error. Please refresh the page and try again.';
-            }
-
-            this.addMessage(errorMessage, 'ai', true);
         }
+
+        // All retries failed
+        this.removeLoadingMessage(loadingId);
+        console.error('❌ All retry attempts failed. Last error:', lastError);
+        this.addMessage('Connection failed after multiple attempts. Please try again.', 'ai', true);
 
         // Reset UI
         this.isGenerating = false;
@@ -591,112 +589,102 @@ class ChatInterface {
             const loadingId = this.addLoadingMessage();
             console.log('📝 Loading message added with ID:', loadingId);
 
-            try {
-                // Get conversation history for context (excluding the last AI message that was removed)
-                const conversationHistory = this.getConversationHistory();
-                console.log('📚 Conversation history retrieved, length:', conversationHistory.length);
+            // Get conversation history for context (excluding the last AI message that was removed)
+            const conversationHistory = this.getConversationHistory();
+            console.log('📚 Conversation history retrieved, length:', conversationHistory.length);
 
-                const requestData = {
-                    prompt: prompt,
-                    conversation_history: conversationHistory,
-                    content_mode: this.currentMode,
-                    brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
-                    is_demo: this.isDemoMode,
-                    session_id: this.currentSessionId
-                };
+            const requestData = {
+                prompt: prompt,
+                conversation_history: conversationHistory,
+                content_mode: this.currentMode,
+                brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
+                is_demo: this.isDemoMode,
+                session_id: this.currentSessionId
+            };
 
-                console.log('=== CHAT DEBUG: About to send request ===');
-                console.log('Request URL:', '/generate');
-                console.log('Request method:', 'POST');
-                console.log('Request headers:', {'Content-Type': 'application/json'});
-                console.log('Request data:', requestData);
-                console.log('Request body size:', JSON.stringify(requestData).length, 'characters');
-                console.log('Current session ID:', this.currentSessionId);
-                console.log('Is demo mode:', this.isDemoMode);
+            console.log('=== CHAT DEBUG: About to send request ===');
+            console.log('Request URL:', '/generate');
+            console.log('Request method:', 'POST');
+            console.log('Request headers:', {'Content-Type': 'application/json'});
+            console.log('Request data:', requestData);
+            console.log('Request body size:', JSON.stringify(requestData).length, 'characters');
+            console.log('Current session ID:', this.currentSessionId);
+            console.log('Is demo mode:', this.isDemoMode);
 
-                // Pre-fetch validation
-                if (!requestData.prompt || !requestData.prompt.trim()) {
-                    throw new Error('Empty prompt detected in generateResponse');
-                }
-
-                console.log('🌐 About to make fetch request...');
-                console.log('🔍 Request validation passed, proceeding with fetch');
-
-                const response = await fetch('/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestData)
-                });
-                console.log('🌐 Fetch request completed');
-
-                if (!response) {
-                    throw new Error('No response received from server');
-                }
-
-                console.log('=== CHAT DEBUG: Response received ===');
-                console.log('Response status:', response.status);
-                console.log('Response ok:', response.ok);
-                console.log('Response headers:', Object.fromEntries(response.headers));
-
-                let data;
-                try {
-                    console.log('📄 About to parse JSON response...');
-                    const responseText = await response.text();
-                    console.log('📄 Raw response received:', responseText.substring(0, 200));
-
-                    if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
-                        data = JSON.parse(responseText);
-                        console.log('📄 JSON response parsed successfully');
-                    } else {
-                        console.error('❌ Response is not JSON:', responseText.substring(0, 200));
-                        // Don't throw error here, let it fall through to the parsing error catch
-                        data = null;
-                    }
-                } catch (parseError) {
-                    console.error('❌ JSON parsing error:', parseError);
-                    this.removeLoadingMessage(loadingId);
-                    this.addMessage('Server response error. Please refresh the page and try again.', 'ai', true);
-                    return;
-                }
-
-                console.log('=== CHAT DEBUG: Response data ===');
-                console.log('Response data:', data);
-                console.log('Response data keys:', Object.keys(data));
-
-                this.removeLoadingMessage(loadingId);
-
-                if (response.ok && data.response) {
-                    console.log('✅ Request successful, adding AI message');
-                    this.addMessage(data.response, 'ai');
-                } else {
-                    console.log('❌ Request failed with status:', response.status);
-                    this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
-                }
-
-            } catch (fetchError) {
-                console.error('❌ NETWORK ERROR:', fetchError);
-                console.error('Error details:', {
-                    name: fetchError.name,
-                    message: fetchError.message,
-                    stack: fetchError.stack
-                });
-                this.removeLoadingMessage(loadingId);
-
-                // More specific error handling
-                let errorMessage = 'Network error: Unable to connect to server. Please check your connection and try again.';
-
-                if (fetchError.name === 'AbortError') {
-                    errorMessage = 'Request was cancelled. Please try again.';
-                } else if (fetchError.message && fetchError.message.includes('Failed to fetch')) {
-                    errorMessage = 'Connection failed. Please check your internet connection and try again.';
-                } else if (fetchError.message && fetchError.message.includes('non-JSON response')) {
-                    errorMessage = 'Server response error. Please refresh the page and try again.';
-                }
-
-                this.addMessage(errorMessage, 'ai', true);
+            // Pre-fetch validation
+            if (!requestData.prompt || !requestData.prompt.trim()) {
+                throw new Error('Empty prompt detected in generateResponse');
             }
+
+            console.log('🌐 About to make fetch request...');
+            console.log('🔍 Request validation passed, proceeding with fetch');
+
+            // Retry mechanism with exponential backoff
+            let lastError;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+
+                    const response = await fetch('/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData),
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    console.log(`🌐 Attempt ${attempt}: Fetch completed, status:`, response.status);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const responseText = await response.text();
+                    console.log('📄 Raw response received, length:', responseText.length);
+
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                        console.log('📄 JSON parsed successfully');
+                    } catch (parseError) {
+                        console.error('❌ JSON parsing error:', parseError);
+                        console.error('Response was:', responseText.substring(0, 500));
+                        throw new Error('Invalid JSON response from server');
+                    }
+
+                    this.removeLoadingMessage(loadingId);
+
+                    if (data && data.response) {
+                        console.log('✅ Request successful, adding AI message');
+                        this.addMessage(data.response, 'ai');
+                        return; // Success - exit retry loop
+                    } else {
+                        console.log('❌ Invalid response data:', data);
+                        this.addMessage(data?.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
+                        return; // Exit retry loop
+                    }
+
+                } catch (error) {
+                    console.error(`❌ Attempt ${attempt} failed:`, error);
+                    lastError = error;
+
+                    if (attempt < 3) {
+                        // Wait before retrying (exponential backoff)
+                        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
+                        console.log(`⏳ Retrying in ${delay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
+
+            // All retries failed
+            this.removeLoadingMessage(loadingId);
+            console.error('❌ All retry attempts failed. Last error:', lastError);
+            this.addMessage('Connection failed after multiple attempts. Please try again.', 'ai', true);
 
         } catch (outerError) {
             console.error('❌ OUTER FUNCTION ERROR:', outerError);

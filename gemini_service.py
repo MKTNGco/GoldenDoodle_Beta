@@ -123,48 +123,12 @@ class GeminiService:
             logger.info(f"API call completed. Response type: {type(response)}")
             logger.info(f"Response object: {response}")
 
-            logger.info(f"Raw response received: {response}")
-            logger.info(f"Response type: {type(response)}")
-            
-            if response:
-                # First try the direct .text attribute
-                if hasattr(response, 'text') and response.text:
-                    logger.info(f"Success! Found response.text with length: {len(response.text)}")
-                    return response.text.strip()
-                
-                # If that fails, log the full response structure for debugging
-                logger.warning(f"Response structure debugging:")
-                logger.warning(f"  - hasattr(response, 'text'): {hasattr(response, 'text')}")
-                logger.warning(f"  - response.text value: {getattr(response, 'text', 'NOT_FOUND')}")
-                logger.warning(f"  - hasattr(response, 'candidates'): {hasattr(response, 'candidates')}")
-                
-                if hasattr(response, 'candidates'):
-                    logger.warning(f"  - response.candidates: {response.candidates}")
-                    logger.warning(f"  - response.candidates type: {type(response.candidates)}")
-                    
-                # Log all available attributes
-                logger.warning(f"  - Available attributes: {[attr for attr in dir(response) if not attr.startswith('_')]}")
-                
-                # Try to access candidates if available
-                if hasattr(response, 'candidates') and response.candidates:
-                    logger.info("Trying to extract from candidates...")
-                    for i, candidate in enumerate(response.candidates):
-                        logger.info(f"  Candidate {i}: {type(candidate)}")
-                        if hasattr(candidate, 'content'):
-                            logger.info(f"    Has content: {type(candidate.content)}")
-                            if hasattr(candidate.content, 'parts'):
-                                logger.info(f"    Has parts: {len(candidate.content.parts) if candidate.content.parts else 0}")
-                                for j, part in enumerate(candidate.content.parts):
-                                    logger.info(f"      Part {j}: {type(part)}")
-                                    if hasattr(part, 'text') and part.text:
-                                        logger.info(f"Success! Found text in candidate {i}, part {j}")
-                                        return part.text.strip()
-                
-                # If we get here, we couldn't extract text
-                logger.error("Failed to extract text from response using all methods")
-                return "I apologize, but I wasn't able to generate a response. Please try again."
+            # Use the same response handling as the working generate_content method
+            if response.text:
+                logger.info(f"Success! Response length: {len(response.text)}")
+                return response.text.strip()
             else:
-                logger.warning("No response received from Gemini API")
+                logger.warning("No response text received from Gemini API")
                 return "I apologize, but I wasn't able to generate a response. Please try again."
 
         except Exception as e:

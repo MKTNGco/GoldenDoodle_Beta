@@ -359,10 +359,11 @@ class ChatInterface {
 
         messageDiv.appendChild(bubbleDiv);
 
-        // CRITICAL: Ensure we have the correct chat content container
+        // CRITICAL: Ensure we have the correct chat content container for THIS session
         let chatContent = this.chatMessages.querySelector('.chat-content');
         if (!chatContent) {
-            // Create fresh container if missing
+            console.error('No chat content container found when adding message');
+            // Create fresh container if missing - this should not normally happen
             chatContent = document.createElement('div');
             chatContent.className = 'chat-content';
             this.chatMessages.appendChild(chatContent);
@@ -375,6 +376,11 @@ class ChatInterface {
         }
 
         // Add the message to the current conversation ONLY
+        // Verify we have a valid session before adding
+        if (!this.currentSessionId && this.isLoggedIn) {
+            console.warn('Adding message without valid session ID');
+        }
+        
         chatContent.appendChild(messageDiv);
         
         // Scroll to bottom smoothly
@@ -859,15 +865,19 @@ class ChatInterface {
         const chatContent = document.createElement('div');
         chatContent.className = 'chat-content';
         
-        // Add clean welcome screen
-        chatContent.innerHTML = `
-            <div class="welcome-screen">
-                <div class="welcome-content">
-                    <h1>Ready to create compassionate content?</h1>
-                    <p>Start a conversation with GoldenDoodleLM to generate trauma-informed, healing-centered communication.</p>
-                </div>
-            </div>
+        // Add clean welcome screen with proper structure
+        const welcomeScreen = document.createElement('div');
+        welcomeScreen.className = 'welcome-screen';
+        
+        const welcomeContent = document.createElement('div');
+        welcomeContent.className = 'welcome-content';
+        welcomeContent.innerHTML = `
+            <h1>Ready to create compassionate content?</h1>
+            <p>Start a conversation with GoldenDoodleLM to generate trauma-informed, healing-centered communication.</p>
         `;
+        
+        welcomeScreen.appendChild(welcomeContent);
+        chatContent.appendChild(welcomeScreen);
         
         // Append the fresh container
         this.chatMessages.appendChild(chatContent);
@@ -979,18 +989,13 @@ class ChatInterface {
             // NOW set the new session ID
             this.currentSessionId = sessionId;
             console.log('Set currentSessionId to:', this.currentSessionId);
-            
-            // Get the fresh chat-content container
-            let chatContent = this.chatMessages.querySelector('.chat-content');
-            if (!chatContent) {
-                chatContent = document.createElement('div');
-                chatContent.className = 'chat-content';
-                this.chatMessages.appendChild(chatContent);
-            }
 
             // Add messages to the chat interface in order
             if (chatData.messages && chatData.messages.length > 0) {
-                // Remove welcome screen if it exists
+                // Get the fresh chat-content container that was created in clearChatMessages
+                let chatContent = this.chatMessages.querySelector('.chat-content');
+                
+                // Remove welcome screen since we have messages
                 const welcomeScreen = chatContent.querySelector('.welcome-screen');
                 if (welcomeScreen) {
                     welcomeScreen.remove();
@@ -1005,7 +1010,7 @@ class ChatInterface {
                     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
                 }, 100);
             } else {
-                // If no messages, keep welcome screen but session is active
+                // If no messages, the welcome screen from clearChatMessages is kept
                 console.log('No messages found for session:', sessionId);
             }
 
@@ -1092,9 +1097,23 @@ class ChatInterface {
                     sessionElement.remove();
                 }
 
-                // If this was the current session, start a new one
+                // If this was the current session, clear everything and start fresh
                 if (this.currentSessionId === sessionId) {
-                    await this.startNewChat();
+                    console.log('Deleted current session, starting fresh');
+                    this.currentSessionId = null;
+                    this.clearChatMessages();
+                    
+                    // Check if there are other sessions to load
+                    const remainingSessions = document.querySelectorAll('.chat-history-item');
+                    if (remainingSessions.length > 0) {
+                        // Load the first remaining session
+                        const firstSession = remainingSessions[0];
+                        const firstSessionId = firstSession.dataset.sessionId;
+                        await this.loadChat(firstSessionId);
+                    } else {
+                        // No sessions left, start a completely new one
+                        await this.startNewChat();
+                    }
                 }
             } else {
                 console.error('Failed to delete session');
@@ -1107,17 +1126,28 @@ class ChatInterface {
 
 // New chat functionality
 function startNewChat() {
-    // Clear the chat messages
-    const chatMessages = document.getElementById('chatMessages');
-    chatMessages.innerHTML = `
-        <div class="chat-content">
-            <div class="welcome-screen">
+    if (chatInterface) {
+        chatInterface.startNewChat(true);
+    } else {
+        // Fallback if chatInterface not available
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.innerHTML = `
+            <div class="chat-content">
+                <div class="welcome-screen">
+                    <div class="welcome-content">
+                        <h1>Ready to create compassionate content?</h1>
+                        <p>Start a conversation with GoldenDoodleLM to generate trauma-informed, healing-centered communication.</p>
+                    </div>
+                </div>
             </div>
-        </div>
-    `;
-
-    // Focus on the input
-    document.getElementById('chatInput').focus();
+        `;
+        
+        // Focus on the input
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.focus();
+        }
+    }
 }
 
 // Global chat interface reference

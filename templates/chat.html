@@ -71,9 +71,10 @@ body {
 }
 
 .sidebar-logo img {
-    width: 32px; /* Smaller logo size */
-    height: 32px;
+    width: 28px; /* Even smaller dog icon */
+    height: 28px;
     object-fit: contain;
+    border-radius: 4px; /* Slight rounding for the dog icon */
 }
 
 .sidebar:hover {
@@ -670,12 +671,17 @@ body {
     color: white;
 }
 
+/* Hide navbar on chat page */
+.navbar {
+    display: none !important;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
     .sidebar {
         width: 50px;
-        top: 100px;
-        height: calc(100vh - 100px);
+        top: 0;
+        height: 100vh;
     }
 
     .sidebar:hover {
@@ -684,8 +690,8 @@ body {
 
     .main-chat {
         margin-left: 50px;
-        margin-top: 100px;
-        height: calc(100vh - 100px);
+        margin-top: 0;
+        height: 100vh;
     }
 
     .prompt-area {
@@ -726,7 +732,7 @@ body {
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-logo">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GoldenDoodleLM">
+            <img src="{{ url_for('static', filename='images/dog-icon.png') }}" alt="GoldenDoodleLM">
         </div>
         <button class="new-chat-btn" onclick="startNewChat()">
             <i class="fas fa-plus"></i>

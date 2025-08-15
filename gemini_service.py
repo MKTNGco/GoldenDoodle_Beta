@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from typing import Optional, Dict, Any
-from google import genai
+import google.genai as genai
 from google.genai import types
 from models import CONTENT_MODE_TEMPERATURES, ContentMode, CONTENT_MODE_CONFIG
 from rag_service import rag_service
@@ -16,8 +16,8 @@ class GeminiService:
             raise ValueError("GEMINI_API_KEY environment variable is required")
 
         self.client = genai.Client(api_key=api_key)
-        # Assuming model is initialized here. Adjust if 'gemini-2.5-flash' is not the correct way to access the model.
-        self.model = self.client.GenerativeModel('gemini-2.5-flash')
+        # Model name to use for generation
+        self.model_name = 'gemini-2.5-flash'
 
 
     def generate_content(self, prompt: str, content_mode: Optional[str] = None, 

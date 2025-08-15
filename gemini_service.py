@@ -167,13 +167,13 @@ Natural Language Modeling:
 
         if content_mode:
             mode_instructions = {
-                ContentMode.EMAIL: "Focus on professional, empathetic email communication that builds trust and connection.",
-                ContentMode.ARTICLE: "Create informative, well-structured content that educates while maintaining trauma-informed principles.",
-                ContentMode.SOCIAL_MEDIA: "Generate engaging, accessible social media content that's appropriate for trauma survivors.",
-                ContentMode.REWRITE: "Transform existing content to be more trauma-informed while preserving the original message.",
-                ContentMode.SUMMARIZE: "Provide clear, concise summaries that maintain sensitivity to trauma-related topics.",
-                ContentMode.BRAINSTORM: "Generate creative, innovative ideas while ensuring all suggestions are trauma-informed.",
-                ContentMode.ANALYZE: "Provide thoughtful analysis that considers trauma-informed perspectives and implications."
+                'email': "Focus on professional, empathetic email communication that builds trust and connection.",
+                'article': "Create informative, well-structured content that educates while maintaining trauma-informed principles.",
+                'social_media': "Generate engaging, accessible social media content that's appropriate for trauma survivors.",
+                'rewrite': "Transform existing content to be more trauma-informed while preserving the original message.",
+                'summarize': "Provide clear, concise summaries that maintain sensitivity to trauma-related topics.",
+                'brainstorm': "Generate creative, innovative ideas while ensuring all suggestions are trauma-informed.",
+                'analyze': "Provide thoughtful analysis that considers trauma-informed perspectives and implications."
             }
 
             if content_mode in mode_instructions:
@@ -248,7 +248,6 @@ Natural Language Modeling:
             prompt_parts.extend([
                 f"=== {mode_config['name'].upper()} MODE ===",
                 f"Context: {mode_config['description']}",
-                f"Focus: {mode_config['focus']}",
                 ""
             ])
 

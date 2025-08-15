@@ -220,8 +220,8 @@ class ChatInterface {
     }
 
     handleGlobalClick(e) {
-        if (this.brandVoiceDropdown && 
-            !this.brandVoiceDropdown.contains(e.target) && 
+        if (this.brandVoiceDropdown &&
+            !this.brandVoiceDropdown.contains(e.target) &&
             !this.brandVoiceBtn.contains(e.target)) {
             this.closeBrandVoiceDropdown();
         }
@@ -395,13 +395,37 @@ class ChatInterface {
             }
 
         } catch (error) {
-            console.error('Error in sendMessage:', error);
+            console.error('❌ Generation error:', error);
 
-            // Remove any loading messages
+            // Remove any loading messages first
             const loadingMessages = document.querySelectorAll('[id^="loading-"]');
-            loadingMessages.forEach(msg => msg.remove());
+            loadingMessages.forEach(msg => {
+                try {
+                    msg.remove();
+                } catch (removeError) {
+                    console.error('Error removing loading message:', removeError);
+                }
+            });
 
-            this.addMessage('Connection error. Please try again.', 'ai', true);
+            // Ensure error is properly handled
+            let errorMessage;
+            try {
+                errorMessage = this.getErrorMessage ? this.getErrorMessage(error) : 'Connection error. Please try again.';
+            } catch (getErrorError) {
+                console.error('Error getting error message:', getErrorError);
+                errorMessage = 'Connection error. Please try again.';
+            }
+
+            try {
+                this.addMessage(errorMessage, 'ai', true);
+            } catch (addMessageError) {
+                console.error('Error adding error message:', addMessageError);
+            }
+
+            // Log additional error details for debugging
+            if (error && error.stack) {
+                console.error('Error stack:', error.stack);
+            }
         } finally {
             // Always reset UI state
             this.isGenerating = false;
@@ -417,23 +441,43 @@ class ChatInterface {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data),
-                    signal: controller.signal
-                });
+                let response;
+                try {
+                    response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                        signal: controller.signal
+                    });
+                } catch (fetchError) {
+                    console.error('Fetch request failed:', fetchError);
+                    throw new Error(`Network request failed: ${fetchError.message}`);
+                }
 
                 clearTimeout(timeoutId);
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    let errorMessage = `HTTP Error: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (parseError) {
+                        console.error('Failed to parse error response:', parseError);
+                    }
+                    throw new Error(errorMessage);
                 }
 
-                const responseText = await response.text();
-                return JSON.parse(responseText);
+                let responseData;
+                try {
+                    responseData = await response.json();
+                } catch (jsonError) {
+                    console.error('Failed to parse JSON response:', jsonError);
+                    throw new Error('Invalid response format from server');
+                }
+
+                return responseData;
 
             } catch (error) {
                 console.error(`Attempt ${attempt} failed:`, error);
@@ -1150,9 +1194,43 @@ function startNewChat() {
 // Global chat interface reference
 let chatInterface;
 
-// Initialize chat interface - prevent double initialization
+// Initialize chat when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    if (!chatInterface) {
-        chatInterface = new ChatInterface();
+    try {
+        const chat = new ChatInterface();
+        window.chat = chat; // Make globally accessible for debugging
+
+        // Additional global error handlers
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Global unhandled promise rejection:', event.reason);
+            event.preventDefault();
+
+            // If the chat interface exists and is in a generating state, reset it
+            if (window.chat && window.chat.isGenerating) {
+                console.log('Resetting chat interface due to unhandled rejection');
+                try {
+                    window.chat.isGenerating = false;
+                    window.chat.updateSendButton();
+                    window.chat.updateSendButtonLoading(false);
+
+                    // Remove any loading messages
+                    const loadingMessages = document.querySelectorAll('[id^="loading-"]');
+                    loadingMessages.forEach(msg => msg.remove());
+
+                    // Add an error message
+                    window.chat.addMessage('Connection interrupted. Please try again.', 'ai', true);
+                } catch (resetError) {
+                    console.error('Error during chat reset:', resetError);
+                }
+            }
+        });
+
+    } catch (initError) {
+        console.error('Failed to initialize chat:', initError);
     }
+});
+
+// Ensure all promises are caught on window load as well
+window.addEventListener('load', function() {
+    console.log('Window loaded, chat interface should be ready');
 });

@@ -123,12 +123,14 @@ class GeminiService:
             logger.info(f"API call completed. Response type: {type(response)}")
             logger.info(f"Response object: {response}")
 
-            # Use the same response handling as the working generate_content method
-            if response.text:
+            # Use exact same response handling as working generate_content method
+            if response and hasattr(response, 'text') and response.text:
                 logger.info(f"Success! Response length: {len(response.text)}")
                 return response.text.strip()
             else:
                 logger.warning("No response text received from Gemini API")
+                logger.warning(f"Response object: {response}")
+                logger.warning(f"Response type: {type(response)}")
                 return "I apologize, but I wasn't able to generate a response. Please try again."
 
         except Exception as e:

@@ -1,0 +1,170 @@
+
+<!-- Feedback Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-primary" id="feedbackModalLabel">
+                    <i class="fas fa-comments me-2"></i>Send Feedback
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="feedbackForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="feedbackType" class="form-label fw-semibold">Feedback Type</label>
+                        <select class="form-select" id="feedbackType" name="feedback_type" required>
+                            <option value="">Select type...</option>
+                            <option value="bug">Bug Report</option>
+                            <option value="feature">Feature Request</option>
+                            <option value="general">General Feedback</option>
+                            <option value="support">Support Request</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="feedbackSubject" class="form-label fw-semibold">Subject</label>
+                        <input type="text" class="form-control" id="feedbackSubject" name="subject" 
+                               placeholder="Brief description of your feedback" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="feedbackMessage" class="form-label fw-semibold">Message</label>
+                        <textarea class="form-control" id="feedbackMessage" name="message" rows="5" 
+                                  placeholder="Please provide detailed information about your feedback, including steps to reproduce if reporting a bug..." required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="feedbackFiles" class="form-label fw-semibold">
+                            Attachments 
+                            <small class="text-muted">(Screenshots, documents, etc. - Max 10MB total)</small>
+                        </label>
+                        <input type="file" class="form-control" id="feedbackFiles" name="attachments" 
+                               multiple accept="image/*,.pdf,.doc,.docx,.txt">
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Supported formats: Images (PNG, JPG, GIF), PDF, Word documents, text files
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeSystemInfo" name="include_system_info" checked>
+                            <label class="form-check-label" for="includeSystemInfo">
+                                Include system information (browser, screen size, etc.) to help with troubleshooting
+                            </label>
+                        </div>
+                    </div>
+
+                    {% if not user %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="feedbackEmail" class="form-label fw-semibold">Your Email (Optional)</label>
+                                <input type="email" class="form-control" id="feedbackEmail" name="email" 
+                                       placeholder="your@email.com">
+                                <div class="form-text">Only if you want a response</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="feedbackName" class="form-label fw-semibold">Your Name (Optional)</label>
+                                <input type="text" class="form-control" id="feedbackName" name="name" 
+                                       placeholder="Your name">
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="sendFeedbackBtn">
+                        <i class="fas fa-paper-plane me-2"></i>Send Feedback
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Success Alert -->
+<div class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 9999;">
+    <div id="feedbackAlert" class="alert alert-success alert-dismissible fade" role="alert" style="display: none;">
+        <i class="fas fa-check-circle me-2"></i>
+        <strong>Thank you!</strong> Your feedback has been sent successfully.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const feedbackForm = document.getElementById('feedbackForm');
+    const sendBtn = document.getElementById('sendFeedbackBtn');
+    const feedbackAlert = document.getElementById('feedbackAlert');
+
+    feedbackForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Disable submit button and show loading state
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+
+        try {
+            const formData = new FormData(feedbackForm);
+
+            // Add system information if requested
+            if (document.getElementById('includeSystemInfo').checked) {
+                const systemInfo = {
+                    userAgent: navigator.userAgent,
+                    screen: `${screen.width}x${screen.height}`,
+                    viewport: `${window.innerWidth}x${window.innerHeight}`,
+                    language: navigator.language,
+                    platform: navigator.platform,
+                    url: window.location.href,
+                    timestamp: new Date().toISOString()
+                };
+                formData.append('system_info', JSON.stringify(systemInfo, null, 2));
+            }
+
+            const response = await fetch('/submit-feedback', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Hide modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+                modal.hide();
+                
+                // Reset form
+                feedbackForm.reset();
+                
+                // Show success alert
+                feedbackAlert.style.display = 'block';
+                feedbackAlert.classList.add('show');
+                
+                // Auto-hide alert after 5 seconds
+                setTimeout(() => {
+                    feedbackAlert.classList.remove('show');
+                    setTimeout(() => {
+                        feedbackAlert.style.display = 'none';
+                    }, 150);
+                }, 5000);
+            } else {
+                throw new Error(result.error || 'Failed to send feedback');
+            }
+        } catch (error) {
+            console.error('Error sending feedback:', error);
+            alert('Sorry, there was an error sending your feedback. Please try again or contact us directly.');
+        } finally {
+            // Reset button state
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Feedback';
+        }
+    });
+});
+</script>

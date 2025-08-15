@@ -242,6 +242,181 @@ The GoldenDoodleLM Team
             logger.error(f"Error sending organization invite email: {e}")
             return False
 
+    def send_feedback_email(self, feedback_data: dict, attachments: list = None) -> bool:
+        """Send feedback email to support"""
+        try:
+            support_email = os.environ.get('SUPPORT_EMAIL', 'support@goldendoodlelm.com')
+            
+            # Format feedback type for display
+            feedback_types = {
+                'bug': 'Bug Report',
+                'feature': 'Feature Request', 
+                'general': 'General Feedback',
+                'support': 'Support Request',
+                'other': 'Other'
+            }
+            
+            feedback_type_display = feedback_types.get(feedback_data.get('feedback_type', 'other'), 'Other')
+            subject = f"[{feedback_type_display}] {feedback_data.get('subject', 'No subject')}"
+            
+            # Build email content
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background-color: #32808c; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h2>New Feedback Submission</h2>
+                </div>
+                
+                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold; width: 120px;">Type:</td>
+                            <td style="padding: 8px 0;">{feedback_type_display}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Subject:</td>
+                            <td style="padding: 8px 0;">{feedback_data.get('subject', 'N/A')}</td>
+                        </tr>
+            """
+            
+            # Add user information
+            if feedback_data.get('user_info'):
+                user_info = feedback_data['user_info']
+                html_content += f"""
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">User:</td>
+                            <td style="padding: 8px 0;">{user_info.get('name', 'N/A')} ({user_info.get('email', 'N/A')})</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">User ID:</td>
+                            <td style="padding: 8px 0;">{user_info.get('user_id', 'N/A')}</td>
+                        </tr>
+                """
+            elif feedback_data.get('email') or feedback_data.get('name'):
+                html_content += f"""
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Contact:</td>
+                            <td style="padding: 8px 0;">{feedback_data.get('name', 'Anonymous')} ({feedback_data.get('email', 'No email provided')})</td>
+                        </tr>
+                """
+            else:
+                html_content += """
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Contact:</td>
+                            <td style="padding: 8px 0;">Anonymous submission</td>
+                        </tr>
+                """
+            
+            html_content += f"""
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Timestamp:</td>
+                            <td style="padding: 8px 0;">{feedback_data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'))}</td>
+                        </tr>
+                    </table>
+                    
+                    <div style="margin-top: 20px;">
+                        <h3 style="color: #32808c; margin-bottom: 10px;">Message:</h3>
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border-left: 4px solid #32808c;">
+                            {feedback_data.get('message', 'No message provided').replace('\n', '<br>')}
+                        </div>
+                    </div>
+            """
+            
+            # Add system information if provided
+            if feedback_data.get('system_info'):
+                html_content += f"""
+                    <div style="margin-top: 20px;">
+                        <h3 style="color: #32808c; margin-bottom: 10px;">System Information:</h3>
+                        <div style="background-color: #f0f0f0; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+                            <pre style="margin: 0; white-space: pre-wrap;">{feedback_data['system_info']}</pre>
+                        </div>
+                    </div>
+                """
+            
+            # Add attachment info
+            if attachments:
+                html_content += f"""
+                    <div style="margin-top: 20px;">
+                        <h3 style="color: #32808c; margin-bottom: 10px;">Attachments:</h3>
+                        <ul>
+                """
+                for attachment in attachments:
+                    html_content += f"""
+                            <li>{attachment['filename']} ({attachment['size']} bytes)</li>
+                    """
+                html_content += """
+                        </ul>
+                    </div>
+                """
+            
+            html_content += """
+                </div>
+            </div>
+            """
+            
+            # Create plain text version
+            plain_content = f"""
+New Feedback Submission
+
+Type: {feedback_type_display}
+Subject: {feedback_data.get('subject', 'N/A')}
+"""
+            
+            if feedback_data.get('user_info'):
+                user_info = feedback_data['user_info']
+                plain_content += f"User: {user_info.get('name', 'N/A')} ({user_info.get('email', 'N/A')})\n"
+                plain_content += f"User ID: {user_info.get('user_id', 'N/A')}\n"
+            elif feedback_data.get('email') or feedback_data.get('name'):
+                plain_content += f"Contact: {feedback_data.get('name', 'Anonymous')} ({feedback_data.get('email', 'No email provided')})\n"
+            else:
+                plain_content += "Contact: Anonymous submission\n"
+            
+            plain_content += f"Timestamp: {feedback_data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'))}\n\n"
+            plain_content += f"Message:\n{feedback_data.get('message', 'No message provided')}\n"
+            
+            if feedback_data.get('system_info'):
+                plain_content += f"\nSystem Information:\n{feedback_data['system_info']}\n"
+            
+            if attachments:
+                plain_content += "\nAttachments:\n"
+                for attachment in attachments:
+                    plain_content += f"- {attachment['filename']} ({attachment['size']} bytes)\n"
+
+            message = Mail(
+                from_email=From(self.from_email, self.from_name),
+                to_emails=To(support_email),
+                subject=Subject(subject),
+                plain_text_content=PlainTextContent(plain_content),
+                html_content=HtmlContent(html_content)
+            )
+
+            # Add attachments if provided
+            if attachments:
+                from sendgrid.helpers.mail import Attachment, FileContent, FileName, FileType, Disposition
+                import base64
+                
+                for attachment_data in attachments:
+                    try:
+                        # Encode file content
+                        encoded_content = base64.b64encode(attachment_data['content']).decode()
+                        
+                        attachment = Attachment(
+                            FileContent(encoded_content),
+                            FileName(attachment_data['filename']),
+                            FileType(attachment_data.get('content_type', 'application/octet-stream')),
+                            Disposition('attachment')
+                        )
+                        message.add_attachment(attachment)
+                    except Exception as e:
+                        logger.error(f"Error adding attachment {attachment_data['filename']}: {e}")
+
+            response = self.client.send(message)
+            logger.info(f"Feedback email sent to {support_email}, status: {response.status_code}")
+            return response.status_code == 202
+
+        except Exception as e:
+            logger.error(f"Error sending feedback email: {e}")
+            return False
+
 # Global email service instance
 email_service = EmailService()
 

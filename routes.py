@@ -2236,6 +2236,88 @@ def debug_env():
     
     return jsonify(env_status)
 
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+    """Submit feedback with optional file attachments"""
+    try:
+        # Get form data
+        feedback_type = request.form.get('feedback_type', '').strip()
+        subject = request.form.get('subject', '').strip()
+        message = request.form.get('message', '').strip()
+        email = request.form.get('email', '').strip()
+        name = request.form.get('name', '').strip()
+        system_info = request.form.get('system_info', '').strip()
+
+        if not all([feedback_type, subject, message]):
+            return jsonify({'error': 'Feedback type, subject, and message are required'}), 400
+
+        # Prepare feedback data
+        feedback_data = {
+            'feedback_type': feedback_type,
+            'subject': subject,
+            'message': message,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+        }
+
+        # Add user information if logged in
+        user = get_current_user()
+        if user:
+            feedback_data['user_info'] = {
+                'user_id': user.user_id,
+                'name': f"{user.first_name} {user.last_name}",
+                'email': user.email
+            }
+        else:
+            # For anonymous users, use provided contact info
+            if email:
+                feedback_data['email'] = email
+            if name:
+                feedback_data['name'] = name
+
+        # Add system information if provided
+        if system_info:
+            feedback_data['system_info'] = system_info
+
+        # Process file attachments
+        attachments = []
+        files = request.files.getlist('attachments')
+        
+        total_size = 0
+        max_size = 10 * 1024 * 1024  # 10MB limit
+        
+        for file in files:
+            if file.filename:
+                # Check file size
+                file.seek(0, 2)  # Seek to end
+                file_size = file.tell()
+                file.seek(0)  # Reset to beginning
+                
+                total_size += file_size
+                if total_size > max_size:
+                    return jsonify({'error': 'Total file size exceeds 10MB limit'}), 400
+
+                # Read file content
+                file_content = file.read()
+                
+                attachments.append({
+                    'filename': file.filename,
+                    'content': file_content,
+                    'content_type': file.content_type,
+                    'size': file_size
+                })
+
+        # Send feedback email
+        if email_service.send_feedback_email(feedback_data, attachments):
+            logger.info(f"Feedback submitted: {feedback_type} - {subject}")
+            return jsonify({'success': True, 'message': 'Feedback sent successfully'})
+        else:
+            logger.error("Failed to send feedback email")
+            return jsonify({'error': 'Failed to send feedback email'}), 500
+
+    except Exception as e:
+        logger.error(f"Error processing feedback: {e}")
+        return jsonify({'error': 'An error occurred while processing your feedback'}), 500
+
 @app.errorhandler(500)
 def internal_error(error):
     logger.error(f"500 Internal Server Error: {error}")

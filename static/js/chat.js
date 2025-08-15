@@ -287,8 +287,11 @@ class ChatInterface {
         const loadingId = this.addLoadingMessage();
 
         try {
+            console.log('🚀 Starting sendMessage request process');
+            
             // Get conversation history for context
             const conversationHistory = this.getConversationHistory();
+            console.log('📚 Got conversation history, length:', conversationHistory.length);
             
             const requestData = {
                 prompt: prompt,
@@ -299,8 +302,16 @@ class ChatInterface {
                 session_id: this.currentSessionId
             };
 
-            console.log('Sending request with session_id:', this.currentSessionId);
+            console.log('📦 Request data prepared:', {
+                promptLength: prompt.length,
+                conversationHistoryLength: conversationHistory.length,
+                contentMode: this.currentMode,
+                brandVoiceId: requestData.brand_voice_id,
+                isDemo: this.isDemoMode,
+                sessionId: this.currentSessionId
+            });
 
+            console.log('🌐 Making fetch request to /generate...');
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
@@ -308,23 +319,44 @@ class ChatInterface {
                 },
                 body: JSON.stringify(requestData)
             });
+            console.log('🌐 Fetch request completed, status:', response.status);
 
+            console.log('📄 Parsing JSON response...');
             const data = await response.json();
+            console.log('📄 JSON parsed successfully');
+            
             this.removeLoadingMessage(loadingId);
 
             if (response.ok) {
+                console.log('✅ Response successful, adding message');
                 this.addMessage(data.response, 'ai');
                 
                 // Update chat title in sidebar if this is the first message
                 if (this.isLoggedIn && this.currentSessionId) {
+                    console.log('📝 Updating chat title in sidebar');
                     this.updateChatTitleInSidebar(this.currentSessionId, prompt);
                 }
             } else {
+                console.log('❌ Response not ok, status:', response.status, 'error:', data.error);
                 this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
             }
 
         } catch (error) {
-            console.error('Error generating content:', error);
+            console.error('❌ SENDMESSAGE ERROR CAUGHT:', error);
+            console.error('Error type:', typeof error);
+            console.error('Error constructor:', error.constructor.name);
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('Error toString:', error.toString());
+            
+            // Log additional context
+            console.error('Context when error occurred:');
+            console.error('- Current session ID:', this.currentSessionId);
+            console.error('- Is demo mode:', this.isDemoMode);
+            console.error('- Is generating:', this.isGenerating);
+            console.error('- Is logged in:', this.isLoggedIn);
+            
             this.removeLoadingMessage(loadingId);
             this.addMessage('I apologize, but I\'m having trouble connecting right now. Please try again in a moment.', 'ai', true);
         }
@@ -518,72 +550,94 @@ class ChatInterface {
     }
 
     async generateResponse(prompt) {
-        this.isGenerating = true;
-        this.updateSendButtonLoading(true);
-
-        // Add loading message
-        const loadingId = this.addLoadingMessage();
-
+        console.log('🚀 STARTING generateResponse function with prompt:', prompt);
+        
         try {
-            // Get conversation history for context (excluding the last AI message that was removed)
-            const conversationHistory = this.getConversationHistory();
-            
-            const requestData = {
-                prompt: prompt,
-                conversation_history: conversationHistory,
-                content_mode: this.currentMode,
-                brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
-                is_demo: this.isDemoMode,
-                session_id: this.currentSessionId
-            };
+            this.isGenerating = true;
+            this.updateSendButtonLoading(true);
 
-            console.log('=== CHAT DEBUG: About to send request ===');
-            console.log('Request URL:', '/generate');
-            console.log('Request method:', 'POST');
-            console.log('Request headers:', {'Content-Type': 'application/json'});
-            console.log('Request data:', requestData);
-            console.log('Request body size:', JSON.stringify(requestData).length, 'characters');
+            // Add loading message
+            const loadingId = this.addLoadingMessage();
+            console.log('📝 Loading message added with ID:', loadingId);
 
-            const response = await fetch('/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
+            try {
+                // Get conversation history for context (excluding the last AI message that was removed)
+                const conversationHistory = this.getConversationHistory();
+                console.log('📚 Conversation history retrieved, length:', conversationHistory.length);
+                
+                const requestData = {
+                    prompt: prompt,
+                    conversation_history: conversationHistory,
+                    content_mode: this.currentMode,
+                    brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
+                    is_demo: this.isDemoMode,
+                    session_id: this.currentSessionId
+                };
 
-            console.log('=== CHAT DEBUG: Response received ===');
-            console.log('Response status:', response.status);
-            console.log('Response ok:', response.ok);
-            console.log('Response headers:', Object.fromEntries(response.headers));
+                console.log('=== CHAT DEBUG: About to send request ===');
+                console.log('Request URL:', '/generate');
+                console.log('Request method:', 'POST');
+                console.log('Request headers:', {'Content-Type': 'application/json'});
+                console.log('Request data:', requestData);
+                console.log('Request body size:', JSON.stringify(requestData).length, 'characters');
+                console.log('Current session ID:', this.currentSessionId);
+                console.log('Is demo mode:', this.isDemoMode);
 
-            const data = await response.json();
-            console.log('=== CHAT DEBUG: Response data ===');
-            console.log('Response data:', data);
-            console.log('Response data keys:', Object.keys(data));
-            
-            this.removeLoadingMessage(loadingId);
+                console.log('🌐 About to make fetch request...');
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                console.log('🌐 Fetch request completed');
 
-            if (response.ok) {
-                console.log('✓ Request successful, adding AI message');
-                this.addMessage(data.response, 'ai');
-            } else {
-                console.log('❌ Request failed with status:', response.status);
-                this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
+                console.log('=== CHAT DEBUG: Response received ===');
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                console.log('Response headers:', Object.fromEntries(response.headers));
+
+                console.log('📄 About to parse JSON response...');
+                const data = await response.json();
+                console.log('📄 JSON response parsed successfully');
+                
+                console.log('=== CHAT DEBUG: Response data ===');
+                console.log('Response data:', data);
+                console.log('Response data keys:', Object.keys(data));
+                
+                this.removeLoadingMessage(loadingId);
+
+                if (response.ok) {
+                    console.log('✅ Request successful, adding AI message');
+                    this.addMessage(data.response, 'ai');
+                } else {
+                    console.log('❌ Request failed with status:', response.status);
+                    this.addMessage(data.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
+                }
+
+            } catch (fetchError) {
+                console.error('❌ FETCH/NETWORK ERROR:', fetchError);
+                console.error('Error name:', fetchError.name);
+                console.error('Error message:', fetchError.message);
+                console.error('Error stack:', fetchError.stack);
+                console.error('Error toString:', fetchError.toString());
+                this.removeLoadingMessage(loadingId);
+                this.addMessage('Network error: Unable to connect to server. Please check your connection and try again.', 'ai', true);
             }
 
-        } catch (error) {
-            console.error('❌ CHAT DEBUG: Fetch error occurred:', error);
-            console.error('Error name:', error.name);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
-            this.removeLoadingMessage(loadingId);
-            this.addMessage('I apologize, but I\'m having trouble connecting right now. Please try again in a moment.', 'ai', true);
+        } catch (outerError) {
+            console.error('❌ OUTER FUNCTION ERROR:', outerError);
+            console.error('Outer error name:', outerError.name);
+            console.error('Outer error message:', outerError.message);
+            console.error('Outer error stack:', outerError.stack);
+            this.addMessage('An unexpected error occurred. Please refresh the page and try again.', 'ai', true);
+        } finally {
+            // Reset UI in finally block to ensure it always happens
+            console.log('🔄 Resetting UI state');
+            this.isGenerating = false;
+            this.updateSendButtonLoading(false);
         }
-
-        // Reset UI
-        this.isGenerating = false;
-        this.updateSendButtonLoading(false);
     }
 
     addLoadingMessage() {

@@ -67,11 +67,11 @@
                         </a></li>
 
                         {% if session.user_id %}
+                        <li><hr class="dropdown-divider"></li>
+
                         <li><a class="dropdown-item" href="{{ url_for('brand_voices') }}">
                             Brand Voices
                         </a></li>
-
-                        <li><hr class="dropdown-divider"></li>
 
                         <li><a class="dropdown-item" href="{{ url_for('account') }}">
                             Account

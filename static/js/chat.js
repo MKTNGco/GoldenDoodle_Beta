@@ -311,7 +311,14 @@ class ChatInterface {
                 sessionId: this.currentSessionId
             });
 
+            // Pre-fetch validation
+            if (!requestData.prompt || !requestData.prompt.trim()) {
+                throw new Error('Empty prompt detected');
+            }
+            
             console.log('🌐 Making fetch request to /generate...');
+            console.log('🔍 Request validation passed, proceeding with fetch');
+            
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
@@ -320,6 +327,10 @@ class ChatInterface {
                 body: JSON.stringify(requestData)
             });
             console.log('🌐 Fetch request completed, status:', response.status);
+            
+            if (!response) {
+                throw new Error('No response received from server');
+            }
 
             console.log('📄 Parsing JSON response...');
             const data = await response.json();
@@ -358,7 +369,19 @@ class ChatInterface {
             console.error('- Is logged in:', this.isLoggedIn);
             
             this.removeLoadingMessage(loadingId);
-            this.addMessage('I apologize, but I\'m having trouble connecting right now. Please try again in a moment.', 'ai', true);
+            
+            // More specific error messages based on error type
+            let errorMessage = 'I apologize, but I encountered an unexpected error. Please try again.';
+            
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'Network connection error. Please check your internet connection and try again.';
+            } else if (error.name === 'SyntaxError') {
+                errorMessage = 'Server response error. Please refresh the page and try again.';
+            } else if (error.message && error.message.includes('JSON')) {
+                errorMessage = 'Invalid server response. Please try again or refresh the page.';
+            }
+            
+            this.addMessage(errorMessage, 'ai', true);
         }
 
         // Reset UI
@@ -583,7 +606,14 @@ class ChatInterface {
                 console.log('Current session ID:', this.currentSessionId);
                 console.log('Is demo mode:', this.isDemoMode);
 
+                // Pre-fetch validation
+                if (!requestData.prompt || !requestData.prompt.trim()) {
+                    throw new Error('Empty prompt detected in generateResponse');
+                }
+                
                 console.log('🌐 About to make fetch request...');
+                console.log('🔍 Request validation passed, proceeding with fetch');
+                
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: {
@@ -592,6 +622,10 @@ class ChatInterface {
                     body: JSON.stringify(requestData)
                 });
                 console.log('🌐 Fetch request completed');
+                
+                if (!response) {
+                    throw new Error('No response received from server');
+                }
 
                 console.log('=== CHAT DEBUG: Response received ===');
                 console.log('Response status:', response.status);
@@ -623,7 +657,17 @@ class ChatInterface {
                 console.error('Error stack:', fetchError.stack);
                 console.error('Error toString:', fetchError.toString());
                 this.removeLoadingMessage(loadingId);
-                this.addMessage('Network error: Unable to connect to server. Please check your connection and try again.', 'ai', true);
+                
+                // More specific error handling
+                let errorMessage = 'Network error: Unable to connect to server. Please check your connection and try again.';
+                
+                if (fetchError.name === 'AbortError') {
+                    errorMessage = 'Request was cancelled. Please try again.';
+                } else if (fetchError.message && fetchError.message.includes('Failed to fetch')) {
+                    errorMessage = 'Connection failed. Please check your internet connection and try again.';
+                }
+                
+                this.addMessage(errorMessage, 'ai', true);
             }
 
         } catch (outerError) {

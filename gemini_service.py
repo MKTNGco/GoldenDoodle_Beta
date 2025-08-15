@@ -114,12 +114,37 @@ class GeminiService:
             logger.info(f"API call completed. Response type: {type(response)}")
             logger.info(f"Response object: {response}")
 
-            if response and hasattr(response, 'text') and response.text:
-                logger.info(f"Success! Response length: {len(response.text)}")
-                return response.text.strip()
+            logger.info(f"Raw response received: {response}")
+            
+            if response:
+                # Try different ways to access the response text
+                response_text = None
+                
+                if hasattr(response, 'text') and response.text:
+                    response_text = response.text
+                elif hasattr(response, 'candidates') and response.candidates:
+                    # Try to get text from candidates
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                for part in candidate.content.parts:
+                                    if hasattr(part, 'text') and part.text:
+                                        response_text = part.text
+                                        break
+                        if response_text:
+                            break
+                
+                if response_text:
+                    logger.info(f"Success! Response length: {len(response_text)}")
+                    return response_text.strip()
+                else:
+                    logger.warning(f"Could not extract text from response. Response structure: {type(response)}")
+                    logger.warning(f"Response attributes: {dir(response) if response else 'No response'}")
+                    if hasattr(response, 'candidates'):
+                        logger.warning(f"Candidates: {response.candidates}")
+                    return "I apologize, but I wasn't able to generate a response. Please try again."
             else:
-                logger.warning(f"Empty or invalid response from Gemini. Response: {response}")
-                logger.warning(f"Response has text attribute: {hasattr(response, 'text') if response else 'No response'}")
+                logger.warning("No response received from Gemini API")
                 return "I apologize, but I wasn't able to generate a response. Please try again."
 
         except Exception as e:

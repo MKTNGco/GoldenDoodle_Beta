@@ -332,13 +332,30 @@ class ChatInterface {
                 throw new Error('No response received from server');
             }
 
-            console.log('📄 Parsing JSON response...');
-            const data = await response.json();
-            console.log('📄 JSON parsed successfully');
+            let data;
+            try {
+                console.log('📄 Parsing JSON response...');
+                const responseText = await response.text();
+                console.log('📄 Raw response received:', responseText.substring(0, 200));
+                
+                // Check if response is actually JSON
+                if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+                    data = JSON.parse(responseText);
+                    console.log('📄 JSON parsed successfully');
+                } else {
+                    console.error('❌ Response is not JSON:', responseText.substring(0, 200));
+                    throw new Error('Server returned non-JSON response');
+                }
+            } catch (parseError) {
+                console.error('❌ JSON parsing error:', parseError);
+                this.removeLoadingMessage(loadingId);
+                this.addMessage('Server response error. Please refresh the page and try again.', 'ai', true);
+                return;
+            }
             
             this.removeLoadingMessage(loadingId);
 
-            if (response.ok) {
+            if (response.ok && data.response) {
                 console.log('✅ Response successful, adding message');
                 this.addMessage(data.response, 'ai');
                 
@@ -353,32 +370,22 @@ class ChatInterface {
             }
 
         } catch (error) {
-            console.error('❌ SENDMESSAGE ERROR CAUGHT:', error);
-            console.error('Error type:', typeof error);
-            console.error('Error constructor:', error.constructor.name);
-            console.error('Error name:', error.name);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
-            console.error('Error toString:', error.toString());
-            
-            // Log additional context
-            console.error('Context when error occurred:');
-            console.error('- Current session ID:', this.currentSessionId);
-            console.error('- Is demo mode:', this.isDemoMode);
-            console.error('- Is generating:', this.isGenerating);
-            console.error('- Is logged in:', this.isLoggedIn);
+            console.error('❌ NETWORK ERROR CAUGHT:', error);
+            console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             
             this.removeLoadingMessage(loadingId);
             
-            // More specific error messages based on error type
-            let errorMessage = 'I apologize, but I encountered an unexpected error. Please try again.';
+            // More specific error messages
+            let errorMessage = 'Network connection error. Please check your internet connection and try again.';
             
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                errorMessage = 'Network connection error. Please check your internet connection and try again.';
-            } else if (error.name === 'SyntaxError') {
-                errorMessage = 'Server response error. Please refresh the page and try again.';
-            } else if (error.message && error.message.includes('JSON')) {
-                errorMessage = 'Invalid server response. Please try again or refresh the page.';
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                errorMessage = 'Unable to connect to server. Please check your internet connection.';
+            } else if (error.message && error.message.includes('non-JSON response')) {
+                errorMessage = 'Server configuration error. Please try again or contact support.';
             }
             
             this.addMessage(errorMessage, 'ai', true);
@@ -632,9 +639,25 @@ class ChatInterface {
                 console.log('Response ok:', response.ok);
                 console.log('Response headers:', Object.fromEntries(response.headers));
 
-                console.log('📄 About to parse JSON response...');
-                const data = await response.json();
-                console.log('📄 JSON response parsed successfully');
+                let data;
+                try {
+                    console.log('📄 About to parse JSON response...');
+                    const responseText = await response.text();
+                    console.log('📄 Raw response received:', responseText.substring(0, 200));
+                    
+                    if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+                        data = JSON.parse(responseText);
+                        console.log('📄 JSON response parsed successfully');
+                    } else {
+                        console.error('❌ Response is not JSON:', responseText.substring(0, 200));
+                        throw new Error('Server returned non-JSON response');
+                    }
+                } catch (parseError) {
+                    console.error('❌ JSON parsing error:', parseError);
+                    this.removeLoadingMessage(loadingId);
+                    this.addMessage('Server response error. Please refresh the page and try again.', 'ai', true);
+                    return;
+                }
                 
                 console.log('=== CHAT DEBUG: Response data ===');
                 console.log('Response data:', data);
@@ -642,7 +665,7 @@ class ChatInterface {
                 
                 this.removeLoadingMessage(loadingId);
 
-                if (response.ok) {
+                if (response.ok && data.response) {
                     console.log('✅ Request successful, adding AI message');
                     this.addMessage(data.response, 'ai');
                 } else {
@@ -651,11 +674,12 @@ class ChatInterface {
                 }
 
             } catch (fetchError) {
-                console.error('❌ FETCH/NETWORK ERROR:', fetchError);
-                console.error('Error name:', fetchError.name);
-                console.error('Error message:', fetchError.message);
-                console.error('Error stack:', fetchError.stack);
-                console.error('Error toString:', fetchError.toString());
+                console.error('❌ NETWORK ERROR:', fetchError);
+                console.error('Error details:', {
+                    name: fetchError.name,
+                    message: fetchError.message,
+                    stack: fetchError.stack
+                });
                 this.removeLoadingMessage(loadingId);
                 
                 // More specific error handling
@@ -665,6 +689,8 @@ class ChatInterface {
                     errorMessage = 'Request was cancelled. Please try again.';
                 } else if (fetchError.message && fetchError.message.includes('Failed to fetch')) {
                     errorMessage = 'Connection failed. Please check your internet connection and try again.';
+                } else if (fetchError.message && fetchError.message.includes('non-JSON response')) {
+                    errorMessage = 'Server configuration error. Please try again or contact support.';
                 }
                 
                 this.addMessage(errorMessage, 'ai', true);

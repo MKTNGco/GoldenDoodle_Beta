@@ -23,6 +23,13 @@ class DatabaseManager:
         url = database_url or self.main_db_url
         return psycopg2.connect(url)
 
+    def _is_safe_identifier(self, identifier: str) -> bool:
+        """Validate that an identifier is safe for use in SQL (alphanumeric, hyphens, underscores only)"""
+        import re
+        # Allow only alphanumeric characters, hyphens, and underscores
+        # Typical UUID format: 8-4-4-4-12 characters
+        return bool(re.match(r'^[a-zA-Z0-9_-]+$', identifier)) and len(identifier) <= 50
+
     def init_main_database(self):
         """Initialize the main control plane database"""
         try:
@@ -771,6 +778,11 @@ class DatabaseManager:
     def get_company_brand_voices(self, tenant_id: str) -> List[BrandVoice]:
         """Get company brand voices for a tenant"""
         try:
+            # Validate tenant_id to prevent SQL injection
+            if not self._is_safe_identifier(tenant_id):
+                logger.error(f"Invalid tenant_id format: {tenant_id}")
+                return []
+                
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -822,6 +834,11 @@ class DatabaseManager:
     def get_user_brand_voices(self, tenant_id: str, user_id: str) -> List[BrandVoice]:
         """Get user brand voices"""
         try:
+            # Validate tenant_id to prevent SQL injection
+            if not self._is_safe_identifier(tenant_id):
+                logger.error(f"Invalid tenant_id format: {tenant_id}")
+                return []
+                
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -854,6 +871,11 @@ class DatabaseManager:
                           markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
         """Create a new brand voice"""
         try:
+            # Validate tenant_id to prevent SQL injection
+            if not self._is_safe_identifier(tenant_id):
+                logger.error(f"Invalid tenant_id format: {tenant_id}")
+                raise ValueError("Invalid tenant_id format")
+                
             brand_voice_id = str(uuid.uuid4())
 
             conn = self.get_connection()
@@ -915,6 +937,11 @@ class DatabaseManager:
                           markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
         """Update an existing brand voice with new wizard data"""
         try:
+            # Validate tenant_id to prevent SQL injection
+            if not self._is_safe_identifier(tenant_id):
+                logger.error(f"Invalid tenant_id format: {tenant_id}")
+                raise ValueError("Invalid tenant_id format")
+                
             name = wizard_data['voice_short_name']
             configuration = wizard_data.copy()
 
@@ -961,6 +988,11 @@ class DatabaseManager:
                                        markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
         """Create a comprehensive brand voice with full wizard data - now always creates as company voice"""
         try:
+            # Validate tenant_id to prevent SQL injection
+            if not self._is_safe_identifier(tenant_id):
+                logger.error(f"Invalid tenant_id format: {tenant_id}")
+                raise ValueError("Invalid tenant_id format")
+                
             brand_voice_id = str(uuid.uuid4())
             name = wizard_data['voice_short_name']
 
@@ -1126,6 +1158,11 @@ class DatabaseManager:
             result = cursor.fetchone()
             if result:
                 tenant_id = str(result[0])
+                
+                # Validate tenant_id to prevent SQL injection
+                if not self._is_safe_identifier(tenant_id):
+                    logger.error(f"Invalid tenant_id format: {tenant_id}")
+                    return False
 
                 # Delete user's brand voices from tenant-specific table
                 table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
@@ -1163,6 +1200,11 @@ class DatabaseManager:
     def delete_tenant(self, tenant_id: str) -> bool:
         """Delete a tenant and all associated data"""
         try:
+            # Validate tenant_id to prevent SQL injection
+            if not self._is_safe_identifier(tenant_id):
+                logger.error(f"Invalid tenant_id format: {tenant_id}")
+                return False
+                
             conn = self.get_connection()
             cursor = conn.cursor()
 

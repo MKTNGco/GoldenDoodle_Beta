@@ -57,12 +57,14 @@ class ContentMode:
     SUMMARIZE = 'summarize'
     BRAINSTORM = 'brainstorm'
     ANALYZE = 'analyze'
+    CRISIS = 'crisis'
 
 # Temperature settings for different content modes
 CONTENT_MODE_TEMPERATURES = {
     ContentMode.SUMMARIZE: 0.3,
     ContentMode.REWRITE: 0.4,
     ContentMode.ANALYZE: 0.4,
+    ContentMode.CRISIS: 0.4,
     ContentMode.EMAIL: 0.5,
     ContentMode.ARTICLE: 0.7,
     ContentMode.SOCIAL_MEDIA: 0.8,
@@ -112,5 +114,11 @@ CONTENT_MODE_CONFIG = {
         'placeholder': 'Analyze this data or content...',
         'temperature': 0.4,
         'description': 'Data and content analysis'
+    },
+    ContentMode.CRISIS: {
+        'name': 'Crisis',
+        'placeholder': 'Provide crisis communication support...',
+        'temperature': 0.4,
+        'description': 'Crisis communication and trauma-informed support'
     }
 }

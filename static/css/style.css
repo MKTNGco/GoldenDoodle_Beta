@@ -1042,7 +1042,7 @@ h5 .fa-microphone {
     color: var(--cloud-white) !important;
 }
 
-/* Override any blue text with our teal */
+/* Override any remaining Bootstrap blues */
 .text-info {
     color: var(--clearwater-teal) !important;
 }

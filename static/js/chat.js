@@ -571,9 +571,15 @@ class ChatInterface {
 
     async copyToClipboard(content) {
         try {
+            // Create a temporary div to extract clean text from HTML
             const tempDiv = document.createElement('div');
-            tempDiv.textContent = content;
-            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            tempDiv.innerHTML = this.formatMessage(content);
+            
+            // Extract clean text, preserving line breaks
+            let plainText = tempDiv.innerText || tempDiv.textContent || '';
+            
+            // Clean up any extra whitespace while preserving intentional formatting
+            plainText = plainText.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
 
             await navigator.clipboard.writeText(plainText);
             this.showCopyFeedback();
@@ -584,9 +590,13 @@ class ChatInterface {
     }
 
     fallbackCopyToClipboard(content) {
+        // Create a temporary div to extract clean text from HTML
         const tempDiv = document.createElement('div');
-        tempDiv.textContent = content;
-        const plainText = tempDiv.textContent || tempDiv.innerText || '';
+        tempDiv.innerHTML = this.formatMessage(content);
+        
+        // Extract clean text, preserving line breaks
+        let plainText = tempDiv.innerText || tempDiv.textContent || '';
+        plainText = plainText.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
 
         const textArea = document.createElement('textarea');
         textArea.value = plainText;
@@ -840,23 +850,37 @@ class ChatInterface {
     }
 
     formatMessage(content) {
-        // First escape HTML entities to prevent XSS
-        const escapedContent = content
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#x27;');
-        
-        // Then apply safe markdown formatting
-        return escapedContent
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/\n/g, '<br>')
-            .replace(/^/, '<p>')
-            .replace(/$/, '</p>')
-            .replace(/<p><\/p>/g, '');
+        // Check if marked library is available
+        if (typeof marked !== 'undefined') {
+            // Configure marked for safe rendering
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                sanitize: false,
+                smartLists: true,
+                smartypants: false
+            });
+            
+            // Parse markdown to HTML
+            return marked.parse(content);
+        } else {
+            // Fallback to basic formatting if marked isn't loaded
+            const escapedContent = content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;');
+            
+            return escapedContent
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/^/, '<p>')
+                .replace(/$/, '</p>')
+                .replace(/<p><\/p>/g, '');
+        }
     }
 
     async startNewChat(clearUI = true) {

@@ -965,10 +965,6 @@ body {
 <!-- Include feedback modal -->
 {% include 'feedback_modal.html' %}
 
-<script>
-// Pass demo mode and user status to JavaScript
-window.isDemoMode = {{ 'true' if is_demo else 'false' }};
-window.isLoggedIn = {{ 'true' if user else 'false' }};
-</script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

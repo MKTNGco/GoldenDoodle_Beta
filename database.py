@@ -786,27 +786,27 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+            table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
 
-            logger.info(f"Getting company brand voices from table: {table_name}")
+            logger.info(f"Getting company brand voices from table: {table_name.string}")
 
             # First, ensure the table exists
-            cursor.execute(f"""
-                CREATE TABLE IF NOT EXISTS {table_name} (
+            cursor.execute(sql.SQL("""
+                CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     configuration JSON NOT NULL,
                     markdown_content TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-            """)
+            """).format(table_name))
 
             # Commit the table creation before querying
             conn.commit()
 
-            cursor.execute(f"""
-                SELECT * FROM {table_name} ORDER BY created_at DESC
-            """)
+            cursor.execute(sql.SQL("""
+                SELECT * FROM {} ORDER BY created_at DESC
+            """).format(table_name))
 
             rows = cursor.fetchall()
             logger.info(f"Found {len(rows)} brand voices in {table_name}")
@@ -842,10 +842,10 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
-            cursor.execute(f"""
-                SELECT * FROM {table_name} WHERE user_id = %s ORDER BY name
-            """, (user_id,))
+            table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
+            cursor.execute(sql.SQL("""
+                SELECT * FROM {} WHERE user_id = %s ORDER BY name
+            """).format(table_name), (user_id,))
 
             rows = cursor.fetchall()
             cursor.close()
@@ -883,10 +883,10 @@ class DatabaseManager:
 
             if user_id:
                 # User brand voice
-                table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
+                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
                 # Ensure table exists
-                cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
+                cursor.execute(sql.SQL("""
+                    CREATE TABLE IF NOT EXISTS {} (
                         brand_voice_id UUID PRIMARY KEY,
                         user_id UUID NOT NULL,
                         name VARCHAR(255) NOT NULL,
@@ -894,28 +894,28 @@ class DatabaseManager:
                         markdown_content TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
-                """)
-                cursor.execute(f"""
-                    INSERT INTO {table_name} (brand_voice_id, user_id, name, configuration, markdown_content)
+                """).format(table_name))
+                cursor.execute(sql.SQL("""
+                    INSERT INTO {} (brand_voice_id, user_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s, %s)
-                """, (brand_voice_id, user_id, name, json.dumps(configuration), markdown_content))
+                """).format(table_name), (brand_voice_id, user_id, name, json.dumps(configuration), markdown_content))
             else:
                 # Company brand voice
-                table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+                table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
                 # Ensure table exists
-                cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
+                cursor.execute(sql.SQL("""
+                    CREATE TABLE IF NOT EXISTS {} (
                         brand_voice_id UUID PRIMARY KEY,
                         name VARCHAR(255) NOT NULL,
                         configuration JSON NOT NULL,
                         markdown_content TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
-                """)
-                cursor.execute(f"""
-                    INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
+                """).format(table_name))
+                cursor.execute(sql.SQL("""
+                    INSERT INTO {} (brand_voice_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s)
-                """, (brand_voice_id, name, json.dumps(configuration), markdown_content))
+                """).format(table_name), (brand_voice_id, name, json.dumps(configuration), markdown_content))
 
             conn.commit()
             cursor.close()
@@ -950,20 +950,20 @@ class DatabaseManager:
 
             if user_id:
                 # User brand voice
-                table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
-                cursor.execute(f"""
-                    UPDATE {table_name} 
+                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(sql.SQL("""
+                    UPDATE {} 
                     SET name = %s, configuration = %s, markdown_content = %s
                     WHERE brand_voice_id = %s AND user_id = %s
-                """, (name, json.dumps(configuration), markdown_content, brand_voice_id, user_id))
+                """).format(table_name), (name, json.dumps(configuration), markdown_content, brand_voice_id, user_id))
             else:
                 # Company brand voice
-                table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
-                cursor.execute(f"""
-                    UPDATE {table_name} 
+                table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(sql.SQL("""
+                    UPDATE {} 
                     SET name = %s, configuration = %s, markdown_content = %s
                     WHERE brand_voice_id = %s
-                """, (name, json.dumps(configuration), markdown_content, brand_voice_id))
+                """).format(table_name), (name, json.dumps(configuration), markdown_content, brand_voice_id))
 
             if cursor.rowcount == 0:
                 raise Exception("Brand voice not found or permission denied")
@@ -1003,23 +1003,23 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             # Always create as company brand voice now (ignoring user_id parameter)
-            table_name = f"company_brand_voices_{tenant_id.replace('-', '_')}"
+            table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
 
             # Ensure table exists
-            cursor.execute(f"""
-                CREATE TABLE IF NOT EXISTS {table_name} (
+            cursor.execute(sql.SQL("""
+                CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     configuration JSON NOT NULL,
                     markdown_content TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-            """)
+            """).format(table_name))
 
-            cursor.execute(f"""
-                INSERT INTO {table_name} (brand_voice_id, name, configuration, markdown_content)
+            cursor.execute(sql.SQL("""
+                INSERT INTO {} (brand_voice_id, name, configuration, markdown_content)
                 VALUES (%s, %s, %s, %s)
-            """, (brand_voice_id, name, json.dumps(configuration), markdown_content))
+            """).format(table_name), (brand_voice_id, name, json.dumps(configuration), markdown_content))
 
             conn.commit()
             cursor.close()
@@ -1165,9 +1165,9 @@ class DatabaseManager:
                     return False
 
                 # Delete user's brand voices from tenant-specific table
-                table_name = f"user_brand_voices_{tenant_id.replace('-', '_')}"
+                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
                 try:
-                    cursor.execute(f"DELETE FROM {table_name} WHERE user_id = %s", (user_id,))
+                    cursor.execute(sql.SQL("DELETE FROM {} WHERE user_id = %s").format(table_name), (user_id,))
                 except Exception:
                     # Table might not exist, continue
                     pass
@@ -1220,8 +1220,10 @@ class DatabaseManager:
             # Delete tenant-specific brand voice tables
             table_prefix = tenant_id.replace('-', '_')
             try:
-                cursor.execute(f"DROP TABLE IF EXISTS company_brand_voices_{table_prefix}")
-                cursor.execute(f"DROP TABLE IF EXISTS user_brand_voices_{table_prefix}")
+                company_table = sql.Identifier(f"company_brand_voices_{table_prefix}")
+                user_table = sql.Identifier(f"user_brand_voices_{table_prefix}")
+                cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(company_table))
+                cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(user_table))
             except Exception:
                 # Tables might not exist, continue
                 pass

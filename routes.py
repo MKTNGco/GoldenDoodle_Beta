@@ -1,4 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
+from urllib.parse import urlparse
 from app import app
 from auth import login_required, admin_required, super_admin_required, get_current_user, login_user, logout_user
 from database import db_manager
@@ -361,6 +362,12 @@ def login():
             login_user(user)
             flash('Welcome back!', 'success')
             next_page = request.args.get('next')
+            if next_page:
+                # Validate redirect URL to prevent open redirect attacks
+                parsed_url = urlparse(next_page)
+                if parsed_url.netloc and parsed_url.netloc != request.host:
+                    # External redirect detected, ignore and use default
+                    return redirect(url_for('chat'))
             return redirect(next_page) if next_page else redirect(url_for('chat'))
         else:
             flash('Invalid email or password.', 'error')

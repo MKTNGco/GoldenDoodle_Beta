@@ -572,7 +572,7 @@ class ChatInterface {
     async copyToClipboard(content) {
         try {
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = content;
+            tempDiv.textContent = content;
             const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
             await navigator.clipboard.writeText(plainText);
@@ -585,7 +585,7 @@ class ChatInterface {
 
     fallbackCopyToClipboard(content) {
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = content;
+        tempDiv.textContent = content;
         const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
         const textArea = document.createElement('textarea');
@@ -840,7 +840,16 @@ class ChatInterface {
     }
 
     formatMessage(content) {
-        return content
+        // First escape HTML entities to prevent XSS
+        const escapedContent = content
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;');
+        
+        // Then apply safe markdown formatting
+        return escapedContent
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
             .replace(/\n\n/g, '</p><p>')

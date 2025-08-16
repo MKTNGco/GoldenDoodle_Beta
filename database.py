@@ -1992,36 +1992,34 @@ class DatabaseManager:
 
             # Build update query dynamically based on provided parameters
             update_fields = []
-            update_values = []
+            update_params = {'user_id': user_id}
 
             if stripe_customer_id is not None:
-                update_fields.append("stripe_customer_id = %s")
-                update_values.append(stripe_customer_id)
+                update_fields.append("stripe_customer_id = %(stripe_customer_id)s")
+                update_params['stripe_customer_id'] = stripe_customer_id
 
             if stripe_subscription_id is not None:
-                update_fields.append("stripe_subscription_id = %s")
-                update_values.append(stripe_subscription_id)
+                update_fields.append("stripe_subscription_id = %(stripe_subscription_id)s")
+                update_params['stripe_subscription_id'] = stripe_subscription_id
 
             if subscription_status is not None:
-                update_fields.append("subscription_status = %s")
-                update_values.append(subscription_status)
+                update_fields.append("subscription_status = %(subscription_status)s")
+                update_params['subscription_status'] = subscription_status
 
             if current_period_end is not None:
-                update_fields.append("current_period_end = %s")
-                update_values.append(current_period_end)
+                update_fields.append("current_period_end = %(current_period_end)s")
+                update_params['current_period_end'] = current_period_end
 
             if not update_fields:
                 return True  # Nothing to update
 
-            update_values.append(user_id)  # Add user_id for WHERE clause
-
-            query = f"""
+            query = """
                 UPDATE users 
-                SET {', '.join(update_fields)}
-                WHERE user_id = %s
+                SET """ + ', '.join(update_fields) + """
+                WHERE user_id = %(user_id)s
             """
 
-            cursor.execute(query, update_values)
+            cursor.execute(query, update_params)
             conn.commit()
             cursor.close()
             conn.close()

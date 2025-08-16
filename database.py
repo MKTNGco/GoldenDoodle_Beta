@@ -1,6 +1,7 @@
 import os
 import psycopg2
 import psycopg2.extras
+from psycopg2 import sql
 import uuid
 import json
 import logging
@@ -436,19 +437,19 @@ class DatabaseManager:
             table_suffix = tenant.tenant_id.replace('-', '_')
 
             # Create company brand voices table for all tenants (since we treat all voices as company voices now)
-            cursor.execute(f"""
-                CREATE TABLE IF NOT EXISTS company_brand_voices_{table_suffix} (
+            cursor.execute(sql.SQL("""
+                CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     configuration JSON NOT NULL,
                     markdown_content TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-            """)
+            """).format(sql.Identifier(f"company_brand_voices_{table_suffix}")))
 
             # Create user brand voices table (keeping for backward compatibility)
-            cursor.execute(f"""
-                CREATE TABLE IF NOT EXISTS user_brand_voices_{table_suffix} (
+            cursor.execute(sql.SQL("""
+                CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     user_id UUID NOT NULL,
                     name VARCHAR(255) NOT NULL,
@@ -456,7 +457,7 @@ class DatabaseManager:
                     markdown_content TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-            """)
+            """).format(sql.Identifier(f"user_brand_voices_{table_suffix}")))
 
             conn.commit()
             cursor.close()

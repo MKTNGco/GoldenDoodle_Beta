@@ -975,16 +975,35 @@ class ChatInterface {
         chatElement.className = 'chat-history-item';
         chatElement.dataset.sessionId = chat.id;
 
-        chatElement.innerHTML = `
-            <div class="chat-session-title">${chat.title}</div>
-            <div class="chat-session-meta">
-                <span>${chat.message_count || 0} messages</span>
-                <span>${this.formatDate(chat.updated_at || chat.created_at)}</span>
-            </div>
-            <button class="delete-session-btn" onclick="event.stopPropagation(); chatInterface.deleteSession('${chat.id}')">
-                ×
-            </button>
-        `;
+        // Create elements safely using DOM methods instead of innerHTML
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'chat-session-title';
+        titleDiv.textContent = chat.title; // Safe: textContent escapes HTML
+        
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'chat-session-meta';
+        
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = `${chat.message_count || 0} messages`;
+        
+        const dateSpan = document.createElement('span');
+        dateSpan.textContent = this.formatDate(chat.updated_at || chat.created_at);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-session-btn';
+        deleteBtn.textContent = '×';
+        // Safe: Use event listener instead of inline onclick
+        deleteBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.deleteSession(chat.id); // chat.id is safely passed as parameter
+        });
+        
+        metaDiv.appendChild(messageSpan);
+        metaDiv.appendChild(dateSpan);
+        
+        chatElement.appendChild(titleDiv);
+        chatElement.appendChild(metaDiv);
+        chatElement.appendChild(deleteBtn);
 
         chatElement.addEventListener('click', () => {
             this.loadChat(chat.id);

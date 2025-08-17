@@ -1077,12 +1077,13 @@ class ChatInterface {
                 this.addChatToSidebar(chat);
             });
 
-            // Always start with a fresh canvas instead of loading the last chat
-            await this.startNewChat();
+            // Only clear the chat messages, don't create a new session automatically
+            this.clearChatMessages();
 
         } catch (error) {
             console.error('Error loading chat history:', error);
-            await this.startNewChat();
+            // Only clear messages on error, don't create new session
+            this.clearChatMessages();
         }
     }
 

@@ -74,15 +74,16 @@ body {
     height: 64px;
     object-fit: contain;
     border-radius: 4px;
+    animation-play-state: paused; /* Pause GIF by default */
 }
 
 .sidebar-logo img.page-loading {
-    /* No specific styles needed here, the logic is in JS to remove the class after 3 seconds */
+    animation-play-state: running; /* Allow GIF to play during page load */
 }
 
 /* Hover effect to play GIF */
 .sidebar-logo img:hover {
-    animation: none; /* Stop any existing animation */
+    animation-play-state: running; /* Play GIF on hover */
 }
 
 .chat-menu-button {

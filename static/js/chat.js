@@ -982,9 +982,13 @@ class ChatInterface {
 
         const welcomeContent = document.createElement('div');
         welcomeContent.className = 'welcome-content';
+        
+        // Get user's first name if logged in
+        const userName = window.currentUserFirstName || 'there';
+        
         welcomeContent.innerHTML = `
-            <h1>Ready to create compassionate content?</h1>
-            <p>Start a conversation with GoldenDoodleLM to generate trauma-informed, healing-centered communication.</p>
+            <h1><strong>Hello, ${userName}</strong></h1>
+            <p style="color: var(--text-secondary);">What can we get started on together?</p>
         `;
 
         welcomeScreen.appendChild(welcomeContent);
@@ -1073,11 +1077,8 @@ class ChatInterface {
                 this.addChatToSidebar(chat);
             });
 
-            if (chats.length > 0) {
-                await this.loadChat(chats[0].id);
-            } else {
-                await this.startNewChat();
-            }
+            // Always start with a fresh canvas instead of loading the last chat
+            await this.startNewChat();
 
         } catch (error) {
             console.error('Error loading chat history:', error);
@@ -1243,12 +1244,14 @@ function startNewChat() {
         chatInterface.startNewChat(true);
     } else {
         const chatMessages = document.getElementById('chatMessages');
+        const userName = window.currentUserFirstName || 'there';
+        
         chatMessages.innerHTML = `
             <div class="chat-content">
                 <div class="welcome-screen">
                     <div class="welcome-content">
-                        <h1>Ready to create compassionate content?</h1>
-                        <p>Start a conversation with GoldenDoodleLM to generate trauma-informed, healing-centered communication.</p>
+                        <h1><strong>Hello, ${userName}</strong></h1>
+                        <p style="color: var(--text-secondary);">What can we get started on together?</p>
                     </div>
                 </div>
             </div>

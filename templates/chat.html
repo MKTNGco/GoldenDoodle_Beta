@@ -863,6 +863,15 @@ body {
         <div class="chat-messages" id="chatMessages">
             <div class="chat-content">
                 <div class="welcome-screen">
+                    <div class="welcome-content">
+                        {% if user %}
+                        <h1><strong>Hello, {{ user.first_name }}</strong></h1>
+                        <p style="color: var(--text-secondary);">What can we get started on together?</p>
+                        {% else %}
+                        <h1><strong>Hello</strong></h1>
+                        <p style="color: var(--text-secondary);">What can we get started on together?</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -996,6 +1005,14 @@ body {
 <!-- Include feedback modal -->
 {% include 'feedback_modal.html' %}
 
+<script>
+    // Make user data available to JavaScript
+    {% if user %}
+    window.currentUserFirstName = "{{ user.first_name }}";
+    {% endif %}
+    window.isDemoMode = {{ 'true' if is_demo else 'false' }};
+    window.isLoggedIn = {{ 'true' if user else 'false' }};
+</script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

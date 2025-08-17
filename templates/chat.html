@@ -75,15 +75,16 @@ body {
     object-fit: contain;
     border-radius: 4px;
     animation-play-state: paused; /* Pause GIF by default */
+    transition: transform 0.2s ease;
 }
 
 .sidebar-logo img.page-loading {
     animation-play-state: running; /* Allow GIF to play during page load */
 }
 
-/* Hover effect to play GIF */
+/* Hover effect styling */
 .sidebar-logo img:hover {
-    animation-play-state: running; /* Play GIF on hover */
+    transform: scale(1.05);
 }
 
 .chat-menu-button {

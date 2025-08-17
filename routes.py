@@ -1948,13 +1948,6 @@ def create_checkout_session():
             }
         )
 
-@app.route('/analytics')
-@super_admin_required
-def analytics_dashboard():
-    """Analytics dashboard for user tracking"""
-    return render_template('analytics_dashboard.html')
-
-
         if session:
             return jsonify({'checkout_url': session['url']})
         else:
@@ -1963,6 +1956,12 @@ def analytics_dashboard():
     except Exception as e:
         logger.error(f"Error creating checkout session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
+@app.route('/analytics')
+@super_admin_required
+def analytics_dashboard():
+    """Analytics dashboard for user tracking"""
+    return render_template('analytics_dashboard.html')
 
 @app.route('/payment-success')
 def payment_success():

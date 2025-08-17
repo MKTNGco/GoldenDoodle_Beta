@@ -1948,6 +1948,13 @@ def create_checkout_session():
             }
         )
 
+@app.route('/analytics')
+@super_admin_required
+def analytics_dashboard():
+    """Analytics dashboard for user tracking"""
+    return render_template('analytics_dashboard.html')
+
+
         if session:
             return jsonify({'checkout_url': session['url']})
         else:
@@ -1997,6 +2004,127 @@ def payment_success():
 
     # Fallback
     flash('Payment completed. Please sign in to access your account.', 'success')
+
+@app.route('/analytics/users', methods=['GET'])
+@super_admin_required
+def analytics_users():
+    """Get user analytics data"""
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # User registration trends
+        cursor.execute("""
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as new_users,
+                subscription_level,
+                tenant_type
+            FROM users u
+            JOIN tenants t ON u.tenant_id = t.tenant_id
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(created_at), subscription_level, tenant_type
+            ORDER BY date DESC
+        """)
+        registration_trends = cursor.fetchall()
+        
+        # Active users (based on last_login)
+        cursor.execute("""
+            SELECT 
+                COUNT(*) FILTER (WHERE last_login >= NOW() - INTERVAL '1 day') as daily_active,
+                COUNT(*) FILTER (WHERE last_login >= NOW() - INTERVAL '7 days') as weekly_active,
+                COUNT(*) FILTER (WHERE last_login >= NOW() - INTERVAL '30 days') as monthly_active,
+                COUNT(*) as total_users
+            FROM users
+        """)
+        active_users = cursor.fetchone()
+        
+        # Subscription distribution
+        cursor.execute("""
+            SELECT subscription_level, COUNT(*) as count
+            FROM users
+            GROUP BY subscription_level
+        """)
+        subscription_dist = cursor.fetchall()
+        
+        # Token usage patterns
+        cursor.execute("""
+            SELECT 
+                AVG(tokens_used_month) as avg_monthly_tokens,
+                MAX(tokens_used_month) as max_monthly_tokens,
+                COUNT(*) FILTER (WHERE tokens_used_month > 0) as active_token_users
+            FROM user_token_usage
+        """)
+        token_usage = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'registration_trends': [dict(row) for row in registration_trends],
+            'active_users': dict(active_users),
+            'subscription_distribution': [dict(row) for row in subscription_dist],
+            'token_usage': dict(token_usage) if token_usage else {}
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting analytics: {e}")
+        return jsonify({'error': 'Failed to get analytics'}), 500
+
+@app.route('/analytics/usage', methods=['GET'])
+@super_admin_required
+def analytics_usage():
+    """Get detailed usage analytics"""
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Chat session statistics
+        cursor.execute("""
+            SELECT 
+                DATE(cs.created_at) as date,
+                COUNT(DISTINCT cs.session_id) as sessions_created,
+                COUNT(DISTINCT cs.user_id) as unique_users,
+                AVG(message_counts.msg_count) as avg_messages_per_session
+            FROM chat_sessions cs
+            LEFT JOIN (
+                SELECT session_id, COUNT(*) as msg_count
+                FROM chat_messages
+                GROUP BY session_id
+            ) message_counts ON cs.session_id = message_counts.session_id
+            WHERE cs.created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(cs.created_at)
+            ORDER BY date DESC
+        """)
+        chat_stats = cursor.fetchall()
+        
+        # Brand voice usage
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_brand_voices,
+                COUNT(DISTINCT tenant_id) as tenants_with_voices
+            FROM (
+                SELECT tenant_id FROM tenants t
+                WHERE EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_name = 'company_brand_voices_' || REPLACE(t.tenant_id::text, '-', '_')
+                )
+            ) active_tenants
+        """)
+        brand_voice_stats = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'chat_statistics': [dict(row) for row in chat_stats],
+            'brand_voice_stats': dict(brand_voice_stats) if brand_voice_stats else {}
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting usage analytics: {e}")
+        return jsonify({'error': 'Failed to get usage analytics'}), 500
+
     return redirect(url_for('login'))
 
 @app.route('/billing-portal', methods=['POST'])

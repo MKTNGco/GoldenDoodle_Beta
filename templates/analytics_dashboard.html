@@ -1,0 +1,120 @@
+
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="fw-bold text-primary mb-4">User Analytics Dashboard</h1>
+    
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="text-muted">Total Users</h5>
+                    <h2 class="text-primary" id="totalUsers">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="text-muted">Daily Active</h5>
+                    <h2 class="text-success" id="dailyActive">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="text-muted">Monthly Active</h5>
+                    <h2 class="text-info" id="monthlyActive">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="text-muted">Avg Tokens/Month</h5>
+                    <h2 class="text-warning" id="avgTokens">-</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Subscription Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="subscriptionChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">User Registration Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="registrationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalytics();
+    
+    async function loadAnalytics() {
+        try {
+            const response = await fetch('/analytics/users');
+            const data = await response.json();
+            
+            // Update summary cards
+            document.getElementById('totalUsers').textContent = data.active_users.total_users || 0;
+            document.getElementById('dailyActive').textContent = data.active_users.daily_active || 0;
+            document.getElementById('monthlyActive').textContent = data.active_users.monthly_active || 0;
+            document.getElementById('avgTokens').textContent = Math.round(data.token_usage.avg_monthly_tokens || 0);
+            
+            // Create subscription chart
+            const subCtx = document.getElementById('subscriptionChart').getContext('2d');
+            new Chart(subCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.subscription_distribution.map(d => d.subscription_level),
+                    datasets: [{
+                        data: data.subscription_distribution.map(d => d.count),
+                        backgroundColor: ['#32808c', '#90b0d1', '#cce5e8', '#256069']
+                    }]
+                }
+            });
+            
+            // Create registration trend chart
+            const regCtx = document.getElementById('registrationChart').getContext('2d');
+            const regData = data.registration_trends.slice(0, 14).reverse();
+            new Chart(regCtx, {
+                type: 'line',
+                data: {
+                    labels: regData.map(d => d.date),
+                    datasets: [{
+                        label: 'New Users',
+                        data: regData.map(d => d.new_users),
+                        borderColor: '#32808c',
+                        tension: 0.1
+                    }]
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error loading analytics:', error);
+        }
+    }
+});
+</script>
+{% endblock %}

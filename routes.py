@@ -8,11 +8,15 @@ from rag_service import rag_service
 from models import TenantType, SubscriptionLevel, CONTENT_MODE_CONFIG, BrandVoice
 from email_service import email_service, generate_verification_token, hash_token
 from stripe_service import stripe_service
-import json
-import logging
+from analytics_service import analytics_service
 import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional
+from datetime import datetime, timedelta
+import secrets
+import traceback
+import stripe
+import os
+import logging
+import psycopg2.extras
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +44,7 @@ def register():
         expects_json = (request.is_json or 
                        'application/json' in request.headers.get('Accept', '') or 
                        request.headers.get('Content-Type') == 'application/x-www-form-urlencoded')
-        
+
         try:
             first_name = request.form.get('first_name', '').strip()
             last_name = request.form.get('last_name', '').strip()
@@ -80,7 +84,7 @@ def register():
                                          organization_invite=organization_invite)
 
                 # Create user as organization member with predetermined settings
-                user = db_manager.create_user(
+                user_id = db_manager.create_user(
                     tenant_id=organization_invite['tenant_id'],
                     first_name=first_name,
                     last_name=last_name,
@@ -88,6 +92,18 @@ def register():
                     password=password,
                     subscription_level=SubscriptionLevel.TEAM,  # Predetermined for organization members
                     is_admin=False  # Regular team member, not admin
+                )
+
+                # Track user registration event
+                analytics_service.track_user_event(
+                    user_id=str(user_id),
+                    event_name='User Registered',
+                    properties={
+                        'email': email,
+                        'first_name': first_name,
+                        'tenant_type': TenantType.COMPANY.value,  # Company type for organization members
+                        'subscription_level': SubscriptionLevel.TEAM.value # Team level for organization members
+                    }
                 )
 
                 # Mark invite as used
@@ -100,7 +116,7 @@ def register():
                 verification_token = generate_verification_token()
                 token_hash = hash_token(verification_token)
 
-                if db_manager.create_verification_token(user.user_id, token_hash):
+                if db_manager.create_verification_token(user_id, token_hash):
                     if email_service.send_verification_email(email, verification_token, first_name):
                         flash(f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.', 'success')
                         return redirect(url_for('login'))
@@ -165,7 +181,7 @@ def register():
                 is_admin = False
 
             # Create user
-            user = db_manager.create_user(
+            user_id = db_manager.create_user(
                 tenant_id=tenant.tenant_id,
                 first_name=first_name,
                 last_name=last_name,
@@ -175,6 +191,18 @@ def register():
                 is_admin=is_admin
             )
 
+            # Track user registration event
+            analytics_service.track_user_event(
+                user_id=str(user_id),
+                event_name='User Registered',
+                properties={
+                    'email': email,
+                    'first_name': first_name,
+                    'tenant_type': user_type,
+                    'subscription_level': subscription_level
+                }
+            )
+
             # Check if this is a paid plan - redirect to checkout immediately
             if subscription_level in ['solo', 'team', 'professional']:
                 try:
@@ -182,11 +210,11 @@ def register():
                     customer = stripe_service.create_customer(
                         email=email,
                         name=f"{first_name} {last_name}",
-                        metadata={'user_id': user.user_id}
+                        metadata={'user_id': user_id}
                     )
 
                     if customer:
-                        db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=customer['id'])
+                        db_manager.update_user_stripe_info(user_id, stripe_customer_id=customer['id'])
 
                     # Map subscription level to Stripe price ID
                     price_mapping = {
@@ -199,7 +227,7 @@ def register():
                     if not price_id:
                         # Clean up user and tenant
                         try:
-                            db_manager.delete_user(user.user_id)
+                            db_manager.delete_user(user_id)
                             db_manager.delete_tenant(tenant.tenant_id)
                         except:
                             pass
@@ -210,32 +238,32 @@ def register():
 
                     # Create checkout session with improved URLs for Replit
                     base_url = request.url_root.rstrip('/')
-                    
+
                     # Ensure we're using the correct host for Replit
                     if 'replit.dev' in base_url and not base_url.startswith('https://'):
                         base_url = base_url.replace('http://', 'https://')
-                    
-                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user.user_id}"
+
+                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
-                    
+
                     logger.info(f"Using base URL: {base_url}")
                     logger.info(f"Full success URL: {success_url}")
                     logger.info(f"Full cancel URL: {cancel_url}")
 
-                    logger.info(f"Creating Stripe checkout session for user {user.user_id}")
+                    logger.info(f"Creating Stripe checkout session for user {user_id}")
                     logger.info(f"Price ID: {price_id}")
                     logger.info(f"Customer ID: {customer['id'] if customer else 'None'}")
-                    
+
                     logger.info(f"About to create Stripe checkout session:")
                     logger.info(f"  - Email: {email}")
                     logger.info(f"  - Price ID: {price_id}")
                     logger.info(f"  - Success URL: {success_url}")
                     logger.info(f"  - Cancel URL: {cancel_url}")
-                    
+
                     # For now, set trial to 0 days for testing Stripe integration
                     # TODO: Change to 7 days once Stripe integration is confirmed working
                     trial_days = '0'  # Set to '0' for testing, '7' for production trial
-                    
+
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
@@ -243,15 +271,15 @@ def register():
                         cancel_url=cancel_url,
                         customer_id=customer['id'] if customer else None,
                         metadata={
-                            'user_id': user.user_id,
+                            'user_id': user_id,
                             'plan_id': subscription_level,
                             'new_registration': 'true',
                             'trial_days': trial_days
                         }
                     )
-                    
+
                     logger.info(f"Stripe session creation result: {stripe_session}")
-                    
+
                     # Additional validation
                     if stripe_session:
                         if not stripe_session.get('url'):
@@ -264,7 +292,7 @@ def register():
                     if stripe_session and stripe_session.get('url'):
                         # Store pending registration in session for post-payment verification
                         session['pending_registration'] = {
-                            'user_id': user.user_id,
+                            'user_id': user_id,
                             'email': email,
                             'first_name': first_name,
                             'needs_verification': True
@@ -284,7 +312,7 @@ def register():
                         logger.error("❌ Stripe session created but no URL returned")
                         # Delete the user since payment setup failed
                         try:
-                            db_manager.delete_user(user.user_id)
+                            db_manager.delete_user(user_id)
                             db_manager.delete_tenant(tenant.tenant_id)
                         except:
                             pass
@@ -297,7 +325,7 @@ def register():
                     logger.error(f"❌ Stripe error: {stripe_error}")
                     # Clean up user and tenant on failure
                     try:
-                        db_manager.delete_user(user.user_id)
+                        db_manager.delete_user(user_id)
                         db_manager.delete_tenant(tenant.tenant_id)
                     except:
                         pass
@@ -310,7 +338,7 @@ def register():
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
 
-            if db_manager.create_verification_token(user.user_id, token_hash):
+            if db_manager.create_verification_token(user_id, token_hash):
                 if email_service.send_verification_email(email, verification_token, first_name):
                     flash('Account created successfully! Please check your email to verify your account before signing in.', 'success')
                     return redirect(url_for('login'))
@@ -325,7 +353,7 @@ def register():
             logger.error(f"Registration error: {e}")
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
-            
+
             # Always return JSON for AJAX requests
             if expects_json:
                 return jsonify({
@@ -359,6 +387,16 @@ def login():
             # Update last login timestamp
             db_manager.update_user_last_login(user.user_id)
 
+            # Track user login event
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='User Login',
+                properties={
+                    'email': user.email,
+                    'subscription_level': user.subscription_level
+                }
+            )
+
             login_user(user)
             flash('Welcome back!', 'success')
             next_page = request.args.get('next')
@@ -377,7 +415,17 @@ def login():
 @app.route('/logout')
 def logout():
     """User logout"""
+    user = get_current_user() # Get user before logging out
     logout_user()
+    if user:
+        # Track user logout event
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='User Logout',
+            properties={
+                'email': user.email
+            }
+        )
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
@@ -393,6 +441,16 @@ def verify_email():
     user_id = db_manager.verify_email_token(token_hash)
 
     if user_id:
+        # Track email verification event
+        user = db_manager.get_user_by_id(user_id) # Fetch user to get details
+        if user:
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Email Verified',
+                properties={
+                    'email': user.email
+                }
+            )
         flash('Email verified successfully! You can now sign in.', 'success')
         return redirect(url_for('login'))
     else:
@@ -424,6 +482,14 @@ def resend_verification():
 
         if db_manager.create_verification_token(user.user_id, token_hash):
             if email_service.send_verification_email(email, verification_token, user.first_name):
+                # Track resend verification email event
+                analytics_service.track_user_event(
+                    user_id=str(user.user_id),
+                    event_name='Verification Email Resent',
+                    properties={
+                        'email': user.email
+                    }
+                )
                 return jsonify({'success': True, 'message': 'Verification email sent successfully'})
             else:
                 return jsonify({'error': 'Failed to send verification email'}), 500
@@ -452,6 +518,14 @@ def forgot_password():
 
             if db_manager.create_password_reset_token(user.user_id, token_hash):
                 if email_service.send_password_reset_email(email, reset_token, user.first_name):
+                    # Track password reset request event
+                    analytics_service.track_user_event(
+                        user_id=str(user.user_id),
+                        event_name='Password Reset Requested',
+                        properties={
+                            'email': user.email
+                        }
+                    )
                     flash('Password reset link sent to your email address.', 'success')
                 else:
                     flash('Failed to send password reset email. Please try again.', 'error')
@@ -517,6 +591,17 @@ def reset_password():
             # Mark token as used
             db_manager.use_password_reset_token(token_hash)
 
+            # Track password reset success
+            user = db_manager.get_user_by_id(user_id)
+            if user:
+                analytics_service.track_user_event(
+                    user_id=str(user.user_id),
+                    event_name='Password Reset Success',
+                    properties={
+                        'email': user.email
+                    }
+                )
+
             flash('Password reset successfully! You can now sign in.', 'success')
             return redirect(url_for('login'))
 
@@ -543,6 +628,15 @@ def chat():
         company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
         user_brand_voices = []  # No longer using user-specific brand voices
 
+        # Track user visit to chat page
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Visited Chat Page',
+            properties={
+                'subscription_level': user.subscription_level
+            }
+        )
+
         return render_template('chat.html', 
                              user=user, 
                              tenant=tenant,
@@ -567,13 +661,14 @@ def generate():
         logger.info("=== /generate route called ===")
         data = request.get_json()
         logger.info(f"Request data received: {bool(data)}")
-        
+
         prompt = data.get('prompt', '').strip()
         conversation_history = data.get('conversation_history', [])
         content_mode = data.get('content_mode')
         brand_voice_id = data.get('brand_voice_id')
         is_demo = data.get('is_demo', False)
-        
+        session_id = data.get('session_id') # Added for tracking
+
         logger.info(f"Prompt length: {len(prompt)}")
         logger.info(f"Content mode: {content_mode}")
         logger.info(f"Brand voice ID: {brand_voice_id}")
@@ -603,6 +698,17 @@ def generate():
                 content_mode=content_mode,
                 brand_voice_context=None,
                 trauma_informed_context=trauma_informed_context
+            )
+
+            # Track demo generation event
+            analytics_service.track_user_event(
+                user_id='anonymous_demo_user', # Use a placeholder for anonymous users
+                event_name='Chat Message Generated (Demo)',
+                properties={
+                    'content_mode': content_mode,
+                    'prompt_length': len(prompt),
+                    'response_length': len(response)
+                }
             )
 
             return jsonify({'response': response})
@@ -643,7 +749,7 @@ def generate():
         logger.info(f"Content mode: {content_mode}")
         logger.info(f"Brand voice context length: {len(brand_voice_context) if brand_voice_context else 0}")
         logger.info(f"Trauma informed context length: {len(trauma_informed_context) if trauma_informed_context else 0}")
-        
+
         try:
             response = gemini_service.generate_content_with_history(
                 prompt=prompt,
@@ -652,7 +758,7 @@ def generate():
                 brand_voice_context=brand_voice_context,
                 trauma_informed_context=trauma_informed_context
             )
-            
+
             logger.info(f"✓ Gemini service returned response of length: {len(response) if response else 0}")
             logger.info(f"Response preview: {response[:100] if response else 'No response'}")
         except Exception as gemini_error:
@@ -665,18 +771,17 @@ def generate():
         db_manager.update_user_token_usage(user.user_id, total_tokens_used)
 
         # Save to chat history if user is logged in
-        session_id = data.get('session_id')
-        if user and session_id:
+        if session_id: # Use session_id from request data
             # Verify session belongs to user before saving
             user_sessions = db_manager.get_user_chat_sessions(user.user_id)
             session_belongs_to_user = any(s['session_id'] == session_id for s in user_sessions)
-            
+
             if not session_belongs_to_user:
                 logger.warning(f"Session {session_id} does not belong to user {user.user_id}")
                 return jsonify({'error': 'Invalid session'}), 400
-            
+
             logger.info(f"Saving message to session {session_id} for user {user.user_id}")
-            
+
             # Check chat history limits first
             user_plan = db_manager.get_user_plan(user.user_id)
             if user_plan and user_plan['chat_history_limit'] != -1:  # -1 means unlimited
@@ -708,6 +813,19 @@ def generate():
                     # Generate a short title from the first user message
                     title = prompt[:50] + "..." if len(prompt) > 50 else prompt
                     db_manager.update_chat_session_title(session_id, title)
+
+        # Track chat generation event
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Chat Message Generated',
+            properties={
+                'content_mode': content_mode,
+                'has_brand_voice': bool(brand_voice_id),
+                'prompt_length': len(prompt),
+                'response_length': len(response),
+                'session_id': str(session_id)
+            }
+        )
 
         logger.info(f"=== ROUTE COMPLETING SUCCESSFULLY ===")
         return jsonify({'response': response})
@@ -759,6 +877,15 @@ def account():
     else:
         max_user_voices = 1
 
+    # Track user visit to account page
+    analytics_service.track_user_event(
+        user_id=str(user.user_id),
+        event_name='Visited Account Page',
+        properties={
+            'subscription_level': user.subscription_level
+        }
+    )
+
     return render_template('account.html',
                          user=user,
                          tenant=tenant,
@@ -803,6 +930,17 @@ def update_profile():
         cursor.close()
         conn.close()
 
+        # Track profile update event
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Profile Updated',
+            properties={
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name
+            }
+        )
+
         return jsonify({'success': True, 'message': 'Profile updated successfully'})
 
     except Exception as e:
@@ -846,6 +984,15 @@ def change_password():
         cursor.close()
         conn.close()
 
+        # Track password change event
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Password Changed',
+            properties={
+                'email': user.email
+            }
+        )
+
         return jsonify({'success': True, 'message': 'Password changed successfully'})
 
     except Exception as e:
@@ -886,6 +1033,15 @@ def delete_account():
         tenant_deleted = db_manager.delete_tenant(user.tenant_id)
 
         if user_deleted and tenant_deleted:
+            # Track account deletion event
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Account Deleted',
+                properties={
+                    'email': user.email,
+                    'delete_reason': delete_reason
+                }
+            )
             # Log out the user
             logout_user()
             logger.info(f"Account successfully deleted for user: {user.email}")
@@ -928,6 +1084,17 @@ def brand_voices():
     can_create_company_voice = (user.is_admin and 
                                tenant.tenant_type == TenantType.COMPANY and 
                                len(company_brand_voices) < tenant.max_brand_voices)
+
+    # Track user visit to brand voices page
+    analytics_service.track_user_event(
+        user_id=str(user.user_id),
+        event_name='Visited Brand Voices Page',
+        properties={
+            'subscription_level': user.subscription_level,
+            'is_admin': user.is_admin,
+            'tenant_type': tenant.tenant_type
+        }
+    )
 
     return render_template('brand_voices.html',
                          user=user,
@@ -997,6 +1164,16 @@ def brand_voice_wizard():
         # Determine voice type based on the brand voice
         voice_type = 'company' if not selected_brand_voice.user_id else 'user'
 
+    # Track user visit to brand voice wizard
+    analytics_service.track_user_event(
+        user_id=str(user.user_id),
+        event_name='Visited Brand Voice Wizard',
+        properties={
+            'voice_type': voice_type,
+            'editing': bool(edit_id)
+        }
+    )
+
     return render_template('brand_voice_wizard.html', 
                          voice_type=voice_type, 
                          user=user, 
@@ -1008,7 +1185,7 @@ def create_brand_voice():
     """Create a new brand voice or update an existing one"""
     try:
         logger.info("=== BRAND VOICE CREATION REQUEST RECEIVED ===")
-        
+
         data = request.get_json()
 
         if not data:
@@ -1019,7 +1196,7 @@ def create_brand_voice():
         company_name = data.get('company_name', '').strip()
         company_url = data.get('company_url', '').strip()
         voice_short_name = data.get('voice_short_name', '').strip()
-        voice_type = data.get('voice_type', 'user')
+        voice_type = data.get('voice_type', 'user') # Although we always create as company, this might be used for context
         brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
 
         logger.info(f"Request method: {request.method}")
@@ -1066,7 +1243,7 @@ def create_brand_voice():
                 return jsonify({'error': f'Maximum of {max_allowed} brand voices allowed'}), 400
 
         # Always set user_id to None since we're treating all voices as company voices
-        user_id = None
+        user_id_for_db = None 
 
         # Collect all wizard data
         wizard_data = {
@@ -1129,27 +1306,18 @@ def create_brand_voice():
                 brand_voice_id=brand_voice_id,
                 wizard_data=wizard_data,
                 markdown_content=markdown_content,
-                user_id=user_id
+                user_id=user_id_for_db
             )
             logger.info(f"Updated brand voice: {brand_voice.brand_voice_id}")
 
-            return jsonify({
-                'success': True,
-                'brand_voice_id': brand_voice.brand_voice_id,
-                'message': f'Brand voice "{voice_short_name}" updated successfully!'
-            })
-        else:
-            logger.info(f"About to call create_comprehensive_brand_voice with:")
-            logger.info(f"  tenant_id: {tenant.tenant_id}")
-            logger.info(f"  voice_short_name: {voice_short_name}")
-            logger.info(f"  user_id: {user_id}")
-            logger.info(f"  markdown_content length: {len(markdown_content)}")
+            return_message = f'Brand voice "{voice_short_name}" updated successfully!'
 
+        else:
             brand_voice = db_manager.create_comprehensive_brand_voice(
                 tenant_id=tenant.tenant_id,
                 wizard_data=wizard_data,
                 markdown_content=markdown_content,
-                user_id=user_id
+                user_id=user_id_for_db
             )
             logger.info(f"✓ Successfully created brand voice: {brand_voice.brand_voice_id}")
 
@@ -1159,11 +1327,25 @@ def create_brand_voice():
             for voice in current_company_voices:
                 logger.info(f"  Voice: '{voice.name}' (ID: {voice.brand_voice_id})")
 
-            return jsonify({
-                'success': True,
-                'brand_voice_id': brand_voice.brand_voice_id,
-                'message': f'Brand voice "{voice_short_name}" created successfully!'
-            })
+            return_message = f'Brand voice "{voice_short_name}" created successfully!'
+        
+        # Track brand voice creation/update event
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Brand Voice Created' if not is_editing else 'Brand Voice Updated',
+            properties={
+                'brand_voice_name': voice_short_name,
+                'brand_voice_id': str(brand_voice.brand_voice_id),
+                'is_company_voice': True, # Always company voice now
+                'is_editing': is_editing
+            }
+        )
+
+        return jsonify({
+            'success': True,
+            'brand_voice_id': brand_voice.brand_voice_id,
+            'message': return_message
+        })
 
     except Exception as e:
         logger.error(f"Error creating brand voice: {e}")
@@ -1245,6 +1427,16 @@ def delete_brand_voice(brand_voice_id):
 
         # Delete the brand voice
         if db_manager.delete_brand_voice(tenant.tenant_id, brand_voice_id, selected_brand_voice.user_id):
+            # Track brand voice deletion event
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Brand Voice Deleted',
+                properties={
+                    'brand_voice_id': str(brand_voice_id),
+                    'brand_voice_name': selected_brand_voice.name,
+                    'is_company_voice': selected_brand_voice.user_id is None
+                }
+            )
             logger.info(f"Successfully deleted brand voice {brand_voice_id} for user {user.user_id}")
             return jsonify({'success': True, 'message': 'Brand voice deleted successfully'})
         else:
@@ -1285,7 +1477,8 @@ def auto_save_brand_voice():
 
         # Get or create profile_id
         profile_id = data.get('profile_id')
-        
+        is_editing = bool(profile_id)
+
         if profile_id:
             # Update existing draft
             try:
@@ -1311,7 +1504,7 @@ def auto_save_brand_voice():
             # Check if a brand voice with this name already exists to avoid duplicates
             existing_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
             existing_voice = next((v for v in existing_voices if v.name == voice_short_name), None)
-            
+
             if existing_voice:
                 # Update the existing voice instead of creating a duplicate
                 try:
@@ -1343,6 +1536,17 @@ def auto_save_brand_voice():
                     user_id=None
                 )
                 profile_id = brand_voice.brand_voice_id
+
+        # Track auto-save event
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Brand Voice Auto-Saved',
+            properties={
+                'brand_voice_name': voice_short_name,
+                'profile_id': profile_id,
+                'is_editing': is_editing
+            }
+        )
 
         logger.info(f"Auto-save successful for '{voice_short_name}' (Profile ID: {profile_id})")
 
@@ -1552,6 +1756,12 @@ def platform_admin():
     tenants = db_manager.get_all_tenants()
     logger.info(f"Found {len(users)} users and {len(tenants)} tenants.")
 
+    # Track admin access
+    analytics_service.track_user_event(
+        user_id='platform_admin', # Placeholder for admin user
+        event_name='Visited Platform Admin Dashboard'
+    )
+
     return render_template('platform_admin.html', users=users, tenants=tenants)
 
 @app.route('/admin/delete-user/<user_id>', methods=['POST'])
@@ -1560,7 +1770,20 @@ def admin_delete_user(user_id):
     """Delete a user account"""
     try:
         logger.info(f"Admin deleting user with ID: {user_id}")
+        # Get user details before deletion for tracking
+        user_to_delete = db_manager.get_user_by_id(user_id)
+        email = user_to_delete.email if user_to_delete else 'unknown'
+
         if db_manager.delete_user(user_id):
+            # Track user deletion by admin
+            analytics_service.track_user_event(
+                user_id='platform_admin',
+                event_name='User Deleted by Admin',
+                properties={
+                    'deleted_user_id': user_id,
+                    'deleted_user_email': email
+                }
+            )
             flash('User deleted successfully.', 'success')
             logger.info(f"User {user_id} deleted successfully.")
         else:
@@ -1578,7 +1801,20 @@ def admin_delete_tenant(tenant_id):
     """Delete a tenant and all associated data"""
     try:
         logger.info(f"Admin deleting tenant with ID: {tenant_id}")
+        # Get tenant details before deletion for tracking
+        tenant_to_delete = db_manager.get_tenant_by_id(tenant_id)
+        tenant_name = tenant_to_delete.name if tenant_to_delete else 'unknown'
+
         if db_manager.delete_tenant(tenant_id):
+            # Track tenant deletion by admin
+            analytics_service.track_user_event(
+                user_id='platform_admin',
+                event_name='Tenant Deleted by Admin',
+                properties={
+                    'deleted_tenant_id': tenant_id,
+                    'deleted_tenant_name': tenant_name
+                }
+            )
             flash('Organization deleted successfully.', 'success')
             logger.info(f"Tenant {tenant_id} deleted successfully.")
         else:
@@ -1606,6 +1842,16 @@ def admin_organization_details(tenant_id):
         organization_users = db_manager.get_organization_users(tenant_id)
         logger.info(f"Found {len(organization_users)} members for tenant {tenant_id}.")
 
+        # Track admin viewing organization details
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Viewed Organization Details',
+            properties={
+                'organization_id': tenant_id,
+                'organization_name': tenant.name
+            }
+        )
+
         return render_template('admin_organization_details.html', 
                              tenant=tenant, 
                              organization_users=organization_users)
@@ -1628,7 +1874,19 @@ def admin_update_subscription():
             return jsonify({'error': 'User ID and subscription level are required'}), 400
 
         logger.info(f"Admin updating subscription for user {user_id} to {subscription_level}")
+        user_before_update = db_manager.get_user_by_id(user_id) # Get user before update for tracking
+        
         if db_manager.update_user_subscription(user_id, subscription_level):
+            # Track subscription update by admin
+            analytics_service.track_user_event(
+                user_id='platform_admin',
+                event_name='User Subscription Updated by Admin',
+                properties={
+                    'user_id': user_id,
+                    'previous_subscription': user_before_update.subscription_level if user_before_update else 'unknown',
+                    'new_subscription': subscription_level
+                }
+            )
             logger.info(f"Subscription updated successfully for user {user_id}")
             return jsonify({'success': True, 'message': 'Subscription updated successfully'})
         else:
@@ -1681,6 +1939,15 @@ def send_organization_invite():
                 tenant.name, 
                 f"{user.first_name} {user.last_name}"
             ):
+                # Track organization invite sent
+                analytics_service.track_user_event(
+                    user_id=str(user.user_id),
+                    event_name='Organization Invite Sent',
+                    properties={
+                        'organization_id': tenant.tenant_id,
+                        'invited_email': email
+                    }
+                )
                 logger.info(f"Invitation email sent successfully to {email}.")
                 return jsonify({
                     'success': True, 
@@ -1746,6 +2013,17 @@ def join_organization():
         'organization_name': tenant.name
     }
     logger.info(f"Storing organization invite details in session for {email}.")
+    
+    # Track organization invite accepted
+    analytics_service.track_user_event(
+        user_id=f'invited_user_{email}', # Use email as identifier for unregisted user
+        event_name='Organization Invite Accepted',
+        properties={
+            'organization_id': tenant_id,
+            'organization_name': tenant.name,
+            'invited_email': email
+        }
+    )
 
     return redirect(url_for('register', invite='organization'))
 
@@ -1762,6 +2040,17 @@ def get_pending_invites(tenant_id):
         logger.info(f"Fetching pending invites for tenant {tenant_id} by admin user {user.user_id}.")
         invites = db_manager.get_pending_invites(tenant_id)
         logger.info(f"Found {len(invites)} pending invites for tenant {tenant_id}.")
+        
+        # Track viewing pending invites
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Viewed Pending Organization Invites',
+            properties={
+                'organization_id': tenant_id,
+                'invite_count': len(invites)
+            }
+        )
+        
         return jsonify({'invites': invites})
 
     except Exception as e:
@@ -1797,6 +2086,17 @@ def get_active_users(tenant_id):
             })
 
         logger.info(f"Found {len(users_data)} active users for tenant {tenant_id}.")
+        
+        # Track viewing active users
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Viewed Organization Users',
+            properties={
+                'organization_id': tenant_id,
+                'user_count': len(users_data)
+            }
+        )
+        
         return jsonify({'users': users_data})
 
     except Exception as e:
@@ -1813,6 +2113,16 @@ def get_chat_sessions():
             return jsonify({'error': 'Authentication required'}), 401
 
         sessions = db_manager.get_user_chat_sessions(user.user_id)
+        
+        # Track fetching chat sessions
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Fetched Chat Sessions',
+            properties={
+                'session_count': len(sessions)
+            }
+        )
+        
         return jsonify({'sessions': sessions})
 
     except Exception as e:
@@ -1833,8 +2143,19 @@ def create_chat_session():
 
         session_id = db_manager.create_chat_session(user.user_id, title)
         if session_id:
+            logger.info(f"Created new chat session {session_id} for user {user.user_id}")
+            # Track new chat session creation
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Created New Chat Session',
+                properties={
+                    'session_id': str(session_id),
+                    'session_title': title
+                }
+            )
             return jsonify({'session_id': session_id, 'title': title})
         else:
+            logger.error(f"Failed to create chat session for user {user.user_id}")
             return jsonify({'error': 'Failed to create chat session'}), 500
 
     except Exception as e:
@@ -1856,6 +2177,17 @@ def get_chat_messages(session_id):
             return jsonify({'error': 'Session not found'}), 404
 
         messages = db_manager.get_chat_messages(session_id)
+        
+        # Track fetching chat messages
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Fetched Chat Messages',
+            properties={
+                'session_id': str(session_id),
+                'message_count': len(messages)
+            }
+        )
+        
         return jsonify({'messages': messages})
 
     except Exception as e:
@@ -1872,6 +2204,14 @@ def delete_chat_session(session_id):
             return jsonify({'error': 'Authentication required'}), 401
 
         if db_manager.delete_chat_session(session_id, user.user_id):
+            # Track chat session deletion
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Deleted Chat Session',
+                properties={
+                    'session_id': str(session_id)
+                }
+            )
             return jsonify({'success': True})
         else:
             return jsonify({'error': 'Failed to delete session'}), 500
@@ -1892,6 +2232,15 @@ def new_session():
         session_id = db_manager.create_chat_session(user.user_id, "New Chat")
         if session_id:
             logger.info(f"Created new chat session {session_id} for user {user.user_id}")
+            # Track new session creation via this endpoint
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Created New Chat Session',
+                properties={
+                    'session_id': str(session_id),
+                    'session_title': 'New Chat'
+                }
+            )
             return jsonify({'session_id': session_id, 'success': True})
         else:
             logger.error(f"Failed to create chat session for user {user.user_id}")
@@ -1911,6 +2260,16 @@ def chat_history():
             return jsonify({'error': 'Authentication required'}), 401
 
         sessions = db_manager.get_user_chat_sessions(user.user_id)
+        
+        # Track fetching chat history
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Fetched Chat History',
+            properties={
+                'session_count': len(sessions)
+            }
+        )
+        
         return jsonify([{
             'id': session['session_id'],
             'title': session['title'],
@@ -1941,7 +2300,18 @@ def get_chat(session_id):
 
         messages = db_manager.get_chat_messages(session_id)
         session_title = next((s['title'] for s in sessions if s['session_id'] == session_id), 'New Chat')
-
+        
+        # Track fetching specific chat
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Fetched Specific Chat',
+            properties={
+                'session_id': str(session_id),
+                'session_title': session_title,
+                'message_count': len(messages)
+            }
+        )
+        
         return jsonify({
             'title': session_title,
             'messages': [{
@@ -1969,6 +2339,15 @@ def get_plans():
             plans = db_manager.get_all_pricing_plans()
             logger.info(f"After population: {len(plans)} pricing plans")
 
+        # Track fetching plans
+        analytics_service.track_user_event(
+            user_id='anonymous_user' if not get_current_user() else str(get_current_user().user_id),
+            event_name='Fetched Pricing Plans',
+            properties={
+                'plan_count': len(plans)
+            }
+        )
+
         return jsonify(plans)
     except Exception as e:
         logger.error(f"Error getting pricing plans: {e}")
@@ -1988,6 +2367,16 @@ def get_user_plan():
         plan = db_manager.get_user_plan(user.user_id)
         usage = db_manager.get_user_token_usage(user.user_id)
 
+        # Track fetching user plan
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Fetched User Plan',
+            properties={
+                'plan_name': plan.get('plan_name') if plan else None,
+                'monthly_tokens': usage.get('tokens_used_month') if usage else None
+            }
+        )
+
         return jsonify({
             'plan': plan,
             'usage': usage
@@ -1999,6 +2388,16 @@ def get_user_plan():
 @app.errorhandler(404)
 def not_found_error(error):
     logger.warning(f"404 Not Found: {error}")
+    # Track 404 errors
+    user_id = get_current_user().user_id if get_current_user() else 'anonymous_user'
+    analytics_service.track_user_event(
+        user_id=str(user_id),
+        event_name='Page Not Found (404)',
+        properties={
+            'path': request.path,
+            'error_message': str(error)
+        }
+    )
     return render_template('404.html'), 404
 
 @app.route('/create-checkout-session', methods=['POST'])
@@ -2058,6 +2457,16 @@ def create_checkout_session():
         )
 
         if session:
+            # Track checkout session creation
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Created Checkout Session',
+                properties={
+                    'plan_id': plan_id,
+                    'price_id': price_id,
+                    'session_id': session.get('id')
+                }
+            )
             return jsonify({'checkout_url': session['url']})
         else:
             return jsonify({'error': 'Failed to create checkout session'}), 500
@@ -2070,6 +2479,11 @@ def create_checkout_session():
 @super_admin_required
 def analytics_dashboard():
     """Analytics dashboard for user tracking"""
+    # Track admin access to analytics dashboard
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Visited Analytics Dashboard'
+    )
     return render_template('analytics_dashboard.html')
 
 @app.route('/payment-success')
@@ -2098,6 +2512,17 @@ def payment_success():
             if user:
                 login_user(user)
                 session.pop('pending_registration', None)
+                
+                # Track successful new user registration via payment
+                analytics_service.track_user_event(
+                    user_id=str(user.user_id),
+                    event_name='User Registered (Paid)',
+                    properties={
+                        'email': user.email,
+                        'subscription_level': user.subscription_level
+                    }
+                )
+                
                 flash('Welcome to GoldenDoodleLM! Your subscription is active.', 'success')
                 return redirect(url_for('chat'))
             else:
@@ -2107,11 +2532,21 @@ def payment_success():
     # Regular logged-in user payment success
     user = get_current_user()
     if user:
+        # Track successful payment for existing user
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Payment Successful',
+            properties={
+                'subscription_level': user.subscription_level,
+                'session_id': session_id
+            }
+        )
         flash('Payment successful! Your subscription is being activated.', 'success')
         return redirect(url_for('account'))
 
     # Fallback
     flash('Payment completed. Please sign in to access your account.', 'success')
+    return redirect(url_for('login')) # Redirect to login for unauthenticated users after payment
 
 @app.route('/analytics/users', methods=['GET'])
 @super_admin_required
@@ -2120,7 +2555,7 @@ def analytics_users():
     try:
         conn = db_manager.get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
+
         # User registration trends
         cursor.execute("""
             SELECT 
@@ -2135,7 +2570,7 @@ def analytics_users():
             ORDER BY date DESC
         """)
         registration_trends = cursor.fetchall()
-        
+
         # Active users (based on last_login)
         cursor.execute("""
             SELECT 
@@ -2146,7 +2581,7 @@ def analytics_users():
             FROM users
         """)
         active_users = cursor.fetchone()
-        
+
         # Subscription distribution
         cursor.execute("""
             SELECT subscription_level, COUNT(*) as count
@@ -2154,7 +2589,7 @@ def analytics_users():
             GROUP BY subscription_level
         """)
         subscription_dist = cursor.fetchall()
-        
+
         # Token usage patterns
         cursor.execute("""
             SELECT 
@@ -2164,17 +2599,23 @@ def analytics_users():
             FROM user_token_usage
         """)
         token_usage = cursor.fetchone()
-        
+
         cursor.close()
         conn.close()
-        
+
+        # Track viewing user analytics
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Viewed User Analytics'
+        )
+
         return jsonify({
             'registration_trends': [dict(row) for row in registration_trends],
             'active_users': dict(active_users),
             'subscription_distribution': [dict(row) for row in subscription_dist],
             'token_usage': dict(token_usage) if token_usage else {}
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting analytics: {e}")
         return jsonify({'error': 'Failed to get analytics'}), 500
@@ -2186,7 +2627,7 @@ def analytics_usage():
     try:
         conn = db_manager.get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
+
         # Chat session statistics
         cursor.execute("""
             SELECT 
@@ -2205,30 +2646,30 @@ def analytics_usage():
             ORDER BY date DESC
         """)
         chat_stats = cursor.fetchall()
-        
+
         # Brand voice usage
         cursor.execute("""
             SELECT 
                 COUNT(*) as total_brand_voices,
                 COUNT(DISTINCT tenant_id) as tenants_with_voices
-            FROM (
-                SELECT tenant_id FROM tenants t
-                WHERE EXISTS (
-                    SELECT 1 FROM information_schema.tables 
-                    WHERE table_name = 'company_brand_voices_' || REPLACE(t.tenant_id::text, '-', '_')
-                )
-            ) active_tenants
+            FROM brand_voices
         """)
         brand_voice_stats = cursor.fetchone()
-        
+
         cursor.close()
         conn.close()
-        
+
+        # Track viewing usage analytics
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Viewed Usage Analytics'
+        )
+
         return jsonify({
             'chat_statistics': [dict(row) for row in chat_stats],
             'brand_voice_stats': dict(brand_voice_stats) if brand_voice_stats else {}
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting usage analytics: {e}")
         return jsonify({'error': 'Failed to get usage analytics'}), 500
@@ -2255,6 +2696,11 @@ def create_billing_portal():
         )
 
         if portal_url:
+            # Track access to billing portal
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Accessed Billing Portal'
+            )
             return jsonify({'url': portal_url})
         else:
             return jsonify({'error': 'Failed to create billing portal'}), 500
@@ -2310,6 +2756,16 @@ def handle_subscription_created(subscription):
                 subscription_status=status,
                 current_period_end=current_period_end
             )
+            # Track subscription creation via webhook
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Subscription Created (via Webhook)',
+                properties={
+                    'subscription_id': subscription_id,
+                    'status': status,
+                    'plan_id': subscription.get('plan', {}).get('id') # Extract plan ID if available
+                }
+            )
             logger.info(f"Updated subscription for user {user.user_id}: {subscription_id}")
 
     except Exception as e:
@@ -2330,6 +2786,15 @@ def handle_subscription_updated(subscription):
                 subscription_status=status,
                 current_period_end=current_period_end
             )
+            # Track subscription update via webhook
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Subscription Updated (via Webhook)',
+                properties={
+                    'subscription_id': subscription_id,
+                    'status': status
+                }
+            )
             logger.info(f"Updated subscription status for user {user.user_id}: {status}")
 
     except Exception as e:
@@ -2347,6 +2812,14 @@ def handle_subscription_deleted(subscription):
                 subscription_status='cancelled',
                 stripe_subscription_id=None
             )
+            # Track subscription deletion via webhook
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Subscription Deleted (via Webhook)',
+                properties={
+                    'status': 'cancelled'
+                }
+            )
             logger.info(f"Cancelled subscription for user {user.user_id}")
 
     except Exception as e:
@@ -2360,9 +2833,19 @@ def handle_payment_succeeded(invoice):
 
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
+            # Update user status based on payment success
             db_manager.update_user_stripe_info(
                 user.user_id,
-                subscription_status='active'
+                subscription_status='active' # Ensure status is active after successful payment
+            )
+            # Track payment success via webhook
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Payment Succeeded (via Webhook)',
+                properties={
+                    'invoice_id': invoice.get('id'),
+                    'subscription_id': subscription_id
+                }
             )
             logger.info(f"Payment succeeded for user {user.user_id}")
 
@@ -2380,6 +2863,15 @@ def handle_payment_failed(invoice):
                 user.user_id,
                 subscription_status='past_due'
             )
+            # Track payment failure via webhook
+            analytics_service.track_user_event(
+                user_id=str(user.user_id),
+                event_name='Payment Failed (via Webhook)',
+                properties={
+                    'invoice_id': invoice.get('id'),
+                    'due_amount': invoice.get('amount_due')
+                }
+            )
             logger.info(f"Payment failed for user {user.user_id}")
 
     except Exception as e:
@@ -2388,6 +2880,16 @@ def handle_payment_failed(invoice):
 @app.errorhandler(404)
 def not_found_error(error):
     logger.warning(f"404 Not Found: {error}")
+    # Track 404 errors
+    user_id = get_current_user().user_id if get_current_user() else 'anonymous_user'
+    analytics_service.track_user_event(
+        user_id=str(user_id),
+        event_name='Page Not Found (404)',
+        properties={
+            'path': request.path,
+            'error_message': str(error)
+        }
+    )
     return render_template('404.html'), 404
 
 @app.route('/test-stripe')
@@ -2397,46 +2899,76 @@ def test_stripe():
         # Test if Stripe keys are configured
         test_mode = stripe_service.test_mode
         api_key_configured = bool(stripe_service.get_publishable_key())
-        
+
         # Try to create a test customer
-        test_customer = stripe_service.create_customer(
-            email="test@example.com",
-            name="Test User",
-            metadata={'test': 'true'}
-        )
-        
+        test_customer = None
+        customer_creation_test = 'failed'
+        try:
+            test_customer = stripe_service.create_customer(
+                email="test@example.com",
+                name="Test User",
+                metadata={'test': 'true'}
+            )
+            if test_customer:
+                customer_creation_test = 'success'
+        except Exception as ce:
+            logger.error(f"Stripe customer creation test failed: {ce}")
+            customer_creation_test = f"failed: {str(ce)}"
+
         # Try to create a test checkout session
-        base_url = request.url_root.rstrip('/')
         test_checkout = None
         checkout_error = None
-        
+        checkout_session_test = 'failed'
+
         try:
             if test_customer:
                 test_checkout = stripe_service.create_checkout_session(
                     customer_email="test@example.com",
                     price_id='price_1RvL44Hynku0jyEH12IrEJuI',  # Solo plan
-                    success_url=f"{base_url}/test-success",
-                    cancel_url=f"{base_url}/test-cancel",
+                    success_url=f"{request.url_root.rstrip('/')}/test-success",
+                    cancel_url=f"{request.url_root.rstrip('/')}/test-cancel",
                     customer_id=test_customer['id'],
                     metadata={'test': 'true'}
                 )
+                if test_checkout:
+                    checkout_session_test = 'success'
         except Exception as checkout_ex:
+            logger.error(f"Stripe checkout session test failed: {checkout_ex}")
             checkout_error = str(checkout_ex)
-        
+            checkout_session_test = f"failed: {str(checkout_ex)}"
+
+        # Track Stripe test execution
+        analytics_service.track_user_event(
+            user_id='platform_admin', # Assuming this test is run by an admin
+            event_name='Ran Stripe Test',
+            properties={
+                'test_mode': test_mode,
+                'api_key_configured': api_key_configured,
+                'customer_creation_test': customer_creation_test,
+                'checkout_session_test': checkout_session_test
+            }
+        )
+
         return jsonify({
             'stripe_configured': True,
             'test_mode': test_mode,
             'api_key_configured': api_key_configured,
-            'customer_creation_test': 'success' if test_customer else 'failed',
-            'checkout_session_test': 'success' if test_checkout else 'failed',
+            'customer_creation_test': customer_creation_test,
+            'checkout_session_test': checkout_session_test,
             'checkout_error': checkout_error,
             'checkout_url': test_checkout.get('url') if test_checkout else None,
             'publishable_key': stripe_service.get_publishable_key()[:20] + "..." if stripe_service.get_publishable_key() else 'Not set',
             'price_ids': stripe_service.plan_price_mapping
         })
-        
+
     except Exception as e:
         logger.error(f"Stripe test failed: {e}")
+        # Track Stripe test failure
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Stripe Test Failed',
+            properties={'error': str(e)}
+        )
         return jsonify({
             'stripe_configured': False,
             'error': str(e)
@@ -2447,7 +2979,7 @@ def test_stripe_direct():
     """Create a direct test checkout session and redirect to it"""
     try:
         base_url = request.url_root.rstrip('/')
-        
+
         # Create a simple test checkout session
         test_checkout = stripe_service.create_checkout_session(
             customer_email="test@example.com",
@@ -2456,8 +2988,14 @@ def test_stripe_direct():
             cancel_url=f"{base_url}/test-cancel",
             metadata={'test': 'direct_test'}
         )
-        
+
         if test_checkout and test_checkout.get('url'):
+            # Track direct Stripe test execution
+            analytics_service.track_user_event(
+                user_id='platform_admin',
+                event_name='Ran Direct Stripe Test',
+                properties={'checkout_url_exists': True}
+            )
             # Return an HTML page that immediately redirects
             return f'''
             <!DOCTYPE html>
@@ -2473,10 +3011,22 @@ def test_stripe_direct():
             </html>
             '''
         else:
+            # Track direct Stripe test failure
+            analytics_service.track_user_event(
+                user_id='platform_admin',
+                event_name='Direct Stripe Test Failed',
+                properties={'checkout_url_exists': False}
+            )
             return "Failed to create checkout session", 500
-            
+
     except Exception as e:
         logger.error(f"Direct Stripe test failed: {e}")
+        # Track direct Stripe test failure
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Direct Stripe Test Failed',
+            properties={'error': str(e)}
+        )
         return f"Error: {str(e)}", 500
 
 @app.route('/test-success')
@@ -2514,7 +3064,7 @@ def test_cancel():
 def debug_env():
     """Debug environment variables - admin only"""
     import os
-    
+
     env_status = {
         'STRIPE_SECRET_KEY_TEST': 'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
         'STRIPE_PUBLISHABLE_KEY_TEST': 'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
@@ -2522,7 +3072,11 @@ def debug_env():
         'SENDGRID_API_KEY': 'Set' if os.environ.get("SENDGRID_API_KEY") else 'Not Set',
         'GEMINI_API_KEY': 'Set' if os.environ.get("GEMINI_API_KEY") else 'Not Set'
     }
-    
+    # Track viewing debug env
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Viewed Debug Environment Variables'
+    )
     return jsonify(env_status)
 
 @app.route('/submit-feedback', methods=['POST'])
@@ -2548,12 +3102,14 @@ def submit_feedback():
 
         # Add user information if logged in
         user = get_current_user()
+        user_id_for_tracking = 'anonymous_user'
         if user:
             feedback_data['user_info'] = {
                 'user_id': user.user_id,
                 'name': f"{user.first_name} {user.last_name}",
                 'email': user.email
             }
+            user_id_for_tracking = str(user.user_id)
         else:
             # For anonymous users, use provided contact info
             if email:
@@ -2568,24 +3124,24 @@ def submit_feedback():
         # Process file attachments
         attachments = []
         files = request.files.getlist('attachments')
-        
+
         total_size = 0
         max_size = 10 * 1024 * 1024  # 10MB limit
-        
+
         for file in files:
             if file.filename:
                 # Check file size
                 file.seek(0, 2)  # Seek to end
                 file_size = file.tell()
                 file.seek(0)  # Reset to beginning
-                
+
                 total_size += file_size
                 if total_size > max_size:
                     return jsonify({'error': 'Total file size exceeds 10MB limit'}), 400
 
                 # Read file content
                 file_content = file.read()
-                
+
                 attachments.append({
                     'filename': file.filename,
                     'content': file_content,
@@ -2595,6 +3151,16 @@ def submit_feedback():
 
         # Send feedback email
         if email_service.send_feedback_email(feedback_data, attachments):
+            # Track feedback submission
+            analytics_service.track_user_event(
+                user_id=user_id_for_tracking,
+                event_name='Feedback Submitted',
+                properties={
+                    'feedback_type': feedback_type,
+                    'has_attachments': len(attachments) > 0,
+                    'message_length': len(message)
+                }
+            )
             logger.info(f"Feedback submitted: {feedback_type}")
             return jsonify({'success': True, 'message': 'Feedback sent successfully'})
         else:
@@ -2608,4 +3174,14 @@ def submit_feedback():
 @app.errorhandler(500)
 def internal_error(error):
     logger.error(f"500 Internal Server Error: {error}")
+    # Track 500 errors
+    user_id = get_current_user().user_id if get_current_user() else 'anonymous_user'
+    analytics_service.track_user_event(
+        user_id=str(user_id),
+        event_name='Internal Server Error (500)',
+        properties={
+            'path': request.path,
+            'error_message': str(error)
+        }
+    )
     return render_template('500.html'), 500

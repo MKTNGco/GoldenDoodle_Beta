@@ -41,22 +41,26 @@ class AnalyticsService:
                 'properties': {
                     'distinct_id': user_id,
                     **properties
-                }
+                },
+                'timestamp': datetime.utcnow().isoformat()
             }
             
             response = requests.post(
                 'https://app.posthog.com/capture/',
                 json=payload,
-                timeout=5
+                headers={'Content-Type': 'application/json'},
+                timeout=10
             )
             
             if response.status_code == 200:
-                logger.info(f"Event '{event}' sent to PostHog for user {user_id}")
+                logger.info(f"✅ Event '{event}' sent to PostHog for user {user_id}")
+                logger.debug(f"PostHog payload: {payload}")
             else:
-                logger.warning(f"Failed to send event to PostHog: {response.status_code}")
+                logger.warning(f"❌ Failed to send event to PostHog: {response.status_code} - {response.text}")
                 
         except Exception as e:
-            logger.error(f"Error sending to PostHog: {e}")
+            logger.error(f"❌ Error sending to PostHog: {e}")
+            logger.error(f"PostHog API Key present: {bool(self.posthog_key)}")
     
     def _send_to_mixpanel(self, user_id: str, event: str, properties: Dict):
         """Send event to Mixpanel"""

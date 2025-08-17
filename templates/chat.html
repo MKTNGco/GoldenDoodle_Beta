@@ -1041,11 +1041,10 @@ body {
 
                 // Add hover functionality to restart GIF
                 dogIcon.addEventListener('mouseenter', function() {
-                    const currentSrc = this.src;
-                    // Force reload by clearing and resetting src with a small delay
-                    this.src = '';
+                    // Safer approach: Add a CSS class to trigger animation restart
+                    this.style.animationName = 'none';
                     setTimeout(() => {
-                        this.src = currentSrc;
+                        this.style.animationName = '';
                     }, 10);
                 });
             }

@@ -37,21 +37,36 @@ class BrandVoiceWizard {
         // Form submission
         this.form.addEventListener('submit', (e) => this.handleSubmit(e));
 
+        // Submit button click handler (additional safety)
+        if (this.submitBtn) {
+            this.submitBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Submit button clicked directly');
+                this.handleSubmit(e);
+            });
+        }
+
         // Required field validation for step 1
         [this.companyNameInput, this.companyUrlInput, this.voiceShortNameInput].forEach(input => {
-            input.addEventListener('input', () => {
-                this.validateStep1();
-                this.updateNavigationButtons();
-            });
-            input.addEventListener('blur', () => {
-                this.validateStep1();
-                this.updateNavigationButtons();
-            });
+            if (input) {
+                input.addEventListener('input', () => {
+                    this.validateStep1();
+                    this.updateNavigationButtons();
+                });
+                input.addEventListener('blur', () => {
+                    this.validateStep1();
+                    this.updateNavigationButtons();
+                });
+            }
         });
 
         // Navigation buttons
-        this.prevBtn.addEventListener('click', () => this.changeStep(-1));
-        this.nextBtn.addEventListener('click', () => this.changeStep(1));
+        if (this.prevBtn) {
+            this.prevBtn.addEventListener('click', () => this.changeStep(-1));
+        }
+        if (this.nextBtn) {
+            this.nextBtn.addEventListener('click', () => this.changeStep(1));
+        }
 
         // Auto-save functionality
         this.allInputs.forEach(input => {
@@ -236,31 +251,52 @@ class BrandVoiceWizard {
 
     updateNavigationButtons() {
         // Previous button
-        this.prevBtn.style.display = this.currentStep === 1 ? 'none' : 'inline-block';
+        if (this.prevBtn) {
+            this.prevBtn.style.display = this.currentStep === 1 ? 'none' : 'inline-block';
+        }
 
         // Next/Submit buttons
         if (this.currentStep === this.totalSteps) {
-            this.nextBtn.style.display = 'none';
-            this.submitBtn.style.display = 'inline-block';
-        } else {
-            this.nextBtn.style.display = 'inline-block';
-            this.submitBtn.style.display = 'none';
-
-            // Update next button state based on current step validation
-            const isValid = this.validateCurrentStep();
-            this.nextBtn.disabled = !isValid;
-
-            if (this.currentStep === 1) {
-                // Update button text based on validation
-                if (isValid) {
-                    this.nextBtn.innerHTML = 'Next<i class="fas fa-arrow-right ms-1"></i>';
-                    this.nextBtn.classList.remove('btn-outline-primary');
-                    this.nextBtn.classList.add('btn-primary');
+            if (this.nextBtn) {
+                this.nextBtn.style.display = 'none';
+            }
+            if (this.submitBtn) {
+                this.submitBtn.style.display = 'inline-block';
+                // Enable submit button if required fields are filled
+                const requiredFieldsValid = this.validateRequiredFields();
+                this.submitBtn.disabled = !requiredFieldsValid || this.isSubmitting;
+                
+                if (requiredFieldsValid && !this.isSubmitting) {
+                    this.submitBtn.classList.remove('btn-outline-success');
+                    this.submitBtn.classList.add('btn-success');
                 } else {
-                    this.nextBtn.innerHTML = 'Complete Required Fields<i class="fas fa-arrow-right ms-1"></i>';
-                    this.nextBtn.classList.remove('btn-primary');
-                    this.nextBtn.classList.add('btn-outline-primary');
+                    this.submitBtn.classList.remove('btn-success');
+                    this.submitBtn.classList.add('btn-outline-success');
                 }
+            }
+        } else {
+            if (this.nextBtn) {
+                this.nextBtn.style.display = 'inline-block';
+                
+                // Update next button state based on current step validation
+                const isValid = this.validateCurrentStep();
+                this.nextBtn.disabled = !isValid;
+
+                if (this.currentStep === 1) {
+                    // Update button text based on validation
+                    if (isValid) {
+                        this.nextBtn.innerHTML = 'Next<i class="fas fa-arrow-right ms-1"></i>';
+                        this.nextBtn.classList.remove('btn-outline-primary');
+                        this.nextBtn.classList.add('btn-primary');
+                    } else {
+                        this.nextBtn.innerHTML = 'Complete Required Fields<i class="fas fa-arrow-right ms-1"></i>';
+                        this.nextBtn.classList.remove('btn-primary');
+                        this.nextBtn.classList.add('btn-outline-primary');
+                    }
+                }
+            }
+            if (this.submitBtn) {
+                this.submitBtn.style.display = 'none';
             }
         }
     }
@@ -342,13 +378,24 @@ class BrandVoiceWizard {
     async handleSubmit(event) {
         event.preventDefault();
 
+        console.log('Submit button clicked, starting validation...');
+
         // Validate required fields
         if (!this.validateRequiredFields()) {
+            console.log('Validation failed - missing required fields');
             this.showAlert('Please fill in all required fields (Company Name, Company URL, and Voice Short Name).', 'danger');
             this.currentStep = 1; // Go back to first step
             this.updateStepVisibility();
             this.updateNavigationButtons();
             this.updateProgress();
+            return;
+        }
+
+        console.log('Validation passed, proceeding with submission...');
+
+        // Prevent double submission
+        if (this.isSubmitting) {
+            console.log('Already submitting, ignoring duplicate submission');
             return;
         }
 
@@ -386,7 +433,7 @@ class BrandVoiceWizard {
                 body: JSON.stringify(formData)
             });
 
-            console.log('Response status:', response.status, response.statusText); // Debug log
+            console.log('Response received:', response.status, response.statusText);
 
             if (!response.ok) {
                 // Try to get error details from response
@@ -397,13 +444,15 @@ class BrandVoiceWizard {
                     errorMessage = errorResult.error || errorMessage;
                 } catch (parseError) {
                     console.error('Failed to parse error response:', parseError);
+                    const responseText = await response.text();
+                    console.error('Raw response text:', responseText);
                     errorMessage = `Server error (${response.status}): ${response.statusText}`;
                 }
                 throw new Error(errorMessage);
             }
 
             const result = await response.json();
-            console.log('Success result:', result); // Debug log
+            console.log('Success result:', result);
 
             if (result.success) {
                 this.showAlert(`✓ ${result.message}`, 'success');
@@ -422,10 +471,10 @@ class BrandVoiceWizard {
         } catch (error) {
             console.error('Error creating brand voice:', error);
             this.showAlert(error.message || 'A network error occurred. Please check your connection and try again.', 'danger');
+        } finally {
+            this.isSubmitting = false;
+            this.updateSubmitButton();
         }
-
-        this.isSubmitting = false;
-        this.updateSubmitButton();
     }
 
     updateSubmitButton() {

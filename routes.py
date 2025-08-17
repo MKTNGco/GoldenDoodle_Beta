@@ -1007,6 +1007,8 @@ def brand_voice_wizard():
 def create_brand_voice():
     """Create a new brand voice or update an existing one"""
     try:
+        logger.info("=== BRAND VOICE CREATION REQUEST RECEIVED ===")
+        
         data = request.get_json()
 
         if not data:
@@ -1020,7 +1022,6 @@ def create_brand_voice():
         voice_type = data.get('voice_type', 'user')
         brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
 
-        logger.info(f"=== BRAND VOICE CREATION DEBUG ===")
         logger.info(f"Request method: {request.method}")
         logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not set')}")
         logger.info(f"Request data received: {bool(data)}")

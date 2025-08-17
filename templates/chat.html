@@ -74,17 +74,12 @@ body {
     height: 64px;
     object-fit: contain;
     border-radius: 4px;
-    animation-play-state: paused; /* Pause GIF by default */
-    transition: transform 0.2s ease;
+    transition: opacity 0.2s ease;
 }
 
-.sidebar-logo img.page-loading {
-    animation-play-state: running; /* Allow GIF to play during page load */
-}
-
-/* Hover effect styling */
+/* Simple hover effect without JavaScript */
 .sidebar-logo img:hover {
-    /* No transform to avoid zoom effect */
+    opacity: 0.8;
 }
 
 .chat-menu-button {
@@ -1024,32 +1019,6 @@ body {
     window.isDemoMode = {{ 'true' if is_demo else 'false' }};
     window.isLoggedIn = {{ 'true' if user else 'false' }};
 </script>
-<script>
-        // Page load event
-        window.addEventListener('load', function() {
-            console.log('Window loaded, chat interface should be ready');
-
-            // Check if we have a dog icon and add hover functionality
-            const dogIcon = document.querySelector('.sidebar-logo img');
-            if (dogIcon) {
-                // Add loading animation on page load
-                dogIcon.classList.add('page-loading');
-
-                setTimeout(() => {
-                    dogIcon.classList.remove('page-loading');
-                }, 3000);
-
-                // Add hover functionality to restart GIF
-                dogIcon.addEventListener('mouseenter', function() {
-                    // Safer approach: Add a CSS class to trigger animation restart
-                    this.style.animationName = 'none';
-                    setTimeout(() => {
-                        this.style.animationName = '';
-                    }, 10);
-                });
-            }
-        });
-    </script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

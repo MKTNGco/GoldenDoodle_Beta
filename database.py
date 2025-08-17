@@ -1039,6 +1039,46 @@ class DatabaseManager:
             logger.error(f"Error creating comprehensive brand voice: {e}")
             raise
 
+    def delete_brand_voice(self, tenant_id: str, brand_voice_id: str, user_id: Optional[str] = None) -> bool:
+        """Delete a brand voice"""
+        try:
+            # Validate tenant_id to prevent SQL injection
+            if not self._is_safe_identifier(tenant_id):
+                logger.error(f"Invalid tenant_id format: {tenant_id}")
+                return False
+                
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            if user_id:
+                # User brand voice
+                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(sql.SQL("""
+                    DELETE FROM {} WHERE brand_voice_id = %s AND user_id = %s
+                """).format(table_name), (brand_voice_id, user_id))
+            else:
+                # Company brand voice
+                table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(sql.SQL("""
+                    DELETE FROM {} WHERE brand_voice_id = %s
+                """).format(table_name), (brand_voice_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            if success:
+                logger.info(f"Successfully deleted brand voice {brand_voice_id} from tenant {tenant_id}")
+            else:
+                logger.warning(f"No brand voice found with ID {brand_voice_id} in tenant {tenant_id}")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"Error deleting brand voice: {e}")
+            return False
+
     def get_all_tenants(self) -> List[Tenant]:
         """Get all tenants for admin management"""
         try:

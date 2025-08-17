@@ -76,6 +76,11 @@
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-edit me-1"></i>Edit
                                         </a>
+                                        {% if not voice.user_id %} {# Only allow deletion of user-created voices #}
+                                        <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteBrandVoice('{{ voice.brand_voice_id }}', '{{ voice.name }}')">
+                                            <i class="fas fa-trash me-1"></i>Delete
+                                        </button>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -153,5 +158,66 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+
+    // Delete brand voice function
+    function deleteBrandVoice(brandVoiceId, brandVoiceName) {
+        if (confirm(`Are you sure you want to delete the brand voice "${brandVoiceName}"? This action cannot be undone.`)) {
+            fetch(`/delete-brand-voice/${brandVoiceId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success alert-dismissible fade show';
+                    alert.innerHTML = `
+                        <i class="fas fa-check-circle me-2"></i>${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.querySelector('.container').insertBefore(alert, document.querySelector('.container').firstChild);
+
+                    // Reload the page to refresh the brand voices list
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger alert-dismissible fade show';
+                    alert.innerHTML = `
+                        <i class="fas fa-exclamation-triangle me-2"></i>${data.error}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.querySelector('.container').insertBefore(alert, document.querySelector('.container').firstChild);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>An error occurred while deleting the brand voice.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container').insertBefore(alert, document.querySelector('.container').firstChild);
+            });
+        }
+    }
 </script>
 {% endblock %}

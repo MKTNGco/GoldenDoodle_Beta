@@ -1211,6 +1211,49 @@ def get_brand_voice(brand_voice_id):
         logger.error(f"Error getting brand voice {brand_voice_id}: {e}")
         return jsonify({'error': 'An error occurred while loading the brand voice'}), 500
 
+@app.route('/delete-brand-voice/<brand_voice_id>', methods=['POST'])
+@login_required
+def delete_brand_voice(brand_voice_id):
+    """Delete a brand voice"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        if not tenant:
+            return jsonify({'error': 'Invalid tenant'}), 400
+
+        # Get brand voice from database to check permissions
+        company_brand_voices = []
+        if tenant.tenant_type == TenantType.COMPANY:
+            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+
+        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        all_brand_voices = company_brand_voices + user_brand_voices
+
+        selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == brand_voice_id), None)
+
+        if not selected_brand_voice:
+            return jsonify({'error': 'Brand voice not found'}), 404
+
+        # Check permissions
+        if selected_brand_voice.user_id and selected_brand_voice.user_id != user.user_id:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        if not selected_brand_voice.user_id and not user.is_admin:
+            return jsonify({'error': 'Permission denied'}), 403
+
+        # Delete the brand voice
+        if db_manager.delete_brand_voice(tenant.tenant_id, brand_voice_id, selected_brand_voice.user_id):
+            logger.info(f"Successfully deleted brand voice {brand_voice_id} for user {user.user_id}")
+            return jsonify({'success': True, 'message': 'Brand voice deleted successfully'})
+        else:
+            return jsonify({'error': 'Failed to delete brand voice'}), 500
+
+    except Exception as e:
+        logger.error(f"Error deleting brand voice {brand_voice_id}: {e}")
+        return jsonify({'error': 'An error occurred while deleting the brand voice'}), 500
+
 @app.route('/auto-save-brand-voice', methods=['POST'])
 @login_required
 def auto_save_brand_voice():
@@ -1265,14 +1308,41 @@ def auto_save_brand_voice():
                 )
                 profile_id = brand_voice.brand_voice_id
         else:
-            # Create new draft
-            brand_voice = db_manager.create_comprehensive_brand_voice(
-                tenant_id=tenant.tenant_id,
-                wizard_data=data,
-                markdown_content=markdown_content,
-                user_id=None
-            )
-            profile_id = brand_voice.brand_voice_id
+            # Check if a brand voice with this name already exists to avoid duplicates
+            existing_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            existing_voice = next((v for v in existing_voices if v.name == voice_short_name), None)
+            
+            if existing_voice:
+                # Update the existing voice instead of creating a duplicate
+                try:
+                    brand_voice = db_manager.update_brand_voice(
+                        tenant_id=tenant.tenant_id,
+                        brand_voice_id=existing_voice.brand_voice_id,
+                        wizard_data=data,
+                        markdown_content=markdown_content,
+                        user_id=None
+                    )
+                    profile_id = brand_voice.brand_voice_id
+                    logger.info(f"Updated existing brand voice instead of creating duplicate: {brand_voice.brand_voice_id}")
+                except Exception as update_error:
+                    logger.warning(f"Failed to update existing voice, creating new one: {update_error}")
+                    # If update fails, create a new one
+                    brand_voice = db_manager.create_comprehensive_brand_voice(
+                        tenant_id=tenant.tenant_id,
+                        wizard_data=data,
+                        markdown_content=markdown_content,
+                        user_id=None
+                    )
+                    profile_id = brand_voice.brand_voice_id
+            else:
+                # Create new draft
+                brand_voice = db_manager.create_comprehensive_brand_voice(
+                    tenant_id=tenant.tenant_id,
+                    wizard_data=data,
+                    markdown_content=markdown_content,
+                    user_id=None
+                )
+                profile_id = brand_voice.brand_voice_id
 
         logger.info(f"Auto-save successful for '{voice_short_name}' (Profile ID: {profile_id})")
 

@@ -5,7 +5,7 @@
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -795,7 +795,6 @@ body {
     .brand-voice-btn {
         max-width: 120px;
     }
-}
 </style>
 {% endblock %}
 
@@ -1026,14 +1025,16 @@ body {
     window.isLoggedIn = {{ 'true' if user else 'false' }};
 </script>
 <script>
-        // Initialize chat interface when page loads
+        // Page load event
         window.addEventListener('load', function() {
             console.log('Window loaded, chat interface should be ready');
 
-            // Allow GIF to animate for 3 seconds on page load, then pause
+            // Check if we have a dog icon and add hover functionality
             const dogIcon = document.querySelector('.sidebar-logo img');
             if (dogIcon) {
+                // Add loading animation on page load
                 dogIcon.classList.add('page-loading');
+
                 setTimeout(() => {
                     dogIcon.classList.remove('page-loading');
                 }, 3000);

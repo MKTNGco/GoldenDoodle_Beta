@@ -177,6 +177,7 @@ class ChatInterface {
     handleInput() {
         this.autoResizeTextarea();
         this.updateSendButton();
+        this.autoCloseSidebarOnMobile();
     }
 
     handleKeydown(e) {
@@ -188,6 +189,7 @@ class ChatInterface {
 
     handleFocus() {
         this.stopPlaceholderRotation();
+        this.autoCloseSidebarOnMobile();
     }
 
     handleBlur() {
@@ -224,6 +226,22 @@ class ChatInterface {
             !this.brandVoiceDropdown.contains(e.target) &&
             !this.brandVoiceBtn.contains(e.target)) {
             this.closeBrandVoiceDropdown();
+        }
+    }
+
+    autoCloseSidebarOnMobile() {
+        // Check if we're on a mobile device (screen width <= 768px)
+        if (window.innerWidth <= 768) {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                // Force remove hover state by temporarily adding a class that prevents hover
+                sidebar.classList.add('force-closed');
+                
+                // Remove the class after a short delay to restore normal hover functionality
+                setTimeout(() => {
+                    sidebar.classList.remove('force-closed');
+                }, 300);
+            }
         }
     }
 

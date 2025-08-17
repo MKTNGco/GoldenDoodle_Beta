@@ -120,4 +120,38 @@
     </div>
     {% endif %}
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for saved draft
+    const draftData = localStorage.getItem('brand_voice_draft');
+    const checkDraftBtn = document.getElementById('checkDraftBtn');
+
+    if (draftData && checkDraftBtn) {
+        try {
+            const draft = JSON.parse(draftData);
+            const ageInHours = (Date.now() - draft.timestamp) / (1000 * 60 * 60);
+
+            // Show draft button if draft is less than 24 hours old
+            if (ageInHours < 24 && draft.form_data) {
+                checkDraftBtn.style.display = 'inline-block';
+
+                checkDraftBtn.addEventListener('click', function() {
+                    // Navigate to wizard with edit parameter
+                    if (draft.profile_id) {
+                        window.location.href = `/brand-voice-wizard?edit=${draft.profile_id}`;
+                    } else {
+                        window.location.href = '/brand-voice-wizard';
+                    }
+                });
+            } else {
+                // Clear old draft
+                localStorage.removeItem('brand_voice_draft');
+            }
+        } catch (error) {
+            console.error('Error checking draft:', error);
+            localStorage.removeItem('brand_voice_draft');
+        }
+    }
+});
+</script>
 {% endblock %}

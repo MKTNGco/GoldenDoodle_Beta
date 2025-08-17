@@ -1233,9 +1233,47 @@ def auto_save_brand_voice():
 
         logger.info(f"Attempting auto-save for brand voice: '{voice_short_name}' by user {user.user_id}")
 
-        # Auto-save logic would go here
-        # For now, just return success with a mock profile_id
-        profile_id = data.get('profile_id') or str(uuid.uuid4())
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        if not tenant:
+            return jsonify({'error': 'Invalid tenant'}), 400
+
+        # Generate comprehensive markdown content for RAG
+        markdown_content = generate_brand_voice_markdown(data)
+
+        # Get or create profile_id
+        profile_id = data.get('profile_id')
+        
+        if profile_id:
+            # Update existing draft
+            try:
+                brand_voice = db_manager.update_brand_voice(
+                    tenant_id=tenant.tenant_id,
+                    brand_voice_id=profile_id,
+                    wizard_data=data,
+                    markdown_content=markdown_content,
+                    user_id=None  # Always create as company voice
+                )
+                logger.info(f"Updated draft brand voice: {brand_voice.brand_voice_id}")
+            except Exception as update_error:
+                logger.warning(f"Failed to update existing draft, creating new one: {update_error}")
+                # If update fails, create a new one
+                brand_voice = db_manager.create_comprehensive_brand_voice(
+                    tenant_id=tenant.tenant_id,
+                    wizard_data=data,
+                    markdown_content=markdown_content,
+                    user_id=None
+                )
+                profile_id = brand_voice.brand_voice_id
+        else:
+            # Create new draft
+            brand_voice = db_manager.create_comprehensive_brand_voice(
+                tenant_id=tenant.tenant_id,
+                wizard_data=data,
+                markdown_content=markdown_content,
+                user_id=None
+            )
+            profile_id = brand_voice.brand_voice_id
+
         logger.info(f"Auto-save successful for '{voice_short_name}' (Profile ID: {profile_id})")
 
         return jsonify({

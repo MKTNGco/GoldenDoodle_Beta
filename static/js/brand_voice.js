@@ -117,8 +117,20 @@ class BrandVoiceWizard {
                 const result = await response.json();
                 this.profileId = result.profile_id;
 
+                // Store in localStorage as backup
+                localStorage.setItem('brand_voice_draft', JSON.stringify({
+                    profile_id: this.profileId,
+                    form_data: formData,
+                    timestamp: Date.now()
+                }));
+
                 // Show subtle save indicator
                 this.showSaveIndicator('saved');
+                console.log('Auto-save successful, profile ID:', this.profileId);
+            } else {
+                const errorData = await response.json();
+                console.error('Auto-save failed:', errorData.error);
+                this.showSaveIndicator('error');
             }
         } catch (error) {
             console.error('Auto-save error:', error);
@@ -191,6 +203,35 @@ class BrandVoiceWizard {
                 console.error('Error loading existing data:', error);
                 this.showAlert('Error loading brand voice data. Please try again.', 'danger');
             }
+        } else {
+            // Check for saved draft in localStorage
+            this.loadDraftFromStorage();
+        }
+    }
+
+    loadDraftFromStorage() {
+        try {
+            const draftData = localStorage.getItem('brand_voice_draft');
+            if (draftData) {
+                const draft = JSON.parse(draftData);
+                const ageInHours = (Date.now() - draft.timestamp) / (1000 * 60 * 60);
+                
+                // Only load drafts that are less than 24 hours old
+                if (ageInHours < 24 && draft.form_data) {
+                    this.populateForm(draft.form_data);
+                    this.profileId = draft.profile_id;
+                    
+                    // Show a notification about recovered draft
+                    this.showAlert('Previous progress recovered! Continue where you left off.', 'info');
+                    console.log('Loaded draft from storage:', draft.profile_id);
+                } else {
+                    // Clear old draft
+                    localStorage.removeItem('brand_voice_draft');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading draft from storage:', error);
+            localStorage.removeItem('brand_voice_draft');
         }
     }
 
@@ -459,6 +500,7 @@ class BrandVoiceWizard {
 
                 // Clear any auto-save data
                 this.profileId = null;
+                localStorage.removeItem('brand_voice_draft');
 
                 // Redirect to brand voices page after a short delay
                 setTimeout(() => {

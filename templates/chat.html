@@ -84,7 +84,7 @@ body {
 
 /* Hover effect styling */
 .sidebar-logo img:hover {
-    transform: scale(1.05);
+    /* No transform to avoid zoom effect */
 }
 
 .chat-menu-button {
@@ -1037,6 +1037,14 @@ body {
                 setTimeout(() => {
                     dogIcon.classList.remove('page-loading');
                 }, 3000);
+
+                // Add hover functionality to restart GIF
+                dogIcon.addEventListener('mouseenter', function() {
+                    const currentSrc = this.src;
+                    // Force reload by clearing and resetting src
+                    this.src = '';
+                    this.src = currentSrc;
+                });
             }
         });
     </script>

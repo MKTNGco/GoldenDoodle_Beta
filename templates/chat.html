@@ -76,6 +76,15 @@ body {
     border-radius: 4px;
 }
 
+.sidebar-logo img.page-loading {
+    /* No specific styles needed here, the logic is in JS to remove the class after 3 seconds */
+}
+
+/* Hover effect to play GIF */
+.sidebar-logo img:hover {
+    animation: none; /* Stop any existing animation */
+}
+
 .chat-menu-button {
     width: 100%;
     display: flex;
@@ -1014,6 +1023,21 @@ body {
     window.isDemoMode = {{ 'true' if is_demo else 'false' }};
     window.isLoggedIn = {{ 'true' if user else 'false' }};
 </script>
+<script>
+        // Initialize chat interface when page loads
+        window.addEventListener('load', function() {
+            console.log('Window loaded, chat interface should be ready');
+
+            // Allow GIF to animate for 3 seconds on page load, then pause
+            const dogIcon = document.querySelector('.sidebar-logo img');
+            if (dogIcon) {
+                dogIcon.classList.add('page-loading');
+                setTimeout(() => {
+                    dogIcon.classList.remove('page-loading');
+                }, 3000);
+            }
+        });
+    </script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

@@ -633,7 +633,7 @@ def chat():
             user_id=str(user.user_id),
             event_name='Visited Chat Page',
             properties={
-                'subscription_level': user.subscription_level
+                'subscription_level': user.subscription_level.value
             }
         )
 

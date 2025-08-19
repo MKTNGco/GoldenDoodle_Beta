@@ -236,7 +236,7 @@ class ChatInterface {
             if (sidebar) {
                 // Force remove hover state by temporarily adding a class that prevents hover
                 sidebar.classList.add('force-closed');
-                
+
                 // Remove the class after a short delay to restore normal hover functionality
                 setTimeout(() => {
                     sidebar.classList.remove('force-closed');
@@ -425,19 +425,21 @@ class ChatInterface {
                 }
             });
 
-            // Ensure error is properly handled
-            let errorMessage;
-            try {
-                errorMessage = this.getErrorMessage ? this.getErrorMessage(error) : 'Connection error. Please try again.';
-            } catch (getErrorError) {
-                console.error('Error getting error message:', getErrorError);
-                errorMessage = 'Connection error. Please try again.';
+            // Get the actual error message from the error object
+            let errorMessage = 'Connection error. Please try again.';
+
+            if (error && error.message) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
             }
 
             try {
                 this.addMessage(errorMessage, 'ai', true);
             } catch (addMessageError) {
                 console.error('Error adding error message:', addMessageError);
+                // Fallback to alert if we can't add the message to chat
+                alert(errorMessage);
             }
 
             // Log additional error details for debugging
@@ -477,13 +479,8 @@ class ChatInterface {
                 clearTimeout(timeoutId);
 
                 if (!response.ok) {
-                    let errorMessage = `HTTP Error: ${response.status}`;
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.error || errorMessage;
-                    } catch (parseError) {
-                        console.error('Failed to parse error response:', parseError);
-                    }
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
                     throw new Error(errorMessage);
                 }
 
@@ -592,10 +589,10 @@ class ChatInterface {
             // Create a temporary div to extract clean text from HTML
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = this.formatMessage(content);
-            
+
             // Extract clean text, preserving line breaks
             let plainText = tempDiv.innerText || tempDiv.textContent || '';
-            
+
             // Clean up any extra whitespace while preserving intentional formatting
             plainText = plainText.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
 
@@ -611,7 +608,7 @@ class ChatInterface {
         // Create a temporary div to extract clean text from HTML
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = this.formatMessage(content);
-        
+
         // Extract clean text, preserving line breaks
         let plainText = tempDiv.innerText || tempDiv.textContent || '';
         plainText = plainText.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
@@ -878,7 +875,7 @@ class ChatInterface {
                 smartLists: true,
                 smartypants: false
             });
-            
+
             // Parse markdown to HTML
             return marked.parse(content);
         } else {
@@ -889,7 +886,7 @@ class ChatInterface {
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#x27;');
-            
+
             return escapedContent
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -982,10 +979,10 @@ class ChatInterface {
 
         const welcomeContent = document.createElement('div');
         welcomeContent.className = 'welcome-content';
-        
+
         // Get user's first name if logged in
         const userName = window.currentUserFirstName || 'there';
-        
+
         welcomeContent.innerHTML = `
             <h1><strong>Hello, ${userName}</strong></h1>
             <p style="color: var(--text-secondary);">What can we get started on together?</p>
@@ -1025,16 +1022,16 @@ class ChatInterface {
         const titleDiv = document.createElement('div');
         titleDiv.className = 'chat-session-title';
         titleDiv.textContent = chat.title; // Safe: textContent escapes HTML
-        
+
         const metaDiv = document.createElement('div');
         metaDiv.className = 'chat-session-meta';
-        
+
         const messageSpan = document.createElement('span');
         messageSpan.textContent = `${chat.message_count || 0} messages`;
-        
+
         const dateSpan = document.createElement('span');
         dateSpan.textContent = this.formatDate(chat.updated_at || chat.created_at);
-        
+
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'delete-session-btn';
         deleteBtn.textContent = '×';
@@ -1043,10 +1040,10 @@ class ChatInterface {
             event.stopPropagation();
             this.deleteSession(chat.id); // chat.id is safely passed as parameter
         });
-        
+
         metaDiv.appendChild(messageSpan);
         metaDiv.appendChild(dateSpan);
-        
+
         chatElement.appendChild(titleDiv);
         chatElement.appendChild(metaDiv);
         chatElement.appendChild(deleteBtn);
@@ -1246,7 +1243,7 @@ function startNewChat() {
     } else {
         const chatMessages = document.getElementById('chatMessages');
         const userName = window.currentUserFirstName || 'there';
-        
+
         chatMessages.innerHTML = `
             <div class="chat-content">
                 <div class="welcome-screen">

@@ -1,2 +1,9 @@
-
-[]
+[
+  {
+    "user_email": "beta@example.com",
+    "signup_source": "free_registration",
+    "invite_code": "BETAZTRD",
+    "signup_date": "2025-08-20T00:31:30.955038",
+    "tracked_at": "2025-08-20T00:31:30.955046"
+  }
+]

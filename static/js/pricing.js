@@ -228,7 +228,7 @@ class PricingPage {
 
                     <div class="card-footer text-center">
                         <a href="/register" class="btn ${isPopular ? 'btn-primary' : 'btn-outline-primary'} btn-lg w-100">
-                            ${isFree ? 'Get Started Free' : 'Choose Plan'}
+                            ${isFree ? 'Get Started Free' : (window.STRIPE_DISABLED ? 'Get Started (Beta)' : 'Choose Plan')}
                         </a>
                     </div>
                 </div>

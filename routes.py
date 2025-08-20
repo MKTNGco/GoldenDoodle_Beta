@@ -19,6 +19,9 @@ import logging
 import psycopg2.extras
 from user_source_tracker import user_source_tracker
 
+# Check if Stripe should be disabled for beta access
+STRIPE_DISABLED = os.environ.get('STRIPE_DISABLED', 'false').lower() == 'true'
+
 logger = logging.getLogger(__name__)
 
 @app.route('/')
@@ -288,8 +291,22 @@ def register():
             except Exception as tracking_error:
                 logger.warning(f"Failed to track signup source for {email}: {tracking_error}")
 
-            # Check if this is a paid plan - redirect to checkout immediately
-            if subscription_level in ['solo', 'team', 'professional']:
+            # Check if this is a beta user or if we should skip payment processing
+            skip_payment = False
+            
+            # Check if Stripe is globally disabled
+            if STRIPE_DISABLED:
+                skip_payment = True
+                logger.info(f"Stripe is disabled globally - skipping payment for {email}")
+            # Check if user is beta (from invitation)
+            elif invitation_data and invitation_data.get('invitation_type') == 'beta':
+                skip_payment = True
+                logger.info(f"Beta user detected - skipping payment for {email}")
+            
+            # For paid plans, either process payment or skip for beta users
+            if subscription_level in ['solo', 'team', 'professional'] and not skip_payment:
+                # Only process Stripe payment for non-beta users
+                logger.info(f"Processing payment for regular user: {email}")
                 try:
                     # Create or get Stripe customer
                     customer = stripe_service.create_customer(
@@ -331,34 +348,7 @@ def register():
                     success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
 
-                    logger.info(f"Using base URL: {base_url}")
-                    logger.info(f"Full success URL: {success_url}")
-                    logger.info(f"Full cancel URL: {cancel_url}")
-
                     logger.info(f"Creating Stripe checkout session for user {user_id}")
-                    logger.info(f"Price ID: {price_id}")
-                    logger.info(f"Customer ID: {customer['id'] if customer else 'None'}")
-
-                    logger.info(f"About to create Stripe checkout session:")
-                    logger.info(f"  - Email: {email}")
-                    logger.info(f"  - Price ID: {price_id}")
-                    logger.info(f"  - Success URL: {success_url}")
-                    logger.info(f"  - Cancel URL: {cancel_url}")
-
-                    # For now, set trial to 0 days for testing Stripe integration
-                    # TODO: Change to 7 days once Stripe integration is confirmed working
-                    trial_days = '0'  # Set to '0' for testing, '7' for production trial
-
-                    logger.info("=== DETAILED STRIPE SESSION CREATION ===")
-                    logger.info(f"About to create Stripe session with:")
-                    logger.info(f"  - Customer Email: {email}")
-                    logger.info(f"  - Price ID: {price_id}")
-                    logger.info(f"  - Customer ID: {customer['id'] if customer else 'None'}")
-                    logger.info(f"  - Success URL: {success_url}")
-                    logger.info(f"  - Cancel URL: {cancel_url}")
-                    logger.info(f"  - Base URL: {base_url}")
-                    logger.info(f"  - Request Host: {request.host}")
-                    logger.info(f"  - Request URL Root: {request.url_root}")
                     
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
@@ -370,40 +360,9 @@ def register():
                             'user_id': user_id,
                             'plan_id': subscription_level,
                             'new_registration': 'true',
-                            'trial_days': trial_days
+                            'trial_days': '0'
                         }
                     )
-
-                    logger.info(f"Stripe session creation result: {stripe_session}")
-
-                    # Comprehensive validation
-                    if stripe_session:
-                        session_id = stripe_session.get('id', 'No ID')
-                        session_url = stripe_session.get('url', 'No URL')
-                        session_status = stripe_session.get('status', 'No Status')
-                        
-                        logger.info(f"✓ Session Details:")
-                        logger.info(f"  - ID: {session_id}")
-                        logger.info(f"  - URL: {session_url}")
-                        logger.info(f"  - Status: {session_status}")
-                        
-                        if not session_url:
-                            logger.error("❌ Stripe session created but URL is missing")
-                        elif not session_url.startswith('https://checkout.stripe.com/'):
-                            logger.error(f"❌ Invalid checkout URL format: {session_url}")
-                        else:
-                            logger.info("✓ Stripe session validation passed")
-                            
-                        # Test URL accessibility (basic check)
-                        try:
-                            from urllib.parse import urlparse
-                            parsed_url = urlparse(session_url)
-                            if parsed_url.scheme and parsed_url.netloc:
-                                logger.info("✓ URL structure is valid")
-                            else:
-                                logger.error(f"❌ URL structure invalid: {session_url}")
-                        except Exception as url_e:
-                            logger.error(f"❌ URL validation error: {url_e}")
 
                     if stripe_session and stripe_session.get('url'):
                         # Store pending registration in session for post-payment verification
@@ -416,49 +375,26 @@ def register():
                         }
 
                         logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
-                        logger.info(f"✓ Checkout URL: {stripe_session['url']}")
-                        logger.info("✓ Pending registration stored in session")
-
-                        # Return clean JSON response with additional debug info
-                        response_data = {
+                        
+                        return jsonify({
                             'success': True,
                             'redirect_to_stripe': True,
                             'checkout_url': stripe_session['url'],
                             'session_id': stripe_session['id']
-                        }
-                        
-                        # Add debug info in test mode
-                        if stripe_service.test_mode:
-                            response_data['debug'] = {
-                                'price_id': price_id,
-                                'customer_id': customer['id'] if customer else None,
-                                'user_id': user_id,
-                                'base_url': base_url
-                            }
-                        
-                        logger.info(f"✓ Returning successful response: {response_data}")
-                        return jsonify(response_data)
+                        })
                     else:
-                        logger.error("❌ Stripe session creation failed or no URL returned")
-                        logger.error(f"❌ Session data: {stripe_session}")
+                        logger.error("❌ Stripe session creation failed")
                         
                         # Delete the user since payment setup failed
                         try:
-                            logger.info("Cleaning up failed registration...")
                             db_manager.delete_user(user_id)
                             db_manager.delete_tenant(tenant.tenant_id)
-                            logger.info("✓ Cleanup completed")
-                        except Exception as cleanup_e:
-                            logger.error(f"❌ Cleanup failed: {cleanup_e}")
+                        except:
+                            pass
                             
                         return jsonify({
                             'error': 'Payment session creation failed. Please try again.',
-                            'retry': True,
-                            'debug_info': {
-                                'stripe_response': str(stripe_session),
-                                'price_id': price_id,
-                                'base_url': base_url
-                            } if stripe_service.test_mode else None
+                            'retry': True
                         }), 400
 
                 except Exception as stripe_error:
@@ -473,6 +409,12 @@ def register():
                         'error': f'Payment processing error: {str(stripe_error)}',
                         'retry': True
                     }), 400
+            else:
+                # Skip payment for beta users or free plans - proceed directly to email verification
+                if skip_payment:
+                    logger.info(f"Skipping payment for beta user: {email}")
+                else:
+                    logger.info(f"Free plan selected for user: {email}")
 
             # For free plans or fallback, send verification email
             verification_token = generate_verification_token()
@@ -2579,6 +2521,10 @@ def not_found_error(error):
 def create_checkout_session():
     """Create Stripe checkout session"""
     try:
+        # Check if Stripe is disabled
+        if STRIPE_DISABLED:
+            return jsonify({'error': 'Payment processing is currently disabled for beta access'}), 400
+            
         data = request.get_json()
         plan_id = data.get('plan_id')
 

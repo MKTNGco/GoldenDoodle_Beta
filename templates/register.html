@@ -9,50 +9,15 @@
             <div class="card shadow-lg border-0">
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
-                        <i class="fas fa-heart text-primary mb-3" style="font-size: 3rem;"></i>
-                        {% if invitation_data %}
-                        <h2 class="fw-bold text-primary">You're Invited!</h2>
-                        <div class="alert alert-success">
-                            <i class="fas fa-envelope-open me-2"></i>
-                            You've been invited to join <strong>{{ invitation_data.organization_name }}</strong> on GoldenDoodleLM!
-                        </div>
-                        {% if invitation_data and invitation_data.invitation_type == 'beta' %}
-                        <div class="alert alert-info border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-star me-3" style="font-size: 1.5rem;"></i>
-                                <div>
-                                    <h6 class="mb-1 fw-bold">🎉 Beta Trial - 90 Days Free!</h6>
-                                    <small>Your beta invitation includes 90 days of free premium service with ALL features unlocked!</small>
-                                </div>
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="alert alert-primary border-0">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-gift me-3" style="font-size: 1.2rem;"></i>
-                                <div>
-                                    <h6 class="mb-1 fw-bold">7-Day Free Trial</h6>
-                                    <small>All plans include a 7-day free trial with ALL premium features unlocked!</small>
-                                </div>
-                            </div>
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GoldenDoodleLM Logo" class="logo mb-3">
+                        <h2 class="fw-bold">Create Your Account</h2>
+                        {% if config.get('STRIPE_DISABLED', '').lower() == 'true' %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-rocket me-2"></i>
+                            <strong>Beta Access:</strong> All plans are currently free during our beta period!
                         </div>
                         {% endif %}
-                        <p class="text-muted">Complete your registration below</p>
-                        {% else %}
-                        <h2 class="fw-bold text-primary">Join GoldenDoodleLM</h2>
-                        <p class="text-muted">Your Compassionate Content Companion</p>
-
-                        <!-- Standard 7-day premium trial banner for non-invited users -->
-                        <div class="alert alert-primary border-0 mb-4">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-gift me-3" style="font-size: 1.2rem;"></i>
-                                <div>
-                                    <h6 class="mb-1 fw-bold">7-Day Premium Trial</h6>
-                                    <small>ALL plans (including free) include a 7-day trial with ALL premium features unlocked!</small>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
+                        <p class="text-muted">Join GoldenDoodleLM and transform your content creation</p>
                     </div>
 
                     <form method="POST" id="registerForm">
@@ -226,6 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Skip JavaScript setup for organization invites
     const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
     const hasInvitation = {{ 'true' if invitation_data else 'false' }};
+    const stripeDisabled = {{ config.get('STRIPE_DISABLED', 'false').lower() == 'true' }};
     if (isOrgInvite) {
         return;
     }
@@ -468,6 +434,15 @@ document.addEventListener('DOMContentLoaded', function() {
     registerForm.addEventListener('submit', async function(e) {
         const selectedPlan = document.querySelector('input[name="subscription_level"]:checked');
 
+        // If Stripe is disabled, or the selected plan is free, submit directly.
+        if (stripeDisabled || (selectedPlan && selectedPlan.value === 'free')) {
+            // If Stripe is disabled, we don't need to prevent default for paid plans either
+            // because they will be handled differently or not offered.
+            // The form will submit normally.
+            return;
+        }
+
+        // If Stripe is enabled and a paid plan is selected, proceed with Stripe checkout.
         if (selectedPlan && ['solo', 'team', 'professional'].includes(selectedPlan.value)) {
             e.preventDefault(); // Prevent default form submission for paid plans
 
@@ -563,7 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
         togglePasswordButton.addEventListener('click', function() {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            
+
             // Toggle the icon
             if (type === 'password') {
                 passwordToggleIcon.classList.remove('fa-eye-slash');

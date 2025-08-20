@@ -208,10 +208,7 @@ def register():
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
                 if expects_json:
-                    return jsonify({
-                        'error': 'An account with this email already exists.',
-                        'retry': True
-                    }), 400
+                    return jsonify({'error': 'An account with this email already exists.', 'retry': True}), 400
                 flash('An account with this email already exists.', 'error')
                 return render_template(
                     'register.html',
@@ -707,8 +704,7 @@ def resend_verification():
                 return jsonify({'error':
                                 'Failed to send verification email'}), 500
         else:
-            return jsonify({'error':
-                            'Failed to create verification token'}), 500
+            return jsonify({'error': 'Failed to create verification token'}), 500
 
     except Exception as e:
         logger.error(f"Error resending verification: {e}")
@@ -1018,8 +1014,7 @@ def generate():
                 return jsonify({'error': 'Invalid session'}), 400
 
             logger.info(
-                f"Saving message to session {session_id} for user {user.user_id}"
-            )
+                f"Saving message to session {session_id} for user {user.user_id}")
 
             # Check chat history limits first
             user_plan = db_manager.get_user_plan(user.user_id)
@@ -2602,8 +2597,7 @@ def create_chat_session():
         session_id = db_manager.create_chat_session(user.user_id, title)
         if session_id:
             logger.info(
-                f"Created new chat session {session_id} for user {user.user_id}"
-            )
+                f"Created new chat session {session_id} for user {user.user_id}")
             # Track new chat session creation
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -3939,7 +3933,7 @@ def get_my_invitations():
         return jsonify({'error': 'An error occurred'}), 500
 
 
-@app.route('/admin/beta-invites', methods=['GET', 'POST'])
+@app.route('/admin/beta-invites')
 def admin_beta_invites():
     """Admin page for sending beta invitations"""
     if request.method == 'POST':
@@ -4057,60 +4051,134 @@ def admin_beta_invites():
 @app.route('/admin/stats')
 @admin_required
 def admin_stats():
-    """Admin statistics dashboard - PostgreSQL version"""
+    """Admin statistics dashboard"""
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login'))
+
+    # Track admin dashboard visit
+    analytics_service.track_user_event(
+        user_id='platform_admin',  # Use a consistent ID for platform admin actions
+        event_name='Viewed Admin Statistics Dashboard',
+        properties={}
+    )
+
     return render_template('admin_stats.html')
 
 
 @app.route('/admin/invitation-stats')
 @admin_required
 def admin_invitation_stats():
-    """Get invitation and signup statistics from PostgreSQL"""
+    """API endpoint for admin invitation statistics"""
     try:
         conn = db_manager.get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        # Get all invitations
+        # Get invitation statistics
         cursor.execute("""
-            SELECT invite_code, invitee_email, organization_name, invitation_type, 
-                   status, created_at, accepted_at, expired_at
-            FROM invitations 
-            ORDER BY created_at DESC
+            SELECT 
+                COUNT(*) as total_invitations,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_invitations,
+                COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_invitations,
+                COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_invitations,
+                COUNT(CASE WHEN invitation_type = 'beta' THEN 1 END) as beta_invitations,
+                COUNT(CASE WHEN invitation_type = 'user_referral' THEN 1 END) as referral_invitations,
+                COUNT(CASE WHEN invitation_type = 'team_member' THEN 1 END) as team_invitations
+            FROM invitations
         """)
-        invitations = [dict(row) for row in cursor.fetchall()]
 
-        # Get all user sources (signups)
+        invitation_stats = cursor.fetchone()
+
+        # Calculate acceptance rate
+        total = invitation_stats['total_invitations'] or 0
+        accepted = invitation_stats['accepted_invitations'] or 0
+        acceptance_rate = round((accepted / total * 100) if total > 0 else 0, 1)
+
+        # Get invitation breakdown by type and status
         cursor.execute("""
-            SELECT user_email, signup_source, invite_code, signup_date
-            FROM user_sources 
-            ORDER BY signup_date DESC
+            SELECT 
+                invitation_type,
+                status,
+                COUNT(*) as count
+            FROM invitations
+            GROUP BY invitation_type, status
+            ORDER BY invitation_type, status
         """)
-        signups = [dict(row) for row in cursor.fetchall()]
+
+        invitation_breakdown = cursor.fetchall()
+
+        # Get recent invitations (last 10 pending)
+        cursor.execute("""
+            SELECT invite_code, invitee_email as email, invitation_type, status, created_at
+            FROM invitations 
+            WHERE status = 'pending'
+            ORDER BY created_at DESC 
+            LIMIT 10
+        """)
+
+        pending_invitations = cursor.fetchall()
+
+        # Get user source statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_signups,
+                COUNT(CASE WHEN signup_source = 'invitation_beta' THEN 1 END) as beta_signups,
+                COUNT(CASE WHEN signup_source = 'user_referral' THEN 1 END) as referral_signups,
+                COUNT(CASE WHEN signup_source = 'free_registration' THEN 1 END) as organic_signups
+            FROM user_sources
+        """)
+
+        signup_stats = cursor.fetchone() or {'total_signups': 0, 'beta_signups': 0, 'referral_signups': 0, 'organic_signups': 0}
+
+        # Get recent signups
+        cursor.execute("""
+            SELECT user_email, signup_source, signup_date, invite_code
+            FROM user_sources 
+            ORDER BY signup_date DESC 
+            LIMIT 10
+        """)
+
+        recent_signups = cursor.fetchall()
+
+        # Get beta trial statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_trials,
+                COUNT(CASE WHEN status = 'active' AND trial_end > NOW() THEN 1 END) as active_trials,
+                COUNT(CASE WHEN status = 'expired' OR trial_end <= NOW() THEN 1 END) as expired_trials,
+                COUNT(CASE WHEN status = 'active' AND trial_end > NOW() AND trial_end <= NOW() + INTERVAL '7 days' THEN 1 END) as expiring_soon
+            FROM beta_trials
+        """)
+
+        trial_stats = cursor.fetchone() or {'total_trials': 0, 'active_trials': 0, 'expired_trials': 0, 'expiring_soon': 0}
 
         cursor.close()
         conn.close()
 
-        # Convert datetime objects to ISO strings for JSON serialization
-        for inv in invitations:
-            if inv['created_at']:
-                inv['created_at'] = inv['created_at'].isoformat()
-            if inv['accepted_at']:
-                inv['accepted_at'] = inv['accepted_at'].isoformat()
-            if inv['expired_at']:
-                inv['expired_at'] = inv['expired_at'].isoformat()
+        # Format response data
+        response_data = {
+            'invitation_stats': {
+                'total_invitations': invitation_stats['total_invitations'] or 0,
+                'pending_invitations': invitation_stats['pending_invitations'] or 0,
+                'accepted_invitations': invitation_stats['accepted_invitations'] or 0,
+                'expired_invitations': invitation_stats['expired_invitations'] or 0,
+                'beta_invitations': invitation_stats['beta_invitations'] or 0,
+                'referral_invitations': invitation_stats['referral_invitations'] or 0,
+                'team_invitations': invitation_stats['team_invitations'] or 0,
+                'acceptance_rate': acceptance_rate
+            },
+            'invitation_breakdown': [dict(row) for row in invitation_breakdown],
+            'pending_invitations': [dict(row) for row in pending_invitations],
+            'signup_stats': dict(signup_stats),
+            'recent_signups': [dict(row) for row in recent_signups],
+            'beta_trial_stats': dict(trial_stats)
+        }
 
-        for signup in signups:
-            if signup['signup_date']:
-                signup['signup_date'] = signup['signup_date'].isoformat()
-
-        return jsonify({
-            'success': True,
-            'invitations': invitations,
-            'signups': signups
-        })
+        return jsonify(response_data)
 
     except Exception as e:
-        logger.error(f"Error getting invitation stats: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting admin invitation stats: {e}")
+        return jsonify({'error': 'Failed to fetch statistics'}), 500
 
 
 @app.route('/admin/beta-trials')

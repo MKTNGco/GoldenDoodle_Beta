@@ -249,14 +249,14 @@ def register():
                         signup_source = f"invitation_{invitation_data.get('invitation_type', 'unknown')}"
                 else:
                     signup_source = 'free_registration'
-                
+
                 user_source_tracker.track_user_signup(
                     user_email=email,
                     signup_source=signup_source,
                     invite_code=invitation_code if invitation_data else None
                 )
                 logger.info(f"Tracked signup source for {email}: {signup_source}")
-                
+
                 # Create trials based on user type
                 if signup_source == 'invitation_beta':
                     # Create 90-day beta trial for beta users
@@ -287,13 +287,13 @@ def register():
                             logger.warning(f"Failed to create premium trial for {email}")
                     except Exception as trial_error:
                         logger.warning(f"Failed to create premium trial for {email}: {trial_error}")
-                        
+
             except Exception as tracking_error:
                 logger.warning(f"Failed to track signup source for {email}: {tracking_error}")
 
             # Check if this is a beta user or if we should skip payment processing
             skip_payment = False
-            
+
             # Check if Stripe is globally disabled
             if STRIPE_DISABLED:
                 skip_payment = True
@@ -302,7 +302,7 @@ def register():
             elif invitation_data and invitation_data.get('invitation_type') == 'beta':
                 skip_payment = True
                 logger.info(f"Beta user detected - skipping payment for {email}")
-            
+
             # For paid plans, either process payment or skip for beta users
             if subscription_level in ['solo', 'team', 'professional'] and not skip_payment:
                 # Only process Stripe payment for non-beta users
@@ -349,7 +349,7 @@ def register():
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
 
                     logger.info(f"Creating Stripe checkout session for user {user_id}")
-                    
+
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
@@ -375,7 +375,7 @@ def register():
                         }
 
                         logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
-                        
+
                         return jsonify({
                             'success': True,
                             'redirect_to_stripe': True,
@@ -384,14 +384,13 @@ def register():
                         })
                     else:
                         logger.error("❌ Stripe session creation failed")
-                        
+
                         # Delete the user since payment setup failed
                         try:
                             db_manager.delete_user(user_id)
                             db_manager.delete_tenant(tenant.tenant_id)
                         except:
                             pass
-                            
                         return jsonify({
                             'error': 'Payment session creation failed. Please try again.',
                             'retry': True
@@ -432,7 +431,7 @@ def register():
                         email_sent = email_service.send_verification_email(email, verification_token, first_name)
                 else:
                     email_sent = email_service.send_verification_email(email, verification_token, first_name)
-                
+
                 if email_sent:
                     if invitation_data:
                         if invitation_data.get('invitation_type') == 'beta':
@@ -2528,7 +2527,7 @@ def create_checkout_session():
         # Check if Stripe is disabled
         if STRIPE_DISABLED:
             return jsonify({'error': 'Payment processing is currently disabled for beta access'}), 400
-            
+
         data = request.get_json()
         plan_id = data.get('plan_id')
 
@@ -2643,7 +2642,7 @@ def payment_success():
                     if 'pending_registration' in session:
                         pending_reg = session.get('pending_registration')
                         original_invite_code = pending_reg.get('original_invite_code')
-                    
+
                     # Mark invitation as accepted if applicable
                     if original_invite_code:
                         try:
@@ -2652,14 +2651,14 @@ def payment_success():
                             logger.info(f"Marked invitation {original_invite_code} as accepted for paid user")
                         except Exception as inv_error:
                             logger.warning(f"Failed to mark invitation as accepted: {inv_error}")
-                    
+
                     user_source_tracker.track_user_signup(
                         user_email=user.email,
                         signup_source=f'paid_{user.subscription_level.value}',
                         invite_code=original_invite_code
                     )
                     logger.info(f"Tracked paid signup for {user.email}")
-                    
+
                     # Check if this was a beta user who upgraded to paid
                     if original_invite_code:
                         from beta_trial_manager import beta_trial_manager
@@ -2670,7 +2669,7 @@ def payment_success():
                                 invite_code=original_invite_code
                             )
                             logger.info(f"Created beta trial for paid beta user {user.email}")
-                                
+
                 except Exception as tracking_error:
                     logger.warning(f"Failed to track paid signup for {user.email}: {tracking_error}")
 
@@ -3197,21 +3196,21 @@ def debug_stripe_full():
     try:
         import os
         import traceback
-        
+
         # Environment check
         env_status = {
             'STRIPE_SECRET_KEY_TEST': 'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
             'STRIPE_PUBLISHABLE_KEY_TEST': 'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
             'STRIPE_WEBHOOK_SECRET': 'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set'
         }
-        
+
         # Service status
         service_status = {
             'test_mode': stripe_service.test_mode,
             'publishable_key_available': bool(stripe_service.get_publishable_key()),
             'price_mapping': stripe_service.plan_price_mapping
         }
-        
+
         # Database test
         try:
             conn = db_manager.get_connection()
@@ -3223,7 +3222,7 @@ def debug_stripe_full():
             db_status = "✓ Connected"
         except Exception as db_e:
             db_status = f"❌ Error: {str(db_e)}"
-        
+
         # Customer creation test
         customer_test = "Not tested"
         try:
@@ -3238,7 +3237,7 @@ def debug_stripe_full():
                 customer_test = "❌ Failed to create"
         except Exception as cust_e:
             customer_test = f"❌ Error: {str(cust_e)}"
-        
+
         # Checkout session test
         checkout_test = "Not tested"
         try:
@@ -3256,14 +3255,14 @@ def debug_stripe_full():
                 checkout_test = "❌ Failed to create"
         except Exception as check_e:
             checkout_test = f"❌ Error: {str(check_e)}"
-        
+
         # Current URL info
         url_info = {
             'base_url': request.url_root.rstrip('/'),
             'host': request.host,
             'is_https': request.is_secure
         }
-        
+
         return f'''
         <!DOCTYPE html>
         <html>
@@ -3280,37 +3279,37 @@ def debug_stripe_full():
         </head>
         <body>
             <h1>Stripe Integration Debug Report</h1>
-            
+
             <div class="section">
                 <h2>Environment Variables</h2>
                 <pre>{env_status}</pre>
             </div>
-            
+
             <div class="section">
                 <h2>Service Configuration</h2>
                 <pre>{service_status}</pre>
             </div>
-            
+
             <div class="section">
                 <h2>Database Status</h2>
                 <pre>{db_status}</pre>
             </div>
-            
+
             <div class="section">
                 <h2>Customer Creation Test</h2>
                 <pre>{customer_test}</pre>
             </div>
-            
+
             <div class="section">
                 <h2>Checkout Session Test</h2>
                 <pre>{checkout_test}</pre>
             </div>
-            
+
             <div class="section">
                 <h2>URL Information</h2>
                 <pre>{url_info}</pre>
             </div>
-            
+
             <div class="section">
                 <h2>Quick Actions</h2>
                 <a href="/test-stripe-direct">Test Direct Checkout</a> |
@@ -3319,7 +3318,7 @@ def debug_stripe_full():
         </body>
         </html>
         '''
-        
+
     except Exception as e:
         return f'''
         <html>
@@ -3409,28 +3408,28 @@ def send_user_invitations():
         email_list = data.get('emails', '').strip()
         personal_message = data.get('personal_message', '').strip()
         invitation_type = data.get('invitation_type', 'colleague')
-        
+
         if not email_list:
             return jsonify({'error': 'Please enter at least one email address.'}), 400
-        
+
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         # Parse email list (support both comma-separated and line-separated)
         emails = []
         for line in email_list.replace(',', '\n').split('\n'):
             email = line.strip().lower()
             if email and '@' in email and '.' in email:
                 emails.append(email)
-        
+
         if not emails:
             return jsonify({'error': 'No valid email addresses found.'}), 400
-        
+
         # Check for duplicates and existing users
         from invitation_manager import invitation_manager
         results = []
-        
+
         for email in emails:
             try:
                 # Check if user already exists
@@ -3443,11 +3442,11 @@ def send_user_invitations():
                         'email_sent': False
                     })
                     continue
-                
+
                 # Check if invitation already exists
                 existing_invitations = invitation_manager.get_invitations_by_email(email)
                 pending_invitations = [inv for inv in existing_invitations if inv['status'] == 'pending']
-                
+
                 if pending_invitations:
                     results.append({
                         'email': email,
@@ -3456,14 +3455,14 @@ def send_user_invitations():
                         'email_sent': False
                     })
                     continue
-                
+
                 # Create invitation
                 invite_code = invitation_manager.create_invitation(
                     email=email,
                     org_name=f"{user.first_name} {user.last_name}",
                     invitation_type='user_referral'
                 )
-                
+
                 # Send invitation email
                 email_sent = email_service.send_user_referral_email(
                     to_email=email,
@@ -3472,7 +3471,7 @@ def send_user_invitations():
                     invitation_type=invitation_type,
                     personal_message=personal_message
                 )
-                
+
                 results.append({
                     'email': email,
                     'invite_code': invite_code,
@@ -3480,7 +3479,7 @@ def send_user_invitations():
                     'email_sent': email_sent,
                     'invitation_type': invitation_type
                 })
-                
+
                 # Track invitation sent
                 analytics_service.track_user_event(
                     user_id=str(user.user_id),
@@ -3491,7 +3490,7 @@ def send_user_invitations():
                         'has_personal_message': bool(personal_message)
                     }
                 )
-                
+
             except Exception as e:
                 logger.error(f"Error creating invitation for {email}: {e}")
                 results.append({
@@ -3500,13 +3499,13 @@ def send_user_invitations():
                     'error': f'Error: {str(e)}',
                     'email_sent': False
                 })
-        
+
         return jsonify({
             'success': True,
             'results': results,
             'total_sent': len([r for r in results if r['success']])
         })
-        
+
     except Exception as e:
         logger.error(f"Error sending user invitations: {e}")
         return jsonify({'error': 'An error occurred while sending invitations.'}), 500
@@ -3519,24 +3518,24 @@ def get_my_invitations():
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        
+
         from invitation_manager import invitation_manager
-        
+
         # Get all invitations sent by this user (they show as org_name containing user's name)
         all_invitations = invitation_manager.get_all_invitations()
         user_name = f"{user.first_name} {user.last_name}"
-        
+
         user_invitations = [
             inv for inv in all_invitations 
             if inv.get('invitation_type') == 'user_referral' 
             and inv.get('organization_name') == user_name
         ]
-        
+
         # Calculate statistics
         total_sent = len(user_invitations)
         accepted_count = len([inv for inv in user_invitations if inv['status'] == 'accepted'])
         pending_count = len([inv for inv in user_invitations if inv['status'] == 'pending'])
-        
+
         # Get pending invitations for display
         pending_invitations = [
             {
@@ -3547,14 +3546,14 @@ def get_my_invitations():
             }
             for inv in user_invitations if inv['status'] == 'pending'
         ]
-        
+
         return jsonify({
             'total_sent': total_sent,
             'accepted_count': accepted_count,
             'pending_count': pending_count,
             'pending_invitations': pending_invitations
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting user invitations: {e}")
         return jsonify({'error': 'An error occurred'}), 500
@@ -3566,22 +3565,22 @@ def admin_beta_invites():
         # Process the form submission
         invitations_text = request.form.get('invitations', '').strip()
         send_emails = request.form.get('send_emails') == 'on'
-        
+
         if not invitations_text:
             flash('Please enter at least one email,organization pair.', 'error')
             return render_template('admin_beta_invites.html')
-        
+
         # Parse the textarea input (each line should be email,organization)
         lines = [line.strip() for line in invitations_text.split('\n') if line.strip()]
         results = []
-        
+
         from invitation_manager import invitation_manager
         from email_service import detect_email_system
-        
+
         # Check email system status
         email_status = detect_email_system()
         email_available = email_status['ready'] and send_emails
-        
+
         for line in lines:
             try:
                 # Split by comma and clean up
@@ -3594,9 +3593,9 @@ def admin_beta_invites():
                         'email_sent': False
                     })
                     continue
-                
+
                 email, organization = parts
-                
+
                 # Basic email validation
                 if '@' not in email or '.' not in email:
                     results.append({
@@ -3606,7 +3605,7 @@ def admin_beta_invites():
                         'email_sent': False
                     })
                     continue
-                
+
                 # Generate invitation code with BETA prefix
                 invite_code = invitation_manager.create_invitation(
                     email=email,
@@ -3614,15 +3613,15 @@ def admin_beta_invites():
                     invitation_type='beta',
                     prefix='BETA'
                 )
-                
+
                 # Create the invitation link
                 base_url = request.url_root.rstrip('/')
                 invite_link = f"{base_url}/register?ref={invite_code}"
-                
+
                 # Try to send email if requested and available
                 email_sent = False
                 email_error = None
-                
+
                 if email_available:
                     try:
                         email_sent = email_service.send_beta_invitation_email(
@@ -3635,7 +3634,7 @@ def admin_beta_invites():
                     except Exception as email_ex:
                         email_error = f"Email error: {str(email_ex)}"
                         logger.error(f"Failed to send beta invitation email to {email}: {email_ex}")
-                
+
                 result = {
                     'line': line,
                     'email': email,
@@ -3646,9 +3645,9 @@ def admin_beta_invites():
                     'email_sent': email_sent,
                     'email_error': email_error
                 }
-                
+
                 results.append(result)
-                
+
             except Exception as e:
                 results.append({
                     'line': line,
@@ -3656,12 +3655,12 @@ def admin_beta_invites():
                     'success': False,
                     'email_sent': False
                 })
-        
+
         return render_template('admin_beta_results.html', 
                              results=results, 
                              email_status=email_status,
                              emails_requested=send_emails)
-    
+
     # GET request - show the form
     from email_service import detect_email_system
     email_status = detect_email_system()
@@ -3678,6 +3677,41 @@ def admin_stats():
     )
     return render_template('admin_stats.html')
 
+# TEMPORARILY DISABLED - DUPLICATE ROUTE CONFLICT
+# @app.route('/admin/invitation-stats')
+# @super_admin_required
+# def admin_invitation_stats():
+#     """Get invitation statistics data"""
+#     try:
+#         from invitation_manager import invitation_manager
+#         from user_source_tracker import user_source_tracker
+#         
+#         # Get all invitations
+#         invitations = invitation_manager.get_all_invitations()
+#         
+#         # Get all user signups
+#         signups = user_source_tracker.get_all_sources()
+#         
+#         # Track accessing invitation stats
+#         analytics_service.track_user_event(
+#             user_id='platform_admin',
+#             event_name='Fetched Invitation Statistics',
+#             properties={
+#                 'total_invitations': len(invitations),
+#                 'total_signups': len(signups)
+#             }
+#         )
+#         
+#         return jsonify({
+#             'invitations': invitations,
+#             'signups': signups
+#         })
+#         
+#     except Exception as e:
+#         logger.error(f"Error getting invitation stats: {e}")
+#         return jsonify({'error': 'Failed to load invitation statistics'}), 500
+
+
 @app.route('/admin/invitation-data')
 @super_admin_required
 def admin_invitation_data():
@@ -3685,13 +3719,13 @@ def admin_invitation_data():
     try:
         from invitation_manager import invitation_manager
         from user_source_tracker import user_source_tracker
-        
+
         # Get all invitations
         invitations = invitation_manager.get_all_invitations()
-        
+
         # Get all user signups
         signups = user_source_tracker.get_all_sources()
-        
+
         # Track accessing invitation stats
         analytics_service.track_user_event(
             user_id='platform_admin',
@@ -3701,12 +3735,12 @@ def admin_invitation_data():
                 'total_signups': len(signups)
             }
         )
-        
+
         return jsonify({
             'invitations': invitations,
             'signups': signups
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting invitation stats: {e}")
         return jsonify({'error': 'Failed to load invitation statistics'}), 500
@@ -3728,20 +3762,20 @@ def admin_beta_trial_stats():
     """Get beta trial statistics data"""
     try:
         from beta_trial_manager import beta_trial_manager
-        
+
         # Get all beta trials
         beta_trials = beta_trial_manager.get_all_beta_trials()
-        
+
         # Get beta trial statistics
         stats = beta_trial_manager.get_beta_trial_stats()
-        
+
         # Enhance trial data with user information
         enhanced_trials = []
         for trial in beta_trials:
             # Get user information if available
             user = db_manager.get_user_by_email(trial['user_email'])
             trial_data = trial.copy()
-            
+
             if user:
                 trial_data['user_name'] = f"{user.first_name} {user.last_name}"
                 trial_data['subscription_level'] = user.subscription_level.value
@@ -3750,7 +3784,7 @@ def admin_beta_trial_stats():
                 trial_data['user_name'] = 'User not found'
                 trial_data['subscription_level'] = 'unknown'
                 trial_data['user_created_at'] = None
-            
+
             # Calculate days remaining
             if trial['status'] == 'active':
                 try:
@@ -3764,9 +3798,9 @@ def admin_beta_trial_stats():
             else:
                 trial_data['days_remaining'] = 0
                 trial_data['is_expired'] = True
-            
+
             enhanced_trials.append(trial_data)
-        
+
         # Track accessing beta trial stats
         analytics_service.track_user_event(
             user_id='platform_admin',
@@ -3776,12 +3810,12 @@ def admin_beta_trial_stats():
                 'active_trials': stats.get('active_trials', 0)
             }
         )
-        
+
         return jsonify({
             'beta_trials': enhanced_trials,
             'stats': stats
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting beta trial stats: {e}")
         return jsonify({'error': 'Failed to load beta trial statistics'}), 500
@@ -3909,13 +3943,13 @@ def health_check():
         cursor.fetchone()
         cursor.close()
         conn.close()
-        
+
         # Test Stripe configuration
         stripe_ok = bool(stripe_service.get_publishable_key())
-        
+
         # Test Gemini API (basic check)
         gemini_ok = bool(os.environ.get('GEMINI_API_KEY'))
-        
+
         return jsonify({
             'status': 'healthy',
             'database': 'ok',
@@ -3923,7 +3957,7 @@ def health_check():
             'gemini': 'ok' if gemini_ok else 'warning',
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return jsonify({

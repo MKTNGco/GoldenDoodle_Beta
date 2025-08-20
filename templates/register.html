@@ -16,10 +16,42 @@
                             <i class="fas fa-envelope-open me-2"></i>
                             You've been invited to join <strong>{{ invitation_data.organization_name }}</strong> on GoldenDoodleLM!
                         </div>
+                        {% if invitation_data and invitation_data.invitation_type == 'beta' %}
+                        <div class="alert alert-info border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-star me-3" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <h6 class="mb-1 fw-bold">🎉 Beta Trial - 90 Days Free!</h6>
+                                    <small>Your beta invitation includes 90 days of free premium service with ALL features unlocked!</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-primary border-0">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-gift me-3" style="font-size: 1.2rem;"></i>
+                                <div>
+                                    <h6 class="mb-1 fw-bold">7-Day Free Trial</h6>
+                                    <small>All plans include a 7-day free trial with ALL premium features unlocked!</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                         <p class="text-muted">Complete your registration below</p>
                         {% else %}
                         <h2 class="fw-bold text-primary">Join GoldenDoodleLM</h2>
                         <p class="text-muted">Your Compassionate Content Companion</p>
+                        
+                        <!-- Standard 7-day trial banner for non-invited users -->
+                        <div class="alert alert-primary border-0 mb-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-gift me-3" style="font-size: 1.2rem;"></i>
+                                <div>
+                                    <h6 class="mb-1 fw-bold">7-Day Free Trial</h6>
+                                    <small>All plans include a 7-day free trial with ALL premium features unlocked!</small>
+                                </div>
+                            </div>
+                        </div>
                         {% endif %}
                     </div>
 
@@ -262,16 +294,19 @@ document.addEventListener('DOMContentLoaded', function() {
         col.className = 'col-md-6';
 
         // Determine pricing display
-        let priceDisplay, badgeClass;
+        let priceDisplay, badgeClass, trialText;
         if (plan.plan_id === 'free') {
             priceDisplay = 'Free';
             badgeClass = 'bg-success';
+            trialText = 'Always Free';
         } else if (plan.plan_id === 'team') {
             priceDisplay = `$${plan.price_monthly}/user/mo`;
             badgeClass = 'bg-info';
+            trialText = '7-Day Free Trial';
         } else {
             priceDisplay = `$${plan.price_monthly}/mo`;
             badgeClass = plan.plan_id === 'solo' ? 'bg-success' : 'bg-warning';
+            trialText = '7-Day Free Trial';
         }
 
         // Get features
@@ -284,6 +319,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         <h6 class="fw-bold text-primary">${plan.name}</h6>
                         <span class="badge ${badgeClass}">${priceDisplay}</span>
                     </div>
+                    ${plan.plan_id !== 'free' ? `
+                    <div class="text-center mb-2">
+                        <small class="badge bg-light text-dark border">
+                            <i class="fas fa-gift me-1"></i>${trialText}
+                        </small>
+                    </div>
+                    ` : ''}
                     <p class="small text-muted mb-2">${plan.target_user}</p>
                     <ul class="list-unstyled small mb-0">
                         ${features.map(feature => `

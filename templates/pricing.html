@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Pricing - GoldenDoodleLM{% endblock %}
@@ -15,11 +14,22 @@
     <div class="container">
         <div class="row text-center">
             <div class="col-lg-8 mx-auto">
-                <h1 class="display-4 fw-bold text-primary mb-4">Choose Your Plan</h1>
-                <p class="lead text-muted mb-4">
-                    Secure, principled AI communication tools that help you communicate with clarity and respect in every interaction.
-                </p>
-                
+                <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold text-primary mb-3">Choose Your Plan</h1>
+            <p class="lead text-muted">Compassionate content creation for every need</p>
+
+            <!-- Trial Information Banner -->
+            <div class="alert alert-primary border-0 d-inline-block">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-gift me-3" style="font-size: 1.2rem;"></i>
+                    <div>
+                        <h6 class="mb-1 fw-bold">7-Day Free Trial</h6>
+                        <small>All paid plans include a 7-day free trial with ALL premium features unlocked!</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
                 <!-- Billing Toggle -->
                 <div class="billing-toggle-container mb-5">
                     <div class="billing-toggle">
@@ -37,7 +47,7 @@
                     <div class="btn-group" role="group" aria-label="Account type selection">
                         <input type="radio" class="btn-check" name="accountType" id="individualType" value="individual" checked>
                         <label class="btn btn-outline-primary" for="individualType">Individual Plans</label>
-                        
+
                         <input type="radio" class="btn-check" name="accountType" id="teamType" value="team">
                         <label class="btn btn-outline-primary" for="teamType">Team Plans</label>
                     </div>

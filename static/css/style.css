@@ -140,6 +140,30 @@ a:hover {
     border-color: #6f42c1;
 }
 
+/* Pink outline button */
+.btn-outline-pink {
+    color: #e91e63;
+    border-color: #e91e63;
+}
+
+.btn-outline-pink:hover {
+    color: #fff;
+    background-color: #e91e63;
+    border-color: #e91e63;
+}
+
+/* Teal outline button */
+.btn-outline-teal {
+    color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
+}
+
+.btn-outline-teal:hover {
+    color: #fff;
+    background-color: var(--clearwater-teal);
+    border-color: var(--clearwater-teal);
+}
+
 .card-header {
     border-bottom: 1px solid var(--vapor-gray);
     background-color: var(--vapor-gray);

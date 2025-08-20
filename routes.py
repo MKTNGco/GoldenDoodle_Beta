@@ -24,6 +24,40 @@ STRIPE_DISABLED = os.environ.get('STRIPE_DISABLED', 'false').lower() == 'true'
 
 logger = logging.getLogger(__name__)
 
+def is_beta_organization(tenant_id):
+    """Check if a tenant is a beta organization by checking if any beta users are in it"""
+    try:
+        from user_source_tracker import user_source_tracker
+        from beta_trial_manager import beta_trial_manager
+        
+        # Get organization users
+        org_users = db_manager.get_organization_users(tenant_id)
+        
+        # Check if any users have beta trials
+        for user in org_users:
+            if beta_trial_manager.is_beta_user(user.email):
+                return True
+                
+        # Also check user sources for beta signups
+        for user in org_users:
+            try:
+                conn = db_manager.get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT signup_source FROM user_sources WHERE user_email = %s", (user.email,))
+                result = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                
+                if result and result[0] == 'invitation_beta':
+                    return True
+            except:
+                continue
+                
+        return False
+    except Exception as e:
+        logger.error(f"Error checking if organization is beta: {e}")
+        return False
+
 
 @app.route('/')
 def index():
@@ -135,6 +169,12 @@ def register():
                         is_organization_invite=is_organization_invite,
                         organization_invite=organization_invite)
 
+                # Check if this is a beta organization
+                tenant = db_manager.get_tenant_by_id(organization_invite['tenant_id'])
+                
+                # For beta organizations, members also get team level access
+                member_subscription_level = SubscriptionLevel.TEAM
+                
                 # Create user as organization member with predetermined settings
                 user_id = db_manager.create_user(
                     tenant_id=organization_invite['tenant_id'],
@@ -142,8 +182,7 @@ def register():
                     last_name=last_name,
                     email=email,
                     password=password,
-                    subscription_level=SubscriptionLevel.
-                    TEAM,  # Predetermined for organization members
+                    subscription_level=member_subscription_level,
                     is_admin=False  # Regular team member, not admin
                 )
 
@@ -216,9 +255,21 @@ def register():
                     organization_invite=organization_invite)
 
             # Create tenant and determine brand voice limits
-            subscription_enum = SubscriptionLevel(subscription_level)
+            # subscription_enum may have been updated for beta users above
+            if 'subscription_enum' not in locals():
+                subscription_enum = SubscriptionLevel(subscription_level)
 
-            if user_type == 'company':
+            # Beta users are always treated as company accounts with team benefits
+            if is_beta_user:
+                # Force beta users to be company type with team plan benefits
+                max_brand_voices = 10  # Give beta users generous brand voice limit
+                tenant = db_manager.create_tenant(
+                    name=organization_name if organization_name else f"{first_name} {last_name}'s Beta Organization",
+                    tenant_type=TenantType.COMPANY,
+                    max_brand_voices=max_brand_voices)
+                is_admin = True  # Beta users are always admins of their organization
+                logger.info(f"Created beta organization for {email} with {max_brand_voices} brand voices")
+            elif user_type == 'company':
                 # Team or Enterprise plans
                 if subscription_enum == SubscriptionLevel.TEAM:
                     max_brand_voices = 3
@@ -348,23 +399,23 @@ def register():
 
             # Check if this is a beta user or if we should skip payment processing
             skip_payment = False
+            is_beta_user = False
 
+            # Check if user is beta (from invitation) - this takes priority
+            if invitation_data and invitation_data.get('invitation_type') == 'beta':
+                skip_payment = True
+                is_beta_user = True
+                # Force beta users to team subscription level for "The Organization" plan
+                subscription_level = 'team'
+                subscription_enum = SubscriptionLevel.TEAM
+                logger.info(f"Beta user detected - setting to team subscription and skipping payment for {email}")
             # Check if Stripe is globally disabled
-            if STRIPE_DISABLED:
+            elif STRIPE_DISABLED:
                 skip_payment = True
-                logger.info(
-                    f"Stripe is disabled globally - skipping payment for {email}"
-                )
-            # Check if user is beta (from invitation)
-            elif invitation_data and invitation_data.get(
-                    'invitation_type') == 'beta':
-                skip_payment = True
-                logger.info(
-                    f"Beta user detected - skipping payment for {email}")
+                logger.info(f"Stripe is disabled globally - skipping payment for {email}")
 
             # For paid plans, either process payment or skip for beta users
-            if subscription_level in ['solo', 'team', 'professional'
-                                      ] and not skip_payment:
+            if subscription_level in ['solo', 'team', 'professional'] and not skip_payment:
                 # Only process Stripe payment for non-beta users
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
@@ -496,8 +547,7 @@ def register():
                     if invitation_data.get('invitation_type') == 'beta':
                         email_sent = email_service.send_beta_welcome_email(
                             email, verification_token, first_name)
-                    elif invitation_data.get(
-                            'invitation_type') == 'user_referral':
+                    elif invitation_data.get('invitation_type') == 'user_referral':
                         email_sent = email_service.send_referral_welcome_email(
                             email, verification_token, first_name)
                     else:
@@ -511,7 +561,7 @@ def register():
                     if invitation_data:
                         if invitation_data.get('invitation_type') == 'beta':
                             flash(
-                                'Welcome to the GoldenDoodleLM Beta! Your account has been created with a 90-day trial. Please check your email to verify your account.',
+                                'Welcome to the GoldenDoodleLM Beta! Your organization account has been created with a 90-day trial on "The Organization" plan. You can invite team members who will also bypass payment. Please check your email to verify your account.',
                                 'success')
                         else:
                             flash(

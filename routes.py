@@ -35,6 +35,25 @@ def register():
     is_organization_invite = request.args.get('invite') == 'organization'
     organization_invite = session.get('organization_invite') if is_organization_invite else None
 
+    # Check for invitation codes via URL parameters
+    invitation_code = request.args.get('ref') or request.args.get('invite')
+    invitation_data = None
+    
+    if invitation_code and invitation_code != 'organization':
+        # Look up invitation in the invitations.json file
+        from invitation_manager import invitation_manager
+        invitation_data = invitation_manager.get_invitation(invitation_code)
+        
+        if invitation_data and invitation_data['status'] == 'pending':
+            logger.info(f"Valid invitation found for code: {invitation_code}")
+        elif invitation_data:
+            logger.warning(f"Invitation {invitation_code} found but status is: {invitation_data['status']}")
+            flash(f'This invitation has already been {invitation_data["status"]}.', 'warning')
+            invitation_data = None
+        else:
+            logger.warning(f"Invalid invitation code: {invitation_code}")
+            flash('Invalid or expired invitation code.', 'error')
+
     # Handle payment cancellation
     if request.args.get('payment_cancelled'):
         flash('Payment was cancelled. You can complete your registration with a free plan or try again with a paid plan.', 'info')
@@ -365,7 +384,9 @@ def register():
 
     return render_template('register.html', 
                          is_organization_invite=is_organization_invite,
-                         organization_invite=organization_invite)
+                         organization_invite=organization_invite,
+                         invitation_data=invitation_data,
+                         invitation_code=invitation_code)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

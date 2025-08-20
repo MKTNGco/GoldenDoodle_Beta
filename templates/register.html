@@ -10,11 +10,23 @@
                 <div class="card-body p-5">
                     <div class="text-center mb-4">
                         <i class="fas fa-heart text-primary mb-3" style="font-size: 3rem;"></i>
+                        {% if invitation_data %}
+                        <h2 class="fw-bold text-primary">You're Invited!</h2>
+                        <div class="alert alert-success">
+                            <i class="fas fa-envelope-open me-2"></i>
+                            You've been invited to join <strong>{{ invitation_data.organization_name }}</strong> on GoldenDoodleLM!
+                        </div>
+                        <p class="text-muted">Complete your registration below</p>
+                        {% else %}
                         <h2 class="fw-bold text-primary">Join GoldenDoodleLM</h2>
                         <p class="text-muted">Your Compassionate Content Companion</p>
+                        {% endif %}
                     </div>
 
                     <form method="POST" id="registerForm">
+                        {% if invitation_code %}
+                        <input type="hidden" name="invitation_code" value="{{ invitation_code }}">
+                        {% endif %}
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -35,7 +47,13 @@
                         <div class="mb-3">
                             <label for="email" class="form-label fw-semibold">Email Address</label>
                             <input type="email" class="form-control" id="email" name="email" 
-                                   placeholder="Enter your email" required>
+                                   placeholder="Enter your email" 
+                                   value="{{ invitation_data.invitee_email if invitation_data else '' }}"
+                                   {% if invitation_data %}readonly{% endif %}
+                                   required>
+                            {% if invitation_data %}
+                            <small class="text-muted">This email was pre-filled from your invitation.</small>
+                            {% endif %}
                         </div>
 
                         <div class="mb-3">
@@ -54,7 +72,7 @@
                                             <i class="fas fa-user text-primary mb-2"></i>
                                             <h6 class="fw-bold">Individual</h6>
                                             <small class="text-muted">Personal account</small>
-                                            <input type="radio" name="user_type" value="independent" class="d-none" checked>
+                                            <input type="radio" name="user_type" value="independent" class="d-none" {% if not invitation_data %}checked{% endif %}>
                                         </div>
                                     </div>
                                 </div>
@@ -64,17 +82,22 @@
                                             <i class="fas fa-building text-primary mb-2"></i>
                                             <h6 class="fw-bold">Organization</h6>
                                             <small class="text-muted">Team account</small>
-                                            <input type="radio" name="user_type" value="company" class="d-none">
+                                            <input type="radio" name="user_type" value="company" class="d-none" {% if invitation_data %}checked{% endif %}>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="mb-3" id="organizationField" style="display: none;">
+                        <div class="mb-3" id="organizationField" style="{% if invitation_data %}display: block;{% else %}display: none;{% endif %}">
                             <label for="organization_name" class="form-label fw-semibold">Organization Name</label>
                             <input type="text" class="form-control" id="organization_name" name="organization_name" 
-                                   placeholder="Enter your organization name">
+                                   placeholder="Enter your organization name"
+                                   value="{{ invitation_data.organization_name if invitation_data else '' }}"
+                                   {% if invitation_data %}readonly{% endif %}>
+                            {% if invitation_data %}
+                            <small class="text-muted">This organization name was pre-filled from your invitation.</small>
+                            {% endif %}
                         </div>
                         {% endif %}
 
@@ -84,6 +107,17 @@
                                 <i class="fas fa-info-circle me-2"></i>
                                 You're joining <strong>{{ organization_invite.organization_name }}</strong> as a team member.
                                 Your account will be automatically configured with the appropriate access level.
+                            </div>
+                        </div>
+                        {% elif invitation_data %}
+                        <div class="mb-4">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Invitation Details:</strong><br>
+                                • Organization: {{ invitation_data.organization_name }}<br>
+                                • Type: {{ invitation_data.invitation_type.title() }} invitation<br>
+                                • Email: {{ invitation_data.invitee_email }}<br>
+                                • Created: {{ invitation_data.created_at[:10] }}
                             </div>
                         </div>
                         {% else %}
@@ -154,6 +188,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Skip JavaScript setup for organization invites
     const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
+    const hasInvitation = {{ 'true' if invitation_data else 'false' }};
     if (isOrgInvite) {
         return;
     }
@@ -462,9 +497,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     loadPlans();
 
-    // Initialize first options as selected (only for non-invite users)
-    if (document.querySelector('.account-type-card')) {
-        document.querySelector('.account-type-card').classList.add('selected');
+    // Initialize form state based on invitation
+    if (hasInvitation) {
+        // For invitations, select company type and show team plans
+        const companyCard = document.querySelector('.account-type-card[data-type="company"]');
+        if (companyCard) {
+            accountTypeCards.forEach(c => c.classList.remove('selected'));
+            companyCard.classList.add('selected');
+            organizationField.style.display = 'block';
+            document.getElementById('organization_name').required = true;
+            individualPlansDiv.style.display = 'none';
+            teamPlansDiv.style.display = 'block';
+            
+            // Select team plan by default for invitations
+            setTimeout(() => {
+                const teamCard = document.querySelector('[data-level="team"]');
+                if (teamCard) {
+                    teamCard.click();
+                }
+            }, 100);
+        }
+    } else {
+        // Initialize first options as selected (only for non-invite users)
+        if (document.querySelector('.account-type-card')) {
+            document.querySelector('.account-type-card').classList.add('selected');
+        }
     }
 });
 </script>

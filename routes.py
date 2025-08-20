@@ -349,6 +349,17 @@ def register():
                     # TODO: Change to 7 days once Stripe integration is confirmed working
                     trial_days = '0'  # Set to '0' for testing, '7' for production trial
 
+                    logger.info("=== DETAILED STRIPE SESSION CREATION ===")
+                    logger.info(f"About to create Stripe session with:")
+                    logger.info(f"  - Customer Email: {email}")
+                    logger.info(f"  - Price ID: {price_id}")
+                    logger.info(f"  - Customer ID: {customer['id'] if customer else 'None'}")
+                    logger.info(f"  - Success URL: {success_url}")
+                    logger.info(f"  - Cancel URL: {cancel_url}")
+                    logger.info(f"  - Base URL: {base_url}")
+                    logger.info(f"  - Request Host: {request.host}")
+                    logger.info(f"  - Request URL Root: {request.url_root}")
+                    
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
@@ -365,14 +376,34 @@ def register():
 
                     logger.info(f"Stripe session creation result: {stripe_session}")
 
-                    # Additional validation
+                    # Comprehensive validation
                     if stripe_session:
-                        if not stripe_session.get('url'):
+                        session_id = stripe_session.get('id', 'No ID')
+                        session_url = stripe_session.get('url', 'No URL')
+                        session_status = stripe_session.get('status', 'No Status')
+                        
+                        logger.info(f"✓ Session Details:")
+                        logger.info(f"  - ID: {session_id}")
+                        logger.info(f"  - URL: {session_url}")
+                        logger.info(f"  - Status: {session_status}")
+                        
+                        if not session_url:
                             logger.error("❌ Stripe session created but URL is missing")
-                        elif not stripe_session.get('url').startswith('https://'):
-                            logger.error(f"❌ Invalid checkout URL format: {stripe_session.get('url')}")
+                        elif not session_url.startswith('https://checkout.stripe.com/'):
+                            logger.error(f"❌ Invalid checkout URL format: {session_url}")
                         else:
                             logger.info("✓ Stripe session validation passed")
+                            
+                        # Test URL accessibility (basic check)
+                        try:
+                            from urllib.parse import urlparse
+                            parsed_url = urlparse(session_url)
+                            if parsed_url.scheme and parsed_url.netloc:
+                                logger.info("✓ URL structure is valid")
+                            else:
+                                logger.error(f"❌ URL structure invalid: {session_url}")
+                        except Exception as url_e:
+                            logger.error(f"❌ URL validation error: {url_e}")
 
                     if stripe_session and stripe_session.get('url'):
                         # Store pending registration in session for post-payment verification
@@ -386,25 +417,48 @@ def register():
 
                         logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
                         logger.info(f"✓ Checkout URL: {stripe_session['url']}")
+                        logger.info("✓ Pending registration stored in session")
 
-                        # Return clean JSON response
-                        return jsonify({
+                        # Return clean JSON response with additional debug info
+                        response_data = {
                             'success': True,
                             'redirect_to_stripe': True,
                             'checkout_url': stripe_session['url'],
                             'session_id': stripe_session['id']
-                        })
+                        }
+                        
+                        # Add debug info in test mode
+                        if stripe_service.test_mode:
+                            response_data['debug'] = {
+                                'price_id': price_id,
+                                'customer_id': customer['id'] if customer else None,
+                                'user_id': user_id,
+                                'base_url': base_url
+                            }
+                        
+                        logger.info(f"✓ Returning successful response: {response_data}")
+                        return jsonify(response_data)
                     else:
-                        logger.error("❌ Stripe session created but no URL returned")
+                        logger.error("❌ Stripe session creation failed or no URL returned")
+                        logger.error(f"❌ Session data: {stripe_session}")
+                        
                         # Delete the user since payment setup failed
                         try:
+                            logger.info("Cleaning up failed registration...")
                             db_manager.delete_user(user_id)
                             db_manager.delete_tenant(tenant.tenant_id)
-                        except:
-                            pass
+                            logger.info("✓ Cleanup completed")
+                        except Exception as cleanup_e:
+                            logger.error(f"❌ Cleanup failed: {cleanup_e}")
+                            
                         return jsonify({
                             'error': 'Payment session creation failed. Please try again.',
-                            'retry': True
+                            'retry': True,
+                            'debug_info': {
+                                'stripe_response': str(stripe_session),
+                                'price_id': price_id,
+                                'base_url': base_url
+                            } if stripe_service.test_mode else None
                         }), 400
 
                 except Exception as stripe_error:

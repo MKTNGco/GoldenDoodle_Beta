@@ -501,6 +501,205 @@ The GoldenDoodleLM Team
             logger.error(f"Failed to send user referral email to {to_email}: {e}")
             return False
 
+    def send_beta_welcome_email(self, to_email: str, verification_token: str, first_name: str) -> bool:
+        """Send welcome email for beta users"""
+        if not self.client:
+            logger.error("SendGrid client not configured")
+            return False
+
+        try:
+            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            verification_link = f"{base_url}/verify-email?token={verification_token}"
+
+            subject = "Welcome to GoldenDoodleLM Beta - 90 Days Free!"
+
+            plain_content = f"""
+Hello {first_name},
+
+Welcome to the GoldenDoodleLM Beta! 🎉
+
+Your account has been created with a special 90-day beta trial, giving you full access to all premium features.
+
+Please verify your email address by clicking the link below:
+
+{verification_link}
+
+During your beta trial, you'll have access to:
+• Unlimited AI content generation
+• Custom brand voice creation
+• Advanced content analysis tools
+• Priority support
+
+This verification link will expire in 24 hours.
+
+Thank you for being an early adopter of GoldenDoodleLM!
+
+Best regards,
+The GoldenDoodleLM Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #32808c 0%, #2a6b75 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; }}
+        .beta-badge {{ background: #ffc107; color: #212529; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-block; margin: 10px 0; }}
+        .feature {{ margin: 10px 0; padding-left: 20px; position: relative; }}
+        .feature:before {{ content: "✓"; position: absolute; left: 0; color: #32808c; font-weight: bold; }}
+        .button {{ display: inline-block; background: #32808c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ background: #32808c; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to GoldenDoodleLM Beta!</h1>
+            <div class="beta-badge">90-Day Free Trial</div>
+            <p>Your Compassionate Content Companion</p>
+        </div>
+        <div class="content">
+            <h2>Hello {first_name},</h2>
+            <p>Welcome to the GoldenDoodleLM Beta! 🎉</p>
+            <p>Your account has been created with a special <strong>90-day beta trial</strong>, giving you full access to all premium features.</p>
+            <p>Please verify your email address by clicking the button below:</p>
+            <a href="{verification_link}" class="button">Verify Email Address</a>
+            
+            <h3 style="color: #32808c; margin-top: 30px;">During your beta trial, you'll have access to:</h3>
+            <div class="feature">Unlimited AI content generation</div>
+            <div class="feature">Custom brand voice creation</div>
+            <div class="feature">Advanced content analysis tools</div>
+            <div class="feature">Priority support</div>
+            
+            <p style="margin-top: 25px;">This verification link will expire in 24 hours.</p>
+            <p>Thank you for being an early adopter of GoldenDoodleLM!</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br>The GoldenDoodleLM Team</p>
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            message = Mail(
+                from_email=From(self.from_email, self.from_name),
+                to_emails=To(to_email),
+                subject=Subject(subject),
+                plain_text_content=PlainTextContent(plain_content),
+                html_content=HtmlContent(html_content)
+            )
+
+            response = self.client.send(message)
+            logger.info(f"Beta welcome email sent to {to_email}, status: {response.status_code}")
+            return response.status_code == 202
+
+        except Exception as e:
+            logger.error(f"Failed to send beta welcome email to {to_email}: {e}")
+            return False
+
+    def send_referral_welcome_email(self, to_email: str, verification_token: str, first_name: str) -> bool:
+        """Send welcome email for referral users"""
+        if not self.client:
+            logger.error("SendGrid client not configured")
+            return False
+
+        try:
+            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            verification_link = f"{base_url}/verify-email?token={verification_token}"
+
+            subject = "Welcome to GoldenDoodleLM - Thanks for the Referral!"
+
+            plain_content = f"""
+Hello {first_name},
+
+Welcome to GoldenDoodleLM! Thanks for joining us through a friend's recommendation.
+
+Please verify your email address by clicking the link below:
+
+{verification_link}
+
+As a new member, you'll get a 7-day premium trial to explore all our features:
+• AI-powered content generation
+• Trauma-informed communication principles
+• Custom brand voice tools
+• Safe and supportive content creation
+
+This verification link will expire in 24 hours.
+
+We're excited to help you create compassionate, impactful content!
+
+Best regards,
+The GoldenDoodleLM Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #32808c 0%, #2a6b75 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; }}
+        .referral-badge {{ background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-block; margin: 10px 0; }}
+        .feature {{ margin: 10px 0; padding-left: 20px; position: relative; }}
+        .feature:before {{ content: "✓"; position: absolute; left: 0; color: #32808c; font-weight: bold; }}
+        .button {{ display: inline-block; background: #32808c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ background: #32808c; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to GoldenDoodleLM!</h1>
+            <div class="referral-badge">Referred by a Friend</div>
+            <p>Your Compassionate Content Companion</p>
+        </div>
+        <div class="content">
+            <h2>Hello {first_name},</h2>
+            <p>Welcome to GoldenDoodleLM! Thanks for joining us through a friend's recommendation.</p>
+            <p>Please verify your email address by clicking the button below:</p>
+            <a href="{verification_link}" class="button">Verify Email Address</a>
+            
+            <h3 style="color: #32808c; margin-top: 30px;">As a new member, you'll get a 7-day premium trial to explore all our features:</h3>
+            <div class="feature">AI-powered content generation</div>
+            <div class="feature">Trauma-informed communication principles</div>
+            <div class="feature">Custom brand voice tools</div>
+            <div class="feature">Safe and supportive content creation</div>
+            
+            <p style="margin-top: 25px;">This verification link will expire in 24 hours.</p>
+            <p>We're excited to help you create compassionate, impactful content!</p>
+        </div>
+        <div class="footer">
+            <p>Best regards,<br>The GoldenDoodleLM Team</p>
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            message = Mail(
+                from_email=From(self.from_email, self.from_name),
+                to_emails=To(to_email),
+                subject=Subject(subject),
+                plain_text_content=PlainTextContent(plain_content),
+                html_content=HtmlContent(html_content)
+            )
+
+            response = self.client.send(message)
+            logger.info(f"Referral welcome email sent to {to_email}, status: {response.status_code}")
+            return response.status_code == 202
+
+        except Exception as e:
+            logger.error(f"Failed to send referral welcome email to {to_email}: {e}")
+            return False
+
     def send_feedback_email(self, feedback_data: dict, attachments: list = None) -> bool:
         """Send feedback email to support"""
         try:

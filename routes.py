@@ -225,6 +225,15 @@ def register():
                 }
             )
 
+            # Mark invitation as accepted if this was from an invitation
+            if invitation_data:
+                try:
+                    from invitation_manager import invitation_manager
+                    invitation_manager.mark_accepted(invitation_code)
+                    logger.info(f"Marked invitation {invitation_code} as accepted")
+                except Exception as inv_error:
+                    logger.warning(f"Failed to mark invitation as accepted: {inv_error}")
+
             # Track user registration and source (non-critical)
             try:
                 # Determine signup source based on invitation type
@@ -371,7 +380,8 @@ def register():
                             'user_id': user_id,
                             'email': email,
                             'first_name': first_name,
-                            'needs_verification': True
+                            'needs_verification': True,
+                            'original_invite_code': invitation_code if invitation_data else None
                         }
 
                         logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
@@ -410,23 +420,29 @@ def register():
                         'retry': True
                     }), 400
 
-            # Mark invitation as accepted if this was from an invitation
-            if invitation_data:
-                try:
-                    from invitation_manager import invitation_manager
-                    invitation_manager.mark_accepted(invitation_code)
-                    logger.info(f"Marked invitation {invitation_code} as accepted")
-                except Exception as inv_error:
-                    logger.warning(f"Failed to mark invitation as accepted: {inv_error}")
-
             # For free plans or fallback, send verification email
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
 
             if db_manager.create_verification_token(user_id, token_hash):
-                if email_service.send_verification_email(email, verification_token, first_name):
+                # Send appropriate welcome email based on signup source
+                email_sent = False
+                if invitation_data:
+                    if invitation_data.get('invitation_type') == 'beta':
+                        email_sent = email_service.send_beta_welcome_email(email, verification_token, first_name)
+                    elif invitation_data.get('invitation_type') == 'user_referral':
+                        email_sent = email_service.send_referral_welcome_email(email, verification_token, first_name)
+                    else:
+                        email_sent = email_service.send_verification_email(email, verification_token, first_name)
+                else:
+                    email_sent = email_service.send_verification_email(email, verification_token, first_name)
+                
+                if email_sent:
                     if invitation_data:
-                        flash(f'Welcome! Your account has been created successfully. Please check your email to verify your account before signing in.', 'success')
+                        if invitation_data.get('invitation_type') == 'beta':
+                            flash('Welcome to the GoldenDoodleLM Beta! Your account has been created with a 90-day trial. Please check your email to verify your account.', 'success')
+                        else:
+                            flash('Welcome! Your account has been created successfully. Please check your email to verify your account before signing in.', 'success')
                     else:
                         flash('Account created successfully! Please check your email to verify your account before signing in.', 'success')
                     return redirect(url_for('login'))
@@ -2604,26 +2620,38 @@ def payment_success():
 
                 # Track user signup source for paid registration (non-critical)
                 try:
+                    # Check if there was an invitation code from the original registration
+                    original_invite_code = None
+                    if 'pending_registration' in session:
+                        pending_reg = session.get('pending_registration')
+                        original_invite_code = pending_reg.get('original_invite_code')
+                    
+                    # Mark invitation as accepted if applicable
+                    if original_invite_code:
+                        try:
+                            from invitation_manager import invitation_manager
+                            invitation_manager.mark_accepted(original_invite_code)
+                            logger.info(f"Marked invitation {original_invite_code} as accepted for paid user")
+                        except Exception as inv_error:
+                            logger.warning(f"Failed to mark invitation as accepted: {inv_error}")
+                    
                     user_source_tracker.track_user_signup(
                         user_email=user.email,
                         signup_source=f'paid_{user.subscription_level.value}',
-                        invite_code=None
+                        invite_code=original_invite_code
                     )
                     logger.info(f"Tracked paid signup for {user.email}")
                     
                     # Check if this was a beta user who upgraded to paid
-                    if 'pending_registration' in session:
-                        pending_reg = session.get('pending_registration')
-                        original_invite_code = pending_reg.get('original_invite_code')
-                        if original_invite_code:
-                            from beta_trial_manager import beta_trial_manager
-                            if beta_trial_manager.is_beta_user(user.email, original_invite_code):
-                                beta_trial_manager.create_beta_trial(
-                                    user_id=str(user.user_id),
-                                    user_email=user.email,
-                                    invite_code=original_invite_code
-                                )
-                                logger.info(f"Created beta trial for paid beta user {user.email}")
+                    if original_invite_code:
+                        from beta_trial_manager import beta_trial_manager
+                        if beta_trial_manager.is_beta_user(user.email, original_invite_code):
+                            beta_trial_manager.create_beta_trial(
+                                user_id=str(user.user_id),
+                                user_email=user.email,
+                                invite_code=original_invite_code
+                            )
+                            logger.info(f"Created beta trial for paid beta user {user.email}")
                                 
                 except Exception as tracking_error:
                     logger.warning(f"Failed to track paid signup for {user.email}: {tracking_error}")

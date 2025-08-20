@@ -3123,6 +3123,7 @@ def admin_beta_invites():
     if request.method == 'POST':
         # Process the form submission
         invitations_text = request.form.get('invitations', '').strip()
+        send_emails = request.form.get('send_emails') == 'on'
         
         if not invitations_text:
             flash('Please enter at least one email,organization pair.', 'error')
@@ -3133,6 +3134,11 @@ def admin_beta_invites():
         results = []
         
         from invitation_manager import invitation_manager
+        from email_service import detect_email_system
+        
+        # Check email system status
+        email_status = detect_email_system()
+        email_available = email_status['ready'] and send_emails
         
         for line in lines:
             try:
@@ -3142,7 +3148,8 @@ def admin_beta_invites():
                     results.append({
                         'line': line,
                         'error': 'Invalid format. Expected: email,organization',
-                        'success': False
+                        'success': False,
+                        'email_sent': False
                     })
                     continue
                 
@@ -3153,7 +3160,8 @@ def admin_beta_invites():
                     results.append({
                         'line': line,
                         'error': 'Invalid email address',
-                        'success': False
+                        'success': False,
+                        'email_sent': False
                     })
                     continue
                 
@@ -3169,26 +3177,53 @@ def admin_beta_invites():
                 base_url = request.url_root.rstrip('/')
                 invite_link = f"{base_url}/register?ref={invite_code}"
                 
-                results.append({
+                # Try to send email if requested and available
+                email_sent = False
+                email_error = None
+                
+                if email_available:
+                    try:
+                        email_sent = email_service.send_beta_invitation_email(
+                            to_email=email,
+                            invite_code=invite_code,
+                            organization_name=organization
+                        )
+                        if not email_sent:
+                            email_error = "Failed to send email"
+                    except Exception as email_ex:
+                        email_error = f"Email error: {str(email_ex)}"
+                        logger.error(f"Failed to send beta invitation email to {email}: {email_ex}")
+                
+                result = {
                     'line': line,
                     'email': email,
                     'organization': organization,
                     'invite_code': invite_code,
                     'invite_link': invite_link,
-                    'success': True
-                })
+                    'success': True,
+                    'email_sent': email_sent,
+                    'email_error': email_error
+                }
+                
+                results.append(result)
                 
             except Exception as e:
                 results.append({
                     'line': line,
                     'error': f'Error: {str(e)}',
-                    'success': False
+                    'success': False,
+                    'email_sent': False
                 })
         
-        return render_template('admin_beta_results.html', results=results)
+        return render_template('admin_beta_results.html', 
+                             results=results, 
+                             email_status=email_status,
+                             emails_requested=send_emails)
     
     # GET request - show the form
-    return render_template('admin_beta_invites.html')
+    from email_service import detect_email_system
+    email_status = detect_email_system()
+    return render_template('admin_beta_invites.html', email_status=email_status)
 
 @app.route('/debug-env')
 @super_admin_required

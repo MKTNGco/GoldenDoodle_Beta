@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Beta Invitations Results - Admin{% endblock %}
@@ -17,7 +16,7 @@
                 <div class="card-body">
                     {% set success_count = results | selectattr('success') | list | length %}
                     {% set error_count = results | rejectattr('success') | list | length %}
-                    
+
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <div class="alert alert-success">
@@ -34,24 +33,44 @@
                         </div>
                         {% endif %}
                     </div>
-                    
+
+                    {% if email_status %}
+                    <div class="alert alert-info">
+                        <strong>Email System:</strong> 
+                        {% if email_status.ready %}
+                            {{ email_status.active_system.title() }} configured and ready
+                            {% if emails_requested %}
+                                - Emails were sent automatically
+                            {% else %}
+                                - Email sending was not requested
+                            {% endif %}
+                        {% else %}
+                            Not configured - only invitation codes were generated
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+
                     {% if success_count > 0 %}
                     <h5 class="text-success mb-3"><i class="fas fa-clipboard-list me-2"></i>Successfully Created Invitations</h5>
                     <div class="table-responsive mb-4">
                         <table class="table table-striped">
                             <thead>
                                 <tr>
+                                    <th>Input</th>
                                     <th>Email</th>
                                     <th>Organization</th>
-                                    <th>Invitation Code</th>
-                                    <th>Invitation Link</th>
-                                    <th>Actions</th>
+                                    <th>Invite Code</th>
+                                    <th>Invite Link</th>
+                                    <th>Status</th>
+                                    <th>Email Sent</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for result in results %}
                                 {% if result.success %}
                                 <tr>
+                                    <td>{{ result.line }}</td>
                                     <td>{{ result.email }}</td>
                                     <td>{{ result.organization }}</td>
                                     <td><code>{{ result.invite_code }}</code></td>
@@ -67,9 +86,26 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <a href="{{ result.invite_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-external-link-alt"></i> Test
-                                        </a>
+                                        {% if result.success %}
+                                            <span class="badge bg-success">Success</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Error</span>
+                                            <br><small class="text-danger">{{ result.error }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if emails_requested %}
+                                            {% if result.email_sent %}
+                                                <span class="badge bg-success"><i class="fas fa-check"></i> Sent</span>
+                                            {% elif result.email_error %}
+                                                <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Failed</span>
+                                                <br><small class="text-warning">{{ result.email_error }}</small>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Not sent</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not requested</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endif %}
@@ -78,15 +114,20 @@
                         </table>
                     </div>
                     {% endif %}
-                    
+
                     {% if error_count > 0 %}
                     <h5 class="text-danger mb-3"><i class="fas fa-exclamation-circle me-2"></i>Errors</h5>
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Input Line</th>
-                                    <th>Error</th>
+                                    <th>Input</th>
+                                    <th>Email</th>
+                                    <th>Organization</th>
+                                    <th>Invite Code</th>
+                                    <th>Invite Link</th>
+                                    <th>Status</th>
+                                    <th>Email Sent</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -94,7 +135,35 @@
                                 {% if not result.success %}
                                 <tr>
                                     <td><code>{{ result.line }}</code></td>
+                                    <td>{{ result.email }}</td>
+                                    <td>{{ result.organization }}</td>
+                                    <td><code>{{ result.invite_code }}</code></td>
+                                    <td>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   value="{{ result.invite_link }}" 
+                                                   id="link-{{ loop.index }}" readonly>
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" 
+                                                    onclick="copyToClipboard('link-{{ loop.index }}')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                     <td class="text-danger">{{ result.error }}</td>
+                                    <td>
+                                        {% if emails_requested %}
+                                            {% if result.email_sent %}
+                                                <span class="badge bg-success"><i class="fas fa-check"></i> Sent</span>
+                                            {% elif result.email_error %}
+                                                <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Failed</span>
+                                                <br><small class="text-warning">{{ result.email_error }}</small>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Not sent</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not requested</span>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% endif %}
                                 {% endfor %}

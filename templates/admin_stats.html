@@ -351,9 +351,9 @@ function sortAllInvitations(column, direction) {
     const filtered = getFilteredInvitations();
     const searchTerm = document.getElementById('searchInvitations').value.toLowerCase();
     const searched = filtered.filter(inv => 
-        inv.invitee_email.toLowerCase().includes(searchTerm) ||
-        inv.organization_name.toLowerCase().includes(searchTerm) ||
-        inv.invite_code.toLowerCase().includes(searchTerm)
+        (inv.invitee_email?.toLowerCase() || '').includes(searchTerm) ||
+        (inv.organization_name?.toLowerCase() || '').includes(searchTerm) ||
+        (inv.invite_code?.toLowerCase() || '').includes(searchTerm)
     );
     const sorted = sortData(searched, column, direction);
     renderAllInvitations(sorted);
@@ -566,7 +566,7 @@ function renderAllInvitations(invitations) {
     }
 
     invitations.forEach(inv => {
-        const createdDate = new Date(inv.created_at).toLocaleDateString();
+        const createdDate = inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '-';
         const acceptedDate = inv.accepted_at ? new Date(inv.accepted_at).toLocaleDateString() : '-';
 
         const statusBadge = inv.status === 'accepted' ? 'bg-success' : 
@@ -574,11 +574,11 @@ function renderAllInvitations(invitations) {
 
         const row = `
             <tr>
-                <td>${inv.invitee_email}</td>
-                <td>${inv.organization_name}</td>
-                <td><span class="badge bg-info">${inv.invitation_type}</span></td>
-                <td><code>${inv.invite_code}</code></td>
-                <td><span class="badge ${statusBadge}">${inv.status}</span></td>
+                <td>${inv.invitee_email || ''}</td>
+                <td>${inv.organization_name || 'N/A'}</td>
+                <td><span class="badge bg-info">${inv.invitation_type || 'unknown'}</span></td>
+                <td><code>${inv.invite_code || ''}</code></td>
+                <td><span class="badge ${statusBadge}">${inv.status || 'unknown'}</span></td>
                 <td>${createdDate}</td>
                 <td>${acceptedDate}</td>
             </tr>
@@ -689,9 +689,9 @@ function updateAllInvitationsTable(invitations) {
     // Apply search filter
     const searchTerm = document.getElementById('searchInvitations').value.toLowerCase();
     const filtered = invitations.filter(inv => 
-        inv.invitee_email.toLowerCase().includes(searchTerm) ||
-        inv.organization_name.toLowerCase().includes(searchTerm) ||
-        inv.invite_code.toLowerCase().includes(searchTerm)
+        (inv.invitee_email?.toLowerCase() || '').includes(searchTerm) ||
+        (inv.organization_name?.toLowerCase() || '').includes(searchTerm) ||
+        (inv.invite_code?.toLowerCase() || '').includes(searchTerm)
     );
 
     renderAllInvitations(filtered);

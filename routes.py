@@ -3173,6 +3173,146 @@ def test_stripe_direct():
         )
         return f"Error: {str(e)}", 500
 
+@app.route('/debug-stripe-full')
+def debug_stripe_full():
+    """Comprehensive Stripe debugging endpoint"""
+    try:
+        import os
+        import traceback
+        
+        # Environment check
+        env_status = {
+            'STRIPE_SECRET_KEY_TEST': 'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
+            'STRIPE_PUBLISHABLE_KEY_TEST': 'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
+            'STRIPE_WEBHOOK_SECRET': 'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set'
+        }
+        
+        # Service status
+        service_status = {
+            'test_mode': stripe_service.test_mode,
+            'publishable_key_available': bool(stripe_service.get_publishable_key()),
+            'price_mapping': stripe_service.plan_price_mapping
+        }
+        
+        # Database test
+        try:
+            conn = db_manager.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            conn.close()
+            db_status = "✓ Connected"
+        except Exception as db_e:
+            db_status = f"❌ Error: {str(db_e)}"
+        
+        # Customer creation test
+        customer_test = "Not tested"
+        try:
+            test_customer = stripe_service.create_customer(
+                email="debug@example.com",
+                name="Debug User",
+                metadata={'debug': 'true'}
+            )
+            if test_customer:
+                customer_test = f"✓ Success: {test_customer['id']}"
+            else:
+                customer_test = "❌ Failed to create"
+        except Exception as cust_e:
+            customer_test = f"❌ Error: {str(cust_e)}"
+        
+        # Checkout session test
+        checkout_test = "Not tested"
+        try:
+            base_url = request.url_root.rstrip('/')
+            test_session = stripe_service.create_checkout_session(
+                customer_email="debug@example.com",
+                price_id='price_1RvL44Hynku0jyEH12IrEJuI',
+                success_url=f"{base_url}/test-success",
+                cancel_url=f"{base_url}/test-cancel",
+                metadata={'debug': 'true'}
+            )
+            if test_session:
+                checkout_test = f"✓ Success: {test_session['id']}"
+            else:
+                checkout_test = "❌ Failed to create"
+        except Exception as check_e:
+            checkout_test = f"❌ Error: {str(check_e)}"
+        
+        # Current URL info
+        url_info = {
+            'base_url': request.url_root.rstrip('/'),
+            'host': request.host,
+            'is_https': request.is_secure
+        }
+        
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Stripe Debug Report</title>
+            <style>
+                body {{ font-family: monospace; margin: 40px; }}
+                .section {{ margin: 20px 0; padding: 15px; border: 1px solid #ccc; }}
+                .success {{ color: green; }}
+                .error {{ color: red; }}
+                .warning {{ color: orange; }}
+                pre {{ background: #f5f5f5; padding: 10px; overflow: auto; }}
+            </style>
+        </head>
+        <body>
+            <h1>Stripe Integration Debug Report</h1>
+            
+            <div class="section">
+                <h2>Environment Variables</h2>
+                <pre>{env_status}</pre>
+            </div>
+            
+            <div class="section">
+                <h2>Service Configuration</h2>
+                <pre>{service_status}</pre>
+            </div>
+            
+            <div class="section">
+                <h2>Database Status</h2>
+                <pre>{db_status}</pre>
+            </div>
+            
+            <div class="section">
+                <h2>Customer Creation Test</h2>
+                <pre>{customer_test}</pre>
+            </div>
+            
+            <div class="section">
+                <h2>Checkout Session Test</h2>
+                <pre>{checkout_test}</pre>
+            </div>
+            
+            <div class="section">
+                <h2>URL Information</h2>
+                <pre>{url_info}</pre>
+            </div>
+            
+            <div class="section">
+                <h2>Quick Actions</h2>
+                <a href="/test-stripe-direct">Test Direct Checkout</a> |
+                <a href="/test-stripe">API Test</a>
+            </div>
+        </body>
+        </html>
+        '''
+        
+    except Exception as e:
+        return f'''
+        <html>
+        <body>
+            <h1>Debug Error</h1>
+            <pre>Error: {str(e)}</pre>
+            <pre>Traceback: {traceback.format_exc()}</pre>
+        </body>
+        </html>
+        ''', 500
+
 @app.route('/test-success')
 def test_success():
     """Test success page"""

@@ -63,14 +63,14 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="first_name" class="form-label fw-semibold">First Name</label>
-                                    <input type="text" class="form-control" id="first_name" name="first_name" 
+                                    <input type="text" class="form-control" id="first_name" name="first_name"
                                            placeholder="Enter your first name" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="last_name" class="form-label fw-semibold">Last Name</label>
-                                    <input type="text" class="form-control" id="last_name" name="last_name" 
+                                    <input type="text" class="form-control" id="last_name" name="last_name"
                                            placeholder="Enter your last name" required>
                                 </div>
                             </div>
@@ -78,8 +78,8 @@
 
                         <div class="mb-3">
                             <label for="email" class="form-label fw-semibold">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email" 
-                                   placeholder="Enter your email" 
+                            <input type="email" class="form-control" id="email" name="email"
+                                   placeholder="Enter your email"
                                    value="{{ invitation_data.invitee_email if invitation_data else '' }}"
                                    {% if invitation_data %}readonly{% endif %}
                                    required>
@@ -90,7 +90,7 @@
 
                         <div class="mb-3">
                             <label for="password" class="form-label fw-semibold">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" 
+                            <input type="password" class="form-control" id="password" name="password"
                                    placeholder="Create a secure password" required>
                         </div>
 
@@ -123,7 +123,7 @@
 
                         <div class="mb-3" id="organizationField" style="{% if invitation_data %}display: block;{% else %}display: none;{% endif %}">
                             <label for="organization_name" class="form-label fw-semibold">Organization Name</label>
-                            <input type="text" class="form-control" id="organization_name" name="organization_name" 
+                            <input type="text" class="form-control" id="organization_name" name="organization_name"
                                    placeholder="Enter your organization name"
                                    value="{{ invitation_data.organization_name if invitation_data else '' }}"
                                    {% if invitation_data %}readonly{% endif %}>
@@ -197,7 +197,7 @@
 
                     <div class="text-center">
                         <p class="text-muted mb-0">
-                            Already have an account? 
+                            Already have an account?
                             <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-semibold">
                                 Sign in here
                             </a>
@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <ul class="list-unstyled small mb-0">
                         ${features.map(feature => `
                             <li>
-                                <i class="fas fa-${feature.available ? 'check text-success' : 'times text-muted'} me-1"></i> 
+                                <i class="fas fa-${feature.available ? 'check text-success' : 'times text-muted'} me-1"></i>
                                 ${feature.text}
                             </li>
                         `).join('')}
@@ -383,9 +383,9 @@ document.addEventListener('DOMContentLoaded', function() {
             'priority': 'Priority Support'
         };
 
-        features.push({ 
-            text: supportLevels[plan.support_level] || 'Support', 
-            available: plan.support_level !== 'none' 
+        features.push({
+            text: supportLevels[plan.support_level] || 'Support',
+            available: plan.support_level !== 'none'
         });
 
         return features;
@@ -531,7 +531,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             } catch (error) {
                 console.error('Registration error:', error);
-                showError('Connection error: Unable to process payment. Please check your internet connection and try again.');
+
+                // Check if response is HTML (500 error page)
+                if (typeof error === 'object' && error.message && error.message.includes('<!DOCTYPE html>')) {
+                    showError('Server error occurred. Please try again or contact support if the problem persists.');
+                } else {
+                    showError('An unexpected error occurred. Please try again.');
+                }
             }
         }
     });

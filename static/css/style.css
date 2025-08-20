@@ -787,6 +787,30 @@ a:hover {
     color: var(--cloud-white) !important;
 }
 
+/* Password toggle button */
+#togglePassword {
+    border-left: none;
+    background-color: var(--cloud-white);
+    border-color: #ced4da;
+    color: var(--charcoal);
+    transition: all 0.2s ease;
+}
+
+#togglePassword:hover {
+    background-color: var(--vapor-gray);
+    border-color: var(--clearwater-teal);
+    color: var(--clearwater-teal);
+}
+
+#togglePassword:focus {
+    box-shadow: 0 0 0 0.2rem rgba(53, 126, 140, 0.25);
+    border-color: var(--clearwater-teal);
+}
+
+.input-group .form-control:focus + #togglePassword {
+    border-color: var(--clearwater-teal);
+}
+
 .subscription-card .bg-info {
     background-color: var(--deep-teal) !important;
     color: var(--cloud-white) !important;

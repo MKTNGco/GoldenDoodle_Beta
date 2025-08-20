@@ -90,8 +90,13 @@
 
                         <div class="mb-3">
                             <label for="password" class="form-label fw-semibold">Password</label>
-                            <input type="password" class="form-control" id="password" name="password"
-                                   placeholder="Create a secure password" required>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" name="password"
+                                       placeholder="Create a secure password" required>
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="fas fa-eye" id="passwordToggleIcon"></i>
+                                </button>
+                            </div>
                         </div>
 
                         {% if not is_organization_invite %}
@@ -548,6 +553,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize
     loadPlans();
+
+    // Password visibility toggle
+    const togglePasswordButton = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const passwordToggleIcon = document.getElementById('passwordToggleIcon');
+
+    if (togglePasswordButton && passwordInput && passwordToggleIcon) {
+        togglePasswordButton.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Toggle the icon
+            if (type === 'password') {
+                passwordToggleIcon.classList.remove('fa-eye-slash');
+                passwordToggleIcon.classList.add('fa-eye');
+            } else {
+                passwordToggleIcon.classList.remove('fa-eye');
+                passwordToggleIcon.classList.add('fa-eye-slash');
+            }
+        });
+    }
 
     // Initialize form state based on invitation
     if (hasInvitation) {

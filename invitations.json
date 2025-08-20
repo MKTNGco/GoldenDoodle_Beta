@@ -1,0 +1,19 @@
+[
+  {
+    "invite_code": "8TGZ41DZ",
+    "invitee_email": "test@example.com",
+    "organization_name": "Test Org",
+    "invitation_type": "beta",
+    "status": "accepted",
+    "created_at": "2025-08-19T23:32:47.448948",
+    "accepted_at": "2025-08-19T23:32:47.451667"
+  },
+  {
+    "invite_code": "BETAZTRD",
+    "invitee_email": "beta@example.com",
+    "organization_name": "Beta Org",
+    "invitation_type": "beta",
+    "status": "pending",
+    "created_at": "2025-08-19T23:32:47.455420"
+  }
+]

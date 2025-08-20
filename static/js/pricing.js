@@ -312,5 +312,36 @@ class PricingPage {
 
 // Initialize pricing page
 document.addEventListener('DOMContentLoaded', function() {
-    new PricingPage();
+    const pricingPage = new PricingPage(); // Initialize the class
+    
+    // Dummy function to mimic the fetch and displayPlans logic from the original snippet
+    // In a real scenario, this would be part of the loadPlans method or similar.
+    function displayPlans(data) {
+        console.log("Displaying plans:", data);
+        // This function would typically update the DOM with plan details
+        // For the purpose of this fix, we just log it.
+    }
+
+    // Simulate loading plans upon DOMContentLoaded, mirroring the original intent
+    // The actual loading is handled within the PricingPage class constructor.
+    // This part of the original snippet was primarily for demonstrating fetch and displayPlans.
+    // The new changes focus on the PricingPage class itself.
+
+    // If there was a separate loading/pricing container setup outside the class, 
+    // it would be handled here. However, the class now manages its own loading state.
+
+    // The original snippet had a direct fetch call here. The class's constructor
+    // already calls loadPlans, which includes the fetch. So, we ensure that's done.
+
+    // Mocking the loading indicator logic that might have been here:
+    const loadingElement = document.getElementById('loading');
+    const pricingContainer = document.getElementById('pricing-container');
+
+    // Show loading state with null checks
+    if (loadingElement) {
+        loadingElement.style.display = 'block';
+    }
+    if (pricingContainer) {
+        pricingContainer.style.display = 'none';
+    }
 });

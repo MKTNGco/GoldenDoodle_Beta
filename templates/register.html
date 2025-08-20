@@ -241,6 +241,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('submitBtn').style.display = 'block'; // Show submit button again
     }
 
+    // Helper function to enable form and hide loading spinner
+    function enableForm() {
+        document.getElementById('paymentLoading').style.display = 'none';
+        document.getElementById('submitBtn').style.display = 'block';
+    }
+
     // Helper function to hide error messages and show loading spinner
     function hideError() {
         document.getElementById('paymentLoading').style.display = 'none';
@@ -505,17 +511,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('✓ Checkout session created successfully');
                     console.log('✓ Redirecting to:', data.checkout_url);
 
-                    // Update button to show redirect status
-                    submitBtn.innerHTML = `
-                        <i class="fas fa-credit-card me-2"></i>
-                        Redirecting to payment...
-                    `;
-
-                    // Add a small delay to ensure the UI updates, then redirect
-                    setTimeout(() => {
-                        // Use window.location.replace for better redirect handling
-                        window.location.replace(data.checkout_url);
-                    }, 100);
+                    // Validate checkout URL before redirecting
+                    if (data.checkout_url && data.checkout_url.startsWith('https://checkout.stripe.com/')) {
+                        console.log('✓ Valid Stripe checkout URL, redirecting...');
+                        window.location.href = data.checkout_url;
+                    } else {
+                        console.error('❌ Invalid checkout URL received:', data.checkout_url);
+                        showError('Invalid checkout URL received. Please try again.');
+                        enableForm();
+                    }
                     return;
 
                 } else if (data.error) {

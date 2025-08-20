@@ -3411,6 +3411,45 @@ def test_cancel():
     </html>
     '''
 
+@app.route('/debug-stripe-webhook')
+def debug_stripe_webhook():
+    """Test webhook configuration"""
+    try:
+        webhook_status = {
+            'webhook_secret_configured': bool(os.environ.get('STRIPE_WEBHOOK_SECRET')),
+            'webhook_endpoint': f"{request.url_root.rstrip('/')}/stripe-webhook",
+            'test_payload': 'Ready to receive webhook events'
+        }
+
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Webhook Debug</title>
+            <style>
+                body {{ font-family: monospace; margin: 40px; }}
+                pre {{ background: #f5f5f5; padding: 15px; border-radius: 5px; }}
+            </style>
+        </head>
+        <body>
+            <h1>🔔 Stripe Webhook Debug</h1>
+            <pre>{webhook_status}</pre>
+            <p><strong>Configure this endpoint in your Stripe Dashboard:</strong></p>
+            <p><code>{request.url_root.rstrip('/')}/stripe-webhook</code></p>
+            <p><strong>Events to listen for:</strong></p>
+            <ul>
+                <li>customer.subscription.created</li>
+                <li>customer.subscription.updated</li>
+                <li>customer.subscription.deleted</li>
+                <li>invoice.payment_succeeded</li>
+                <li>invoice.payment_failed</li>
+            </ul>
+        </body>
+        </html>
+        '''
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
 @app.route('/send-user-invitations', methods=['POST'])
 @login_required
 def send_user_invitations():

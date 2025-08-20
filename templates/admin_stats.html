@@ -441,6 +441,28 @@ function sortData(data, column, direction) {
 }
 
 function getTypeStatsData() {
+    // Use API breakdown data if available
+    if (window.apiData && window.apiData.invitation_breakdown) {
+        const breakdown = window.apiData.invitation_breakdown;
+        const typeStats = {};
+
+        breakdown.forEach(item => {
+            const type = item.invitation_type;
+            if (!typeStats[type]) {
+                typeStats[type] = { type: type, total: 0, accepted: 0, pending: 0 };
+            }
+            typeStats[type].total += item.count;
+            if (item.status === 'accepted') typeStats[type].accepted += item.count;
+            if (item.status === 'pending') typeStats[type].pending += item.count;
+        });
+
+        return Object.values(typeStats).map(stats => ({
+            ...stats,
+            rate: stats.total > 0 ? Math.round((stats.accepted / stats.total) * 100) : 0
+        }));
+    }
+
+    // Fallback to calculating from invitations array
     const invitations = getFilteredInvitations();
     const typeStats = {};
 
@@ -514,12 +536,18 @@ function renderPendingInvitations(pending) {
         const daysPending = Math.floor((new Date() - createdDate) / (1000 * 60 * 60 * 24));
         inv.daysPending = daysPending; // Store for sorting
 
+        // Handle different field names from API
+        const email = inv.invitee_email || inv.email;
+        const orgName = inv.organization_name || 'N/A';
+        const inviteType = inv.invitation_type || 'unknown';
+        const code = inv.invite_code;
+
         const row = `
             <tr>
-                <td>${inv.invitee_email}</td>
-                <td>${inv.organization_name}</td>
-                <td><span class="badge bg-info">${inv.invitation_type}</span></td>
-                <td><code>${inv.invite_code}</code></td>
+                <td>${email}</td>
+                <td>${orgName}</td>
+                <td><span class="badge bg-info">${inviteType}</span></td>
+                <td><code>${code}</code></td>
                 <td>${createdDate.toLocaleDateString()}</td>
                 <td>${daysPending} day${daysPending !== 1 ? 's' : ''}</td>
             </tr>
@@ -564,8 +592,12 @@ async function loadInvitationStats() {
         const response = await fetch('/admin/invitation-stats');
         const data = await response.json();
 
-        allInvitations = data.invitations || [];
-        allSignups = data.signups || [];
+        // Handle the actual API response structure
+        allInvitations = data.pending_invitations || [];
+        allSignups = data.recent_signups || [];
+
+        // Also store the additional data for dashboard
+        window.apiData = data;
 
         updateDashboard();
     } catch (error) {
@@ -608,15 +640,25 @@ function getFilteredInvitations() {
 }
 
 function updateSummaryCards(invitations) {
-    const total = invitations.length;
-    const accepted = invitations.filter(inv => inv.status === 'accepted').length;
-    const pending = invitations.filter(inv => inv.status === 'pending').length;
-    const rate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+    // Use the actual API data for summary cards
+    if (window.apiData && window.apiData.invitation_stats) {
+        const stats = window.apiData.invitation_stats;
+        document.getElementById('totalInvites').textContent = stats.total_invitations || 0;
+        document.getElementById('acceptedInvites').textContent = stats.accepted_invitations || 0;
+        document.getElementById('pendingInvites').textContent = stats.pending_invitations || 0;
+        document.getElementById('acceptanceRate').textContent = stats.acceptance_rate || '0%';
+    } else {
+        // Fallback to calculating from invitations array
+        const total = invitations.length;
+        const accepted = invitations.filter(inv => inv.status === 'accepted').length;
+        const pending = invitations.filter(inv => inv.status === 'pending').length;
+        const rate = total > 0 ? Math.round((accepted / total) * 100) : 0;
 
-    document.getElementById('totalInvites').textContent = total;
-    document.getElementById('acceptedInvites').textContent = accepted;
-    document.getElementById('pendingInvites').textContent = pending;
-    document.getElementById('acceptanceRate').textContent = rate + '%';
+        document.getElementById('totalInvites').textContent = total;
+        document.getElementById('acceptedInvites').textContent = accepted;
+        document.getElementById('pendingInvites').textContent = pending;
+        document.getElementById('acceptanceRate').textContent = rate + '%';
+    }
 }
 
 function updateTypeStats(invitations) {
@@ -625,17 +667,21 @@ function updateTypeStats(invitations) {
 }
 
 function updateRecentSignups() {
-    const recentSignups = allSignups
-        .sort((a, b) => new Date(b.signup_date) - new Date(a.signup_date))
-        .slice(0, 10);
+    // Use API recent signups data
+    const recentSignups = window.apiData && window.apiData.recent_signups ? 
+        window.apiData.recent_signups.slice(0, 10) : 
+        allSignups.sort((a, b) => new Date(b.signup_date) - new Date(a.signup_date)).slice(0, 10);
 
     renderRecentSignups(recentSignups);
 }
 
 function updatePendingInvitations(invitations) {
-    const pending = invitations.filter(inv => inv.status === 'pending');
+    // Use API pending invitations data
+    const pending = window.apiData && window.apiData.pending_invitations ? 
+        window.apiData.pending_invitations : 
+        invitations.filter(inv => inv.status === 'pending');
+    
     document.getElementById('pendingCount').textContent = pending.length;
-
     renderPendingInvitations(pending);
 }
 

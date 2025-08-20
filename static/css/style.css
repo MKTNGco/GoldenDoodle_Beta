@@ -142,14 +142,25 @@ a:hover {
 
 /* Pink outline button */
 .btn-outline-pink {
-    color: #e91e63;
-    border-color: #e91e63;
+    color: #ffc7c7;
+    border-color: #ffc7c7;
 }
 
 .btn-outline-pink:hover {
     color: #fff;
-    background-color: #e91e63;
-    border-color: #e91e63;
+    background-color: #ffc7c7;
+    border-color: #ffc7c7;
+}
+
+/* Button icon colors - ensure icons are teal */
+.btn-outline-pink i,
+.btn-outline-teal i {
+    color: var(--clearwater-teal) !important;
+}
+
+.btn-outline-pink:hover i,
+.btn-outline-teal:hover i {
+    color: #fff !important;
 }
 
 /* Teal outline button */

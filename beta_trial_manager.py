@@ -1,40 +1,16 @@
 
-import json
-import os
+import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-import logging
+from database import DatabaseManager
+import psycopg2.extras
 
 logger = logging.getLogger(__name__)
 
 class BetaTrialManager:
-    def __init__(self, json_file_path: str = "beta_trials.json"):
-        """Initialize the beta trial manager with a JSON file path."""
-        self.json_file_path = json_file_path
-        self._ensure_file_exists()
-
-    def _ensure_file_exists(self):
-        """Create the JSON file if it doesn't exist."""
-        if not os.path.exists(self.json_file_path):
-            with open(self.json_file_path, 'w') as f:
-                json.dump([], f)
-
-    def _load_beta_trials(self) -> List[Dict]:
-        """Load all beta trial data from the JSON file."""
-        try:
-            with open(self.json_file_path, 'r') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"Error loading beta trials: {e}")
-            return []
-
-    def _save_beta_trials(self, trials: List[Dict]):
-        """Save all beta trial data to the JSON file."""
-        try:
-            with open(self.json_file_path, 'w') as f:
-                json.dump(trials, f, indent=2, default=str)
-        except Exception as e:
-            logger.error(f"Error saving beta trials: {e}")
+    def __init__(self):
+        """Initialize the beta trial manager with database connection."""
+        self.db = DatabaseManager()
 
     def is_beta_user(self, user_email: str, invite_code: str = None) -> bool:
         """
@@ -48,20 +24,36 @@ class BetaTrialManager:
             True if user is a beta user, False otherwise
         """
         try:
-            # Check user_sources.json for beta signup source
-            from user_source_tracker import user_source_tracker
-            user_source = user_source_tracker.get_user_source(user_email)
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            # Check user_sources table for beta signup source
+            cursor.execute("""
+                SELECT signup_source FROM user_sources 
+                WHERE user_email = %s
+            """, (user_email.lower().strip(),))
             
-            if user_source and user_source.get('signup_source') == 'invitation_beta':
+            user_source = cursor.fetchone()
+            if user_source and user_source['signup_source'] == 'invitation_beta':
+                cursor.close()
+                conn.close()
                 return True
             
-            # Check invitations.json for beta invitation
+            # Check invitations table for beta invitation
             if invite_code:
-                from invitation_manager import invitation_manager
-                invitation = invitation_manager.get_invitation(invite_code)
-                if invitation and invitation.get('invitation_type') == 'beta':
+                cursor.execute("""
+                    SELECT invitation_type FROM invitations 
+                    WHERE invite_code = %s
+                """, (invite_code,))
+                
+                invitation = cursor.fetchone()
+                if invitation and invitation['invitation_type'] == 'beta':
+                    cursor.close()
+                    conn.close()
                     return True
             
+            cursor.close()
+            conn.close()
             return False
             
         except Exception as e:
@@ -81,32 +73,47 @@ class BetaTrialManager:
             True if beta trial was created successfully, False otherwise
         """
         try:
-            trials = self._load_beta_trials()
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            email_lower = user_email.lower().strip()
             
             # Check if user already has a beta trial
-            existing_trial = next((t for t in trials if t['user_email'] == user_email.lower().strip()), None)
+            cursor.execute("""
+                SELECT id FROM beta_trials 
+                WHERE user_email = %s
+            """, (email_lower,))
+            
+            existing_trial = cursor.fetchone()
             if existing_trial:
                 logger.info(f"Beta trial already exists for {user_email}")
+                cursor.close()
+                conn.close()
                 return True
             
             # Create 90-day trial
             trial_start = datetime.now()
             trial_end = trial_start + timedelta(days=90)
             
-            beta_trial = {
-                "user_id": user_id,
-                "user_email": user_email.lower().strip(),
-                "invite_code": invite_code,
-                "trial_start": trial_start.isoformat(),
-                "trial_end": trial_end.isoformat(),
-                "trial_days": 90,
-                "trial_type": "beta",
-                "status": "active",
-                "created_at": trial_start.isoformat()
-            }
+            cursor.execute("""
+                INSERT INTO beta_trials 
+                (user_id, user_email, invite_code, trial_start, trial_end, 
+                 trial_days, trial_type, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                user_id,
+                email_lower,
+                invite_code,
+                trial_start,
+                trial_end,
+                90,
+                'beta',
+                'active'
+            ))
             
-            trials.append(beta_trial)
-            self._save_beta_trials(trials)
+            conn.commit()
+            cursor.close()
+            conn.close()
             
             logger.info(f"Created 90-day beta trial for {user_email} (User ID: {user_id})")
             return True
@@ -129,31 +136,46 @@ class BetaTrialManager:
             True if trial was created successfully, False otherwise
         """
         try:
-            trials = self._load_beta_trials()
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            email_lower = user_email.lower().strip()
             
             # Check if user already has any trial
-            existing_trial = next((t for t in trials if t['user_email'] == user_email.lower().strip()), None)
+            cursor.execute("""
+                SELECT id FROM beta_trials 
+                WHERE user_email = %s
+            """, (email_lower,))
+            
+            existing_trial = cursor.fetchone()
             if existing_trial:
                 logger.info(f"Trial already exists for {user_email}")
+                cursor.close()
+                conn.close()
                 return True
             
             # Create trial
             trial_start = datetime.now()
             trial_end = trial_start + timedelta(days=trial_days)
             
-            premium_trial = {
-                "user_id": user_id,
-                "user_email": user_email.lower().strip(),
-                "trial_start": trial_start.isoformat(),
-                "trial_end": trial_end.isoformat(),
-                "trial_days": trial_days,
-                "trial_type": trial_type,
-                "status": "active",
-                "created_at": trial_start.isoformat()
-            }
+            cursor.execute("""
+                INSERT INTO beta_trials 
+                (user_id, user_email, trial_start, trial_end, 
+                 trial_days, trial_type, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                user_id,
+                email_lower,
+                trial_start,
+                trial_end,
+                trial_days,
+                trial_type,
+                'active'
+            ))
             
-            trials.append(premium_trial)
-            self._save_beta_trials(trials)
+            conn.commit()
+            cursor.close()
+            conn.close()
             
             logger.info(f"Created {trial_days}-day {trial_type} for {user_email} (User ID: {user_id})")
             return True
@@ -173,12 +195,31 @@ class BetaTrialManager:
             Beta trial data if found, None otherwise
         """
         try:
-            trials = self._load_beta_trials()
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
             email_lower = user_email.lower().strip()
             
-            for trial in trials:
-                if trial['user_email'] == email_lower:
-                    return trial
+            cursor.execute("""
+                SELECT * FROM beta_trials 
+                WHERE user_email = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (email_lower,))
+            
+            trial = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if trial:
+                # Convert to dictionary with ISO format dates
+                trial_dict = dict(trial)
+                trial_dict['trial_start'] = trial_dict['trial_start'].isoformat()
+                trial_dict['trial_end'] = trial_dict['trial_end'].isoformat()
+                trial_dict['created_at'] = trial_dict['created_at'].isoformat()
+                if trial_dict['expired_at']:
+                    trial_dict['expired_at'] = trial_dict['expired_at'].isoformat()
+                return trial_dict
             
             return None
             
@@ -263,18 +304,26 @@ class BetaTrialManager:
             True if trial was expired successfully, False otherwise
         """
         try:
-            trials = self._load_beta_trials()
+            conn = self.db.get_connection()
+            cursor = conn.cursor()
+            
             email_lower = user_email.lower().strip()
             
-            for trial in trials:
-                if trial['user_email'] == email_lower:
-                    trial['status'] = 'expired'
-                    trial['expired_at'] = datetime.now().isoformat()
-                    self._save_beta_trials(trials)
-                    logger.info(f"Expired beta trial for {user_email}")
-                    return True
+            cursor.execute("""
+                UPDATE beta_trials 
+                SET status = 'expired', expired_at = %s
+                WHERE user_email = %s
+            """, (datetime.now(), email_lower))
             
-            return False
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            if success:
+                logger.info(f"Expired beta trial for {user_email}")
+            
+            return success
             
         except Exception as e:
             logger.error(f"Error expiring beta trial for {user_email}: {e}")
@@ -287,7 +336,35 @@ class BetaTrialManager:
         Returns:
             List of all beta trials
         """
-        return self._load_beta_trials()
+        try:
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            cursor.execute("""
+                SELECT * FROM beta_trials 
+                ORDER BY created_at DESC
+            """)
+            
+            trials = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Convert to list of dictionaries with ISO format dates
+            trials_list = []
+            for trial in trials:
+                trial_dict = dict(trial)
+                trial_dict['trial_start'] = trial_dict['trial_start'].isoformat()
+                trial_dict['trial_end'] = trial_dict['trial_end'].isoformat()
+                trial_dict['created_at'] = trial_dict['created_at'].isoformat()
+                if trial_dict['expired_at']:
+                    trial_dict['expired_at'] = trial_dict['expired_at'].isoformat()
+                trials_list.append(trial_dict)
+            
+            return trials_list
+            
+        except Exception as e:
+            logger.error(f"Error getting all beta trials: {e}")
+            return []
 
     def get_beta_trial_stats(self) -> Dict:
         """
@@ -297,9 +374,17 @@ class BetaTrialManager:
             Dictionary with beta trial statistics
         """
         try:
-            trials = self._load_beta_trials()
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            if not trials:
+            # Get total count
+            cursor.execute("SELECT COUNT(*) as total FROM beta_trials")
+            total_result = cursor.fetchone()
+            total_trials = total_result['total'] if total_result else 0
+            
+            if total_trials == 0:
+                cursor.close()
+                conn.close()
                 return {
                     'total_beta_trials': 0,
                     'active_trials': 0,
@@ -307,27 +392,36 @@ class BetaTrialManager:
                     'trials_expiring_soon': 0
                 }
             
-            active_trials = 0
-            expired_trials = 0
-            expiring_soon = 0
+            # Get active trials (status = 'active' and trial_end > now)
+            cursor.execute("""
+                SELECT COUNT(*) as active FROM beta_trials 
+                WHERE status = 'active' AND trial_end > %s
+            """, (datetime.now(),))
+            active_result = cursor.fetchone()
+            active_trials = active_result['active'] if active_result else 0
             
-            now = datetime.now()
-            soon_threshold = now + timedelta(days=7)  # Expiring within 7 days
+            # Get expired trials (status = 'expired' or trial_end <= now)
+            cursor.execute("""
+                SELECT COUNT(*) as expired FROM beta_trials 
+                WHERE status = 'expired' OR trial_end <= %s
+            """, (datetime.now(),))
+            expired_result = cursor.fetchone()
+            expired_trials = expired_result['expired'] if expired_result else 0
             
-            for trial in trials:
-                if trial['status'] == 'active':
-                    trial_end = datetime.fromisoformat(trial['trial_end'])
-                    if now < trial_end:
-                        active_trials += 1
-                        if trial_end < soon_threshold:
-                            expiring_soon += 1
-                    else:
-                        expired_trials += 1
-                else:
-                    expired_trials += 1
+            # Get trials expiring soon (active and trial_end within 7 days)
+            soon_threshold = datetime.now() + timedelta(days=7)
+            cursor.execute("""
+                SELECT COUNT(*) as expiring_soon FROM beta_trials 
+                WHERE status = 'active' AND trial_end > %s AND trial_end <= %s
+            """, (datetime.now(), soon_threshold))
+            expiring_result = cursor.fetchone()
+            expiring_soon = expiring_result['expiring_soon'] if expiring_result else 0
+            
+            cursor.close()
+            conn.close()
             
             return {
-                'total_beta_trials': len(trials),
+                'total_beta_trials': total_trials,
                 'active_trials': active_trials,
                 'expired_trials': expired_trials,
                 'trials_expiring_soon': expiring_soon

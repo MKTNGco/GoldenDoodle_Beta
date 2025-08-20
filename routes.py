@@ -458,6 +458,15 @@ def register():
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
 
+            # Clean up any partially created user/tenant on error
+            try:
+                if 'user_id' in locals() and user_id:
+                    db_manager.delete_user(user_id)
+                if 'tenant' in locals() and tenant:
+                    db_manager.delete_tenant(tenant.tenant_id)
+            except Exception as cleanup_error:
+                logger.error(f"Error during cleanup: {cleanup_error}")
+
             # Always return JSON for AJAX requests
             if expects_json:
                 return jsonify({
@@ -466,6 +475,11 @@ def register():
                 }), 500
             else:
                 flash('An error occurred during registration. Please try again.', 'error')
+                return render_template('register.html', 
+                                     is_organization_invite=is_organization_invite,
+                                     organization_invite=organization_invite,
+                                     invitation_data=invitation_data,
+                                     invitation_code=invitation_code)
 
     return render_template('register.html', 
                          is_organization_invite=is_organization_invite,
@@ -3840,6 +3854,40 @@ def submit_feedback():
     except Exception as e:
         logger.error(f"Error processing feedback: {e}")
         return jsonify({'error': 'An error occurred while processing your feedback'}), 500
+
+@app.route('/health')
+def health_check():
+    """System health check endpoint"""
+    try:
+        # Test database connection
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        # Test Stripe configuration
+        stripe_ok = bool(stripe_service.get_publishable_key())
+        
+        # Test Gemini API (basic check)
+        gemini_ok = bool(os.environ.get('GEMINI_API_KEY'))
+        
+        return jsonify({
+            'status': 'healthy',
+            'database': 'ok',
+            'stripe': 'ok' if stripe_ok else 'warning',
+            'gemini': 'ok' if gemini_ok else 'warning',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 @app.errorhandler(500)
 def internal_error(error):

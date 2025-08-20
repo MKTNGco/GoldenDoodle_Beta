@@ -1,4 +1,3 @@
-
 // GoldenDoodleLM Pricing Page
 class PricingPage {
     constructor() {
@@ -64,40 +63,51 @@ class PricingPage {
         if (this.loadingPlans) {
             return;
         }
-        
+
         try {
             this.loadingPlans = true;
             this.showLoading(true);
-            
+
             const response = await fetch('/api/get-plans');
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-            
+
             const data = await response.json();
             console.log('Received data:', data);
-            
+
             if (data.error) {
                 throw new Error(data.error);
             }
-            
+
             if (!Array.isArray(data)) {
                 throw new Error('Invalid data format received from server');
             }
-            
+
             this.plans = data;
             console.log('Loaded plans:', this.plans);
-            
+
             if (this.plans.length === 0) {
                 throw new Error('No pricing plans available');
             }
-            
+
             this.renderPricingCards();
             this.showLoading(false);
-            
+
         } catch (error) {
             console.error('Error loading plans:', error);
-            this.showError(`Failed to load pricing information: ${error.message}. Please refresh the page.`);
+
+            // Log additional debugging info
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+                console.error('Response data:', error.response.data);
+            }
+
+            // Show fallback pricing
+            const container = document.querySelector('.pricing-plans-container');
+            if (container) {
+                container.innerHTML = '<div class="alert alert-warning">Unable to load pricing plans. Please refresh the page.</div>';
+            }
             this.showLoading(false);
         } finally {
             this.loadingPlans = false;
@@ -125,7 +135,7 @@ class PricingPage {
                 </div>
             </div>
         `;
-        
+
         if (this.individualPricingContainer) {
             this.individualPricingContainer.innerHTML = errorHtml;
         }
@@ -155,10 +165,10 @@ class PricingPage {
             console.error('Invalid plan data:', plan);
             return '';
         }
-        
+
         const isPopular = plan.plan_id === 'solo' || (plan.plan_id === 'team' && this.showingTeamPlans);
         const isFree = plan.plan_id === 'free';
-        
+
         // Get pricing based on billing toggle
         let price, pricePeriod;
         if (isFree) {
@@ -188,24 +198,24 @@ class PricingPage {
             <div class="col-lg-4 col-md-6 col-sm-8">
                 <div class="card pricing-card h-100 ${isPopular ? 'popular-plan' : ''} ${isFree ? 'free-plan' : ''}">
                     ${isPopular ? '<div class="popular-badge">Most Popular</div>' : ''}
-                    
+
                     <div class="card-header text-center">
                         <h3 class="plan-name">${plan.name || 'Unknown Plan'}</h3>
                         <p class="plan-description text-muted">${plan.target_user || 'No description available'}</p>
                     </div>
-                    
+
                     <div class="card-body">
                         <div class="pricing-display text-center mb-4">
                             <div class="price-amount">${price}</div>
                             <div class="price-period">${pricePeriod}</div>
                             ${this.isAnnual && !isFree ? '<div class="savings-badge">Save 15%</div>' : ''}
                         </div>
-                        
+
                         <div class="core-value mb-4">
                             <h6 class="fw-bold text-primary">Core Value:</h6>
                             <p class="text-muted small">${plan.core_value || 'No core value specified'}</p>
                         </div>
-                        
+
                         <ul class="feature-list">
                             ${features.map(feature => `
                                 <li class="feature-item ${!feature.available ? 'unavailable' : ''}">
@@ -215,7 +225,7 @@ class PricingPage {
                             `).join('')}
                         </ul>
                     </div>
-                    
+
                     <div class="card-footer text-center">
                         <a href="/register" class="btn ${isPopular ? 'btn-primary' : 'btn-outline-primary'} btn-lg w-100">
                             ${isFree ? 'Get Started Free' : 'Choose Plan'}
@@ -228,26 +238,26 @@ class PricingPage {
 
     getPlanFeatures(plan) {
         const features = [];
-        
+
         // Writing tools
         if (plan.templates === 'basic') {
             features.push({ text: 'Basic Writing Tools (Email, Social, Rewrite, Article)', available: true });
         } else {
             features.push({ text: 'All 7 Advanced Writing Tools', available: true });
         }
-        
+
         // Analysis & Brainstorm
         features.push({ 
             text: 'Analysis & Brainstorm Tools', 
             available: plan.analysis_brainstorm 
         });
-        
+
         // Monthly tokens
         features.push({ 
             text: `${plan.token_limit ? plan.token_limit.toLocaleString() : '0'} Monthly Tokens`, 
             available: true 
         });
-        
+
         // Brand voices
         if (plan.brand_voices > 0) {
             features.push({ 
@@ -257,14 +267,14 @@ class PricingPage {
         } else {
             features.push({ text: 'Brand Voices', available: false });
         }
-        
+
         // Chat history
         if (plan.chat_history_limit === -1) {
             features.push({ text: 'Unlimited Chat History', available: true });
         } else {
             features.push({ text: `${plan.chat_history_limit} Saved Chats`, available: true });
         }
-        
+
         // User seats (for team plans)
         if (plan.plan_id === 'team' || plan.plan_id === 'professional') {
             if (plan.plan_id === 'team') {
@@ -272,13 +282,13 @@ class PricingPage {
             } else {
                 features.push({ text: 'Unlimited User Seats', available: true });
             }
-            
+
             // Admin controls for team plans
             if (plan.admin_controls) {
                 features.push({ text: 'Admin Controls & User Management', available: true });
             }
         }
-        
+
         // Support
         const supportLevels = {
             'none': 'Community Support',
@@ -286,12 +296,12 @@ class PricingPage {
             'priority': 'Priority Support',
             'top_priority': 'Premium Support'
         };
-        
+
         features.push({ 
             text: supportLevels[plan.support_level] || 'Support', 
             available: plan.support_level !== 'none' 
         });
-        
+
         return features;
     }
 

@@ -244,6 +244,23 @@ def register():
                     invite_code=invitation_code if invitation_data else None
                 )
                 logger.info(f"Tracked signup source for {email}: {signup_source}")
+                
+                # Create beta trial for beta users (non-critical)
+                if signup_source == 'invitation_beta':
+                    try:
+                        from beta_trial_manager import beta_trial_manager
+                        beta_trial_created = beta_trial_manager.create_beta_trial(
+                            user_id=user_id,
+                            user_email=email,
+                            invite_code=invitation_code
+                        )
+                        if beta_trial_created:
+                            logger.info(f"Created 90-day beta trial for {email}")
+                        else:
+                            logger.warning(f"Failed to create beta trial for {email}")
+                    except Exception as beta_error:
+                        logger.warning(f"Failed to create beta trial for {email}: {beta_error}")
+                        
             except Exception as tracking_error:
                 logger.warning(f"Failed to track signup source for {email}: {tracking_error}")
 
@@ -2578,6 +2595,21 @@ def payment_success():
                         invite_code=None
                     )
                     logger.info(f"Tracked paid signup for {user.email}")
+                    
+                    # Check if this was a beta user who upgraded to paid
+                    if 'pending_registration' in session:
+                        pending_reg = session.get('pending_registration')
+                        original_invite_code = pending_reg.get('original_invite_code')
+                        if original_invite_code:
+                            from beta_trial_manager import beta_trial_manager
+                            if beta_trial_manager.is_beta_user(user.email, original_invite_code):
+                                beta_trial_manager.create_beta_trial(
+                                    user_id=str(user.user_id),
+                                    user_email=user.email,
+                                    invite_code=original_invite_code
+                                )
+                                logger.info(f"Created beta trial for paid beta user {user.email}")
+                                
                 except Exception as tracking_error:
                     logger.warning(f"Failed to track paid signup for {user.email}: {tracking_error}")
 
@@ -3438,6 +3470,81 @@ def admin_invitation_stats():
     except Exception as e:
         logger.error(f"Error getting invitation stats: {e}")
         return jsonify({'error': 'Failed to load invitation statistics'}), 500
+
+@app.route('/admin/beta-trials')
+@super_admin_required
+def admin_beta_trials():
+    """Admin page for beta trial management"""
+    # Track admin access to beta trials
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Visited Beta Trials Dashboard'
+    )
+    return render_template('admin_beta_trials.html')
+
+@app.route('/admin/beta-trial-stats')
+@super_admin_required
+def admin_beta_trial_stats():
+    """Get beta trial statistics data"""
+    try:
+        from beta_trial_manager import beta_trial_manager
+        
+        # Get all beta trials
+        beta_trials = beta_trial_manager.get_all_beta_trials()
+        
+        # Get beta trial statistics
+        stats = beta_trial_manager.get_beta_trial_stats()
+        
+        # Enhance trial data with user information
+        enhanced_trials = []
+        for trial in beta_trials:
+            # Get user information if available
+            user = db_manager.get_user_by_email(trial['user_email'])
+            trial_data = trial.copy()
+            
+            if user:
+                trial_data['user_name'] = f"{user.first_name} {user.last_name}"
+                trial_data['subscription_level'] = user.subscription_level.value
+                trial_data['user_created_at'] = user.created_at.isoformat() if user.created_at else None
+            else:
+                trial_data['user_name'] = 'User not found'
+                trial_data['subscription_level'] = 'unknown'
+                trial_data['user_created_at'] = None
+            
+            # Calculate days remaining
+            if trial['status'] == 'active':
+                try:
+                    trial_end = datetime.fromisoformat(trial['trial_end'])
+                    days_remaining = (trial_end - datetime.now()).days
+                    trial_data['days_remaining'] = max(0, days_remaining)
+                    trial_data['is_expired'] = days_remaining <= 0
+                except:
+                    trial_data['days_remaining'] = 0
+                    trial_data['is_expired'] = True
+            else:
+                trial_data['days_remaining'] = 0
+                trial_data['is_expired'] = True
+            
+            enhanced_trials.append(trial_data)
+        
+        # Track accessing beta trial stats
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Fetched Beta Trial Statistics',
+            properties={
+                'total_beta_trials': len(beta_trials),
+                'active_trials': stats.get('active_trials', 0)
+            }
+        )
+        
+        return jsonify({
+            'beta_trials': enhanced_trials,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting beta trial stats: {e}")
+        return jsonify({'error': 'Failed to load beta trial statistics'}), 500
 
 @app.route('/debug-env')
 @super_admin_required

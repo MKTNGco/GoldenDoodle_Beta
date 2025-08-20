@@ -1,0 +1,197 @@
+
+{% extends "base.html" %}
+
+{% block title %}Beta Trials Management - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0"><i class="fas fa-clock me-2"></i>Beta Trials Management</h3>
+                    <a href="{{ url_for('admin_stats') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Admin Stats
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div id="loading" class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading beta trial data...</p>
+                    </div>
+
+                    <div id="content" style="display: none;">
+                        <!-- Summary Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Total Beta Trials</h5>
+                                        <h3 class="mb-0" id="total-trials">-</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Active Trials</h5>
+                                        <h3 class="mb-0" id="active-trials">-</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Expiring Soon</h5>
+                                        <h3 class="mb-0" id="expiring-soon">-</h3>
+                                        <small>Within 7 days</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Expired Trials</h5>
+                                        <h3 class="mb-0" id="expired-trials">-</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Beta Trials Table -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Beta Users and Trial Status</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="beta-trials-table">
+                                        <thead>
+                                            <tr>
+                                                <th>User</th>
+                                                <th>Email</th>
+                                                <th>Invite Code</th>
+                                                <th>Trial Start</th>
+                                                <th>Trial End</th>
+                                                <th>Days Remaining</th>
+                                                <th>Status</th>
+                                                <th>Subscription</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="beta-trials-tbody">
+                                            <!-- Data will be populated by JavaScript -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="error" style="display: none;" class="alert alert-danger">
+                        <h5>Error Loading Data</h5>
+                        <p id="error-message"></p>
+                        <button class="btn btn-outline-danger" onclick="loadBetaTrialData()">Retry</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let betaTrialsData = null;
+
+function loadBetaTrialData() {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('content').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+
+    fetch('/admin/beta-trial-stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            betaTrialsData = data;
+            populateBetaTrialData(data);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error loading beta trial data:', error);
+            document.getElementById('error-message').textContent = error.message;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+        });
+}
+
+function populateBetaTrialData(data) {
+    const { beta_trials, stats } = data;
+
+    // Update summary cards
+    document.getElementById('total-trials').textContent = stats.total_beta_trials || 0;
+    document.getElementById('active-trials').textContent = stats.active_trials || 0;
+    document.getElementById('expiring-soon').textContent = stats.trials_expiring_soon || 0;
+    document.getElementById('expired-trials').textContent = stats.expired_trials || 0;
+
+    // Populate beta trials table
+    const tbody = document.getElementById('beta-trials-tbody');
+    tbody.innerHTML = '';
+
+    if (beta_trials.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No beta trials found</td></tr>';
+        return;
+    }
+
+    beta_trials.forEach(trial => {
+        const row = document.createElement('tr');
+        
+        // Status badge
+        let statusBadge = '';
+        if (trial.is_expired || trial.status === 'expired') {
+            statusBadge = '<span class="badge bg-danger">Expired</span>';
+        } else if (trial.days_remaining <= 7) {
+            statusBadge = '<span class="badge bg-warning">Expiring Soon</span>';
+        } else {
+            statusBadge = '<span class="badge bg-success">Active</span>';
+        }
+
+        // Days remaining display
+        let daysDisplay = '';
+        if (trial.status === 'active' && !trial.is_expired) {
+            daysDisplay = `${trial.days_remaining} days`;
+        } else {
+            daysDisplay = '<span class="text-muted">-</span>';
+        }
+
+        row.innerHTML = `
+            <td>${trial.user_name || 'Unknown'}</td>
+            <td>${trial.user_email}</td>
+            <td><code>${trial.invite_code || 'N/A'}</code></td>
+            <td>${formatDate(trial.trial_start)}</td>
+            <td>${formatDate(trial.trial_end)}</td>
+            <td>${daysDisplay}</td>
+            <td>${statusBadge}</td>
+            <td><span class="badge bg-info">${trial.subscription_level || 'unknown'}</span></td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (e) {
+        return 'Invalid Date';
+    }
+}
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', loadBetaTrialData);
+</script>
+{% endblock %}

@@ -3117,6 +3117,79 @@ def test_cancel():
     </html>
     '''
 
+@app.route('/admin/beta-invites', methods=['GET', 'POST'])
+def admin_beta_invites():
+    """Admin page for sending beta invitations"""
+    if request.method == 'POST':
+        # Process the form submission
+        invitations_text = request.form.get('invitations', '').strip()
+        
+        if not invitations_text:
+            flash('Please enter at least one email,organization pair.', 'error')
+            return render_template('admin_beta_invites.html')
+        
+        # Parse the textarea input (each line should be email,organization)
+        lines = [line.strip() for line in invitations_text.split('\n') if line.strip()]
+        results = []
+        
+        from invitation_manager import invitation_manager
+        
+        for line in lines:
+            try:
+                # Split by comma and clean up
+                parts = [part.strip() for part in line.split(',')]
+                if len(parts) != 2:
+                    results.append({
+                        'line': line,
+                        'error': 'Invalid format. Expected: email,organization',
+                        'success': False
+                    })
+                    continue
+                
+                email, organization = parts
+                
+                # Basic email validation
+                if '@' not in email or '.' not in email:
+                    results.append({
+                        'line': line,
+                        'error': 'Invalid email address',
+                        'success': False
+                    })
+                    continue
+                
+                # Generate invitation code with BETA prefix
+                invite_code = invitation_manager.create_invitation(
+                    email=email,
+                    org_name=organization,
+                    invitation_type='beta',
+                    prefix='BETA'
+                )
+                
+                # Create the invitation link
+                base_url = request.url_root.rstrip('/')
+                invite_link = f"{base_url}/register?ref={invite_code}"
+                
+                results.append({
+                    'line': line,
+                    'email': email,
+                    'organization': organization,
+                    'invite_code': invite_code,
+                    'invite_link': invite_link,
+                    'success': True
+                })
+                
+            except Exception as e:
+                results.append({
+                    'line': line,
+                    'error': f'Error: {str(e)}',
+                    'success': False
+                })
+        
+        return render_template('admin_beta_results.html', results=results)
+    
+    # GET request - show the form
+    return render_template('admin_beta_invites.html')
+
 @app.route('/debug-env')
 @super_admin_required
 def debug_env():

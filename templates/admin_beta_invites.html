@@ -1,0 +1,58 @@
+
+{% extends "base.html" %}
+
+{% block title %}Beta Invitations - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0"><i class="fas fa-envelope-open-text me-2"></i>Send Beta Invitations</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="invitations" class="form-label">Email and Organization Pairs</label>
+                            <textarea 
+                                class="form-control" 
+                                id="invitations" 
+                                name="invitations" 
+                                rows="10" 
+                                placeholder="Enter one email,organization pair per line:&#10;&#10;john@example.com,Example Organization&#10;jane@nonprofit.org,Nonprofit Organization&#10;admin@charity.org,Local Charity"
+                                required></textarea>
+                            <div class="form-text">
+                                Enter one email,organization pair per line. Format: <code>email@domain.com,Organization Name</code>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Generate Invitations
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Instructions</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="mb-0">
+                            <li>Enter one email and organization pair per line</li>
+                            <li>Separate email and organization with a comma</li>
+                            <li>Invitation codes will be automatically generated with "BETA" prefix</li>
+                            <li>Each invitation will be saved to the invitations.json file</li>
+                            <li>You'll receive a results page with all generated invitation links</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

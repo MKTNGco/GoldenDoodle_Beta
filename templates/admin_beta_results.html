@@ -1,0 +1,127 @@
+
+{% extends "base.html" %}
+
+{% block title %}Beta Invitations Results - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0"><i class="fas fa-check-circle me-2"></i>Beta Invitations Results</h3>
+                    <a href="{{ url_for('admin_beta_invites') }}" class="btn btn-secondary">
+                        <i class="fas fa-plus me-2"></i>Create More Invitations
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% set success_count = results | selectattr('success') | list | length %}
+                    {% set error_count = results | rejectattr('success') | list | length %}
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="alert alert-success">
+                                <i class="fas fa-check me-2"></i>
+                                <strong>{{ success_count }}</strong> invitations created successfully
+                            </div>
+                        </div>
+                        {% if error_count > 0 %}
+                        <div class="col-md-6">
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>{{ error_count }}</strong> errors occurred
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if success_count > 0 %}
+                    <h5 class="text-success mb-3"><i class="fas fa-clipboard-list me-2"></i>Successfully Created Invitations</h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Organization</th>
+                                    <th>Invitation Code</th>
+                                    <th>Invitation Link</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in results %}
+                                {% if result.success %}
+                                <tr>
+                                    <td>{{ result.email }}</td>
+                                    <td>{{ result.organization }}</td>
+                                    <td><code>{{ result.invite_code }}</code></td>
+                                    <td>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   value="{{ result.invite_link }}" 
+                                                   id="link-{{ loop.index }}" readonly>
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" 
+                                                    onclick="copyToClipboard('link-{{ loop.index }}')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{{ result.invite_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-external-link-alt"></i> Test
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                    
+                    {% if error_count > 0 %}
+                    <h5 class="text-danger mb-3"><i class="fas fa-exclamation-circle me-2"></i>Errors</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Input Line</th>
+                                    <th>Error</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in results %}
+                                {% if not result.success %}
+                                <tr>
+                                    <td><code>{{ result.line }}</code></td>
+                                    <td class="text-danger">{{ result.error }}</td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    element.setSelectionRange(0, 99999); // For mobile devices
+    navigator.clipboard.writeText(element.value).then(function() {
+        // Show temporary feedback
+        const button = element.nextElementSibling;
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check text-success"></i>';
+        setTimeout(() => {
+            button.innerHTML = originalHtml;
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

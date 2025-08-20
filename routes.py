@@ -245,8 +245,9 @@ def register():
                 )
                 logger.info(f"Tracked signup source for {email}: {signup_source}")
                 
-                # Create beta trial for beta users (non-critical)
+                # Create trials based on user type
                 if signup_source == 'invitation_beta':
+                    # Create 90-day beta trial for beta users
                     try:
                         from beta_trial_manager import beta_trial_manager
                         beta_trial_created = beta_trial_manager.create_beta_trial(
@@ -260,6 +261,20 @@ def register():
                             logger.warning(f"Failed to create beta trial for {email}")
                     except Exception as beta_error:
                         logger.warning(f"Failed to create beta trial for {email}: {beta_error}")
+                else:
+                    # Create 7-day premium trial for all other users (including free)
+                    try:
+                        from trial_utils import create_premium_trial_for_free_user
+                        premium_trial_created = create_premium_trial_for_free_user(
+                            user_id=user_id,
+                            user_email=email
+                        )
+                        if premium_trial_created:
+                            logger.info(f"Created 7-day premium trial for {email}")
+                        else:
+                            logger.warning(f"Failed to create premium trial for {email}")
+                    except Exception as trial_error:
+                        logger.warning(f"Failed to create premium trial for {email}: {trial_error}")
                         
             except Exception as tracking_error:
                 logger.warning(f"Failed to track signup source for {email}: {tracking_error}")

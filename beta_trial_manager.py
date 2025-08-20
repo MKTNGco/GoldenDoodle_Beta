@@ -100,6 +100,7 @@ class BetaTrialManager:
                 "trial_start": trial_start.isoformat(),
                 "trial_end": trial_end.isoformat(),
                 "trial_days": 90,
+                "trial_type": "beta",
                 "status": "active",
                 "created_at": trial_start.isoformat()
             }
@@ -112,6 +113,53 @@ class BetaTrialManager:
             
         except Exception as e:
             logger.error(f"Error creating beta trial for {user_email}: {e}")
+            return False
+
+    def create_premium_trial(self, user_id: str, user_email: str, trial_days: int = 7, trial_type: str = 'premium_free_trial') -> bool:
+        """
+        Create a premium trial for any user (used for free users getting premium features).
+        
+        Args:
+            user_id: User's ID
+            user_email: User's email address
+            trial_days: Number of trial days (default 7)
+            trial_type: Type of trial (default 'premium_free_trial')
+            
+        Returns:
+            True if trial was created successfully, False otherwise
+        """
+        try:
+            trials = self._load_beta_trials()
+            
+            # Check if user already has any trial
+            existing_trial = next((t for t in trials if t['user_email'] == user_email.lower().strip()), None)
+            if existing_trial:
+                logger.info(f"Trial already exists for {user_email}")
+                return True
+            
+            # Create trial
+            trial_start = datetime.now()
+            trial_end = trial_start + timedelta(days=trial_days)
+            
+            premium_trial = {
+                "user_id": user_id,
+                "user_email": user_email.lower().strip(),
+                "trial_start": trial_start.isoformat(),
+                "trial_end": trial_end.isoformat(),
+                "trial_days": trial_days,
+                "trial_type": trial_type,
+                "status": "active",
+                "created_at": trial_start.isoformat()
+            }
+            
+            trials.append(premium_trial)
+            self._save_beta_trials(trials)
+            
+            logger.info(f"Created {trial_days}-day {trial_type} for {user_email} (User ID: {user_id})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating premium trial for {user_email}: {e}")
             return False
 
     def get_beta_trial(self, user_email: str) -> Optional[Dict]:

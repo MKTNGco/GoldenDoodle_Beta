@@ -41,14 +41,14 @@
                         {% else %}
                         <h2 class="fw-bold text-primary">Join GoldenDoodleLM</h2>
                         <p class="text-muted">Your Compassionate Content Companion</p>
-                        
-                        <!-- Standard 7-day trial banner for non-invited users -->
+
+                        <!-- Standard 7-day premium trial banner for non-invited users -->
                         <div class="alert alert-primary border-0 mb-4">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-gift me-3" style="font-size: 1.2rem;"></i>
                                 <div>
-                                    <h6 class="mb-1 fw-bold">7-Day Free Trial</h6>
-                                    <small>All plans include a 7-day free trial with ALL premium features unlocked!</small>
+                                    <h6 class="mb-1 fw-bold">7-Day Premium Trial</h6>
+                                    <small>ALL plans (including free) include a 7-day trial with ALL premium features unlocked!</small>
                                 </div>
                             </div>
                         </div>
@@ -550,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('organization_name').required = true;
             individualPlansDiv.style.display = 'none';
             teamPlansDiv.style.display = 'block';
-            
+
             // Select team plan by default for invitations
             setTimeout(() => {
                 const teamCard = document.querySelector('[data-level="team"]');

@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 def get_trial_period_for_user(user_email: str, invite_code: str = None) -> int:
     """
-    Get the appropriate trial period for a user (7 days for normal users, 90 days for beta users).
+    Get the appropriate trial period for a user (7 days for all users, 90 days for beta users).
     
     Args:
         user_email: User's email address
@@ -23,7 +23,7 @@ def get_trial_period_for_user(user_email: str, invite_code: str = None) -> int:
             logger.info(f"Beta user detected: {user_email} - extending trial to 90 days")
             return 90
         else:
-            logger.info(f"Normal user: {user_email} - standard 7-day trial")
+            logger.info(f"All users get premium trial: {user_email} - 7-day premium trial")
             return 7
             
     except Exception as e:
@@ -107,3 +107,37 @@ def get_trial_days_remaining(user_email: str) -> Optional[int]:
     except Exception as e:
         logger.error(f"Error getting trial days remaining for {user_email}: {e}")
         return None
+
+def create_premium_trial_for_free_user(user_id: str, user_email: str) -> bool:
+    """
+    Create a 7-day premium trial for free users.
+    
+    Args:
+        user_id: User's ID
+        user_email: User's email address
+        
+    Returns:
+        True if trial was created successfully, False otherwise
+    """
+    try:
+        from beta_trial_manager import beta_trial_manager
+        
+        # Create a 7-day premium trial using the beta trial system
+        # This reuses the existing infrastructure but with shorter duration
+        trial_created = beta_trial_manager.create_premium_trial(
+            user_id=user_id,
+            user_email=user_email,
+            trial_days=7,
+            trial_type='premium_free_trial'
+        )
+        
+        if trial_created:
+            logger.info(f"Created 7-day premium trial for free user {user_email}")
+            return True
+        else:
+            logger.warning(f"Failed to create premium trial for {user_email}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error creating premium trial for {user_email}: {e}")
+        return False

@@ -308,7 +308,7 @@ def register():
                 subscription_level=SubscriptionLevel(subscription_level),
                 is_admin=is_admin)
 
-            user_id = user.user_id  # Extract the user_id string from the User object
+            user_id = str(user.user_id)  # Ensure user_id is a string, not the User object
 
             # Track user registration event
             analytics_service.track_user_event(user_id=str(user_id),

@@ -121,8 +121,23 @@ a:hover {
     transition: box-shadow 0.2s ease;
 }
 
+/* Custom hover effects for cards */
 .card:hover {
-    box-shadow: 0 0.5rem 1rem rgba(33, 37, 41, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+/* Purple outline button */
+.btn-outline-purple {
+    color: #6f42c1;
+    border-color: #6f42c1;
+}
+
+.btn-outline-purple:hover {
+    color: #fff;
+    background-color: #6f42c1;
+    border-color: #6f42c1;
 }
 
 .card-header {

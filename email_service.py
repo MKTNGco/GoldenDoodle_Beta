@@ -364,6 +364,143 @@ Questions? Reply to this email or visit our support page.
             logger.error(f"Failed to send beta invitation email to {to_email}: {e}")
             return False
 
+    def send_user_referral_email(self, to_email: str, invite_code: str, inviter_name: str, invitation_type: str, personal_message: str = "") -> bool:
+        """Send user referral invitation email"""
+        if not self.client:
+            logger.error("SendGrid client not configured")
+            return False
+
+        try:
+            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            invite_link = f"{base_url}/register?ref={invite_code}"
+
+            # Format invitation type for display
+            type_display = {
+                'colleague': 'colleague',
+                'friend': 'friend',
+                'partner_organization': 'partner organization',
+                'other': 'contact'
+            }.get(invitation_type, 'contact')
+
+            subject = f"{inviter_name} invited you to try GoldenDoodleLM"
+
+            # Build personal message section
+            personal_section = ""
+            if personal_message:
+                personal_section = f"""
+                <div class="highlight-box">
+                    <h3 style="margin-top: 0; color: #32808c;">Personal Message from {inviter_name}:</h3>
+                    <p style="font-style: italic;">{personal_message.replace(chr(10), '<br>')}</p>
+                </div>
+                """
+
+            plain_content = f"""
+Hello!
+
+{inviter_name} thinks you'd be interested in GoldenDoodleLM and has invited you to try our platform.
+
+{f"Personal message: {personal_message}" if personal_message else ""}
+
+Join GoldenDoodleLM:
+{invite_link}
+
+About GoldenDoodleLM:
+GoldenDoodleLM helps organizations create content that prioritizes safety, trust, and empowerment in all communications. Whether you're crafting emails, social media posts, or internal announcements, our AI ensures your message resonates with warmth and clarity.
+
+What makes us different:
+• Principled communications approach
+• Brand voice consistency
+• Safe and supportive content generation
+• Built for organizations that care about their impact
+
+Your invitation code: {invite_code}
+
+Ready to get started? Click the link above or visit our registration page and enter your invitation code.
+
+Best regards,
+The GoldenDoodleLM Team
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }}
+        .header {{ background: linear-gradient(135deg, #32808c 0%, #2a6b75 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; }}
+        .highlight-box {{ background: #e8f4f5; border-left: 4px solid #32808c; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+        .button {{ display: inline-block; background: #32808c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }}
+        .button:hover {{ background: #2a6b75; }}
+        .features {{ margin: 20px 0; }}
+        .feature {{ margin: 10px 0; padding-left: 20px; position: relative; }}
+        .feature:before {{ content: "✓"; position: absolute; left: 0; color: #32808c; font-weight: bold; }}
+        .footer {{ background: #32808c; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
+        .invite-code {{ background: #fff; border: 2px dashed #32808c; padding: 15px; text-align: center; font-family: monospace; font-size: 18px; font-weight: bold; margin: 20px 0; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>You're Invited to GoldenDoodleLM!</h1>
+        <p>A personal invitation from {inviter_name}</p>
+    </div>
+    
+    <div class="content">
+        <p>Hello!</p>
+        
+        <p><strong>{inviter_name}</strong> thinks you'd be interested in GoldenDoodleLM and has invited you to try our platform.</p>
+        
+        {personal_section}
+        
+        <div style="text-align: center;">
+            <a href="{invite_link}" class="button">Accept Invitation</a>
+        </div>
+        
+        <div class="invite-code">
+            Your invitation code: <span style="color: #32808c;">{invite_code}</span>
+        </div>
+        
+        <div class="highlight-box">
+            <h3 style="margin-top: 0; color: #32808c;">About GoldenDoodleLM</h3>
+            <p>GoldenDoodleLM helps organizations create content that prioritizes safety, trust, and empowerment in all communications. Whether you're crafting emails, social media posts, or internal announcements, our AI ensures your message resonates with warmth and clarity.</p>
+        </div>
+        
+        <h3 style="color: #32808c;">What makes us different:</h3>
+        <div class="features">
+            <div class="feature">Principled communications approach</div>
+            <div class="feature">Brand voice consistency</div>
+            <div class="feature">Safe and supportive content generation</div>
+            <div class="feature">Built for organizations that care about their impact</div>
+        </div>
+        
+        <p>Ready to get started? Click the button above or visit our registration page and enter your invitation code.</p>
+    </div>
+    
+    <div class="footer">
+        <p><strong>Best regards,</strong><br>The GoldenDoodleLM Team</p>
+        <p style="font-size: 12px; margin-top: 15px;">You received this invitation because {inviter_name} thought you'd be interested in GoldenDoodleLM.</p>
+    </div>
+</body>
+</html>
+            """
+
+            message = Mail(
+                from_email=From(self.from_email, self.from_name),
+                to_emails=To(to_email),
+                subject=Subject(subject),
+                plain_text_content=PlainTextContent(plain_content),
+                html_content=HtmlContent(html_content)
+            )
+
+            response = self.client.send(message)
+            logger.info(f"User referral email sent to {to_email}, status: {response.status_code}")
+            return response.status_code == 202
+
+        except Exception as e:
+            logger.error(f"Failed to send user referral email to {to_email}: {e}")
+            return False
+
     def send_feedback_email(self, feedback_data: dict, attachments: list = None) -> bool:
         """Send feedback email to support"""
         try:

@@ -227,12 +227,23 @@ def register():
 
             # Track user registration and source (non-critical)
             try:
+                # Determine signup source based on invitation type
+                if invitation_data:
+                    if invitation_data.get('invitation_type') == 'user_referral':
+                        signup_source = 'user_referral'
+                    elif invitation_data.get('invitation_type') == 'beta':
+                        signup_source = 'invitation_beta'
+                    else:
+                        signup_source = f"invitation_{invitation_data.get('invitation_type', 'unknown')}"
+                else:
+                    signup_source = 'free_registration'
+                
                 user_source_tracker.track_user_signup(
                     user_email=email,
-                    signup_source='free_registration',
+                    signup_source=signup_source,
                     invite_code=invitation_code if invitation_data else None
                 )
-                logger.info(f"Tracked signup source for {email}")
+                logger.info(f"Tracked signup source for {email}: {signup_source}")
             except Exception as tracking_error:
                 logger.warning(f"Failed to track signup source for {email}: {tracking_error}")
 
@@ -3116,6 +3127,165 @@ def test_cancel():
     </body>
     </html>
     '''
+
+@app.route('/send-user-invitations', methods=['POST'])
+@login_required
+def send_user_invitations():
+    """Send user referral invitations"""
+    try:
+        data = request.get_json()
+        email_list = data.get('emails', '').strip()
+        personal_message = data.get('personal_message', '').strip()
+        invitation_type = data.get('invitation_type', 'colleague')
+        
+        if not email_list:
+            return jsonify({'error': 'Please enter at least one email address.'}), 400
+        
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Parse email list (support both comma-separated and line-separated)
+        emails = []
+        for line in email_list.replace(',', '\n').split('\n'):
+            email = line.strip().lower()
+            if email and '@' in email and '.' in email:
+                emails.append(email)
+        
+        if not emails:
+            return jsonify({'error': 'No valid email addresses found.'}), 400
+        
+        # Check for duplicates and existing users
+        from invitation_manager import invitation_manager
+        results = []
+        
+        for email in emails:
+            try:
+                # Check if user already exists
+                existing_user = db_manager.get_user_by_email(email)
+                if existing_user:
+                    results.append({
+                        'email': email,
+                        'success': False,
+                        'error': 'User already has an account',
+                        'email_sent': False
+                    })
+                    continue
+                
+                # Check if invitation already exists
+                existing_invitations = invitation_manager.get_invitations_by_email(email)
+                pending_invitations = [inv for inv in existing_invitations if inv['status'] == 'pending']
+                
+                if pending_invitations:
+                    results.append({
+                        'email': email,
+                        'success': False,
+                        'error': 'Invitation already sent',
+                        'email_sent': False
+                    })
+                    continue
+                
+                # Create invitation
+                invite_code = invitation_manager.create_invitation(
+                    email=email,
+                    org_name=f"{user.first_name} {user.last_name}",
+                    invitation_type='user_referral'
+                )
+                
+                # Send invitation email
+                email_sent = email_service.send_user_referral_email(
+                    to_email=email,
+                    invite_code=invite_code,
+                    inviter_name=f"{user.first_name} {user.last_name}",
+                    invitation_type=invitation_type,
+                    personal_message=personal_message
+                )
+                
+                results.append({
+                    'email': email,
+                    'invite_code': invite_code,
+                    'success': True,
+                    'email_sent': email_sent,
+                    'invitation_type': invitation_type
+                })
+                
+                # Track invitation sent
+                analytics_service.track_user_event(
+                    user_id=str(user.user_id),
+                    event_name='User Invitation Sent',
+                    properties={
+                        'invited_email': email,
+                        'invitation_type': invitation_type,
+                        'has_personal_message': bool(personal_message)
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"Error creating invitation for {email}: {e}")
+                results.append({
+                    'email': email,
+                    'success': False,
+                    'error': f'Error: {str(e)}',
+                    'email_sent': False
+                })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'total_sent': len([r for r in results if r['success']])
+        })
+        
+    except Exception as e:
+        logger.error(f"Error sending user invitations: {e}")
+        return jsonify({'error': 'An error occurred while sending invitations.'}), 500
+
+@app.route('/my-invitations')
+@login_required
+def get_my_invitations():
+    """Get current user's invitation statistics"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        from invitation_manager import invitation_manager
+        
+        # Get all invitations sent by this user (they show as org_name containing user's name)
+        all_invitations = invitation_manager.get_all_invitations()
+        user_name = f"{user.first_name} {user.last_name}"
+        
+        user_invitations = [
+            inv for inv in all_invitations 
+            if inv.get('invitation_type') == 'user_referral' 
+            and inv.get('organization_name') == user_name
+        ]
+        
+        # Calculate statistics
+        total_sent = len(user_invitations)
+        accepted_count = len([inv for inv in user_invitations if inv['status'] == 'accepted'])
+        pending_count = len([inv for inv in user_invitations if inv['status'] == 'pending'])
+        
+        # Get pending invitations for display
+        pending_invitations = [
+            {
+                'email': inv['invitee_email'],
+                'invite_code': inv['invite_code'],
+                'created_at': inv['created_at'],
+                'status': inv['status']
+            }
+            for inv in user_invitations if inv['status'] == 'pending'
+        ]
+        
+        return jsonify({
+            'total_sent': total_sent,
+            'accepted_count': accepted_count,
+            'pending_count': pending_count,
+            'pending_invitations': pending_invitations
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting user invitations: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
 
 @app.route('/admin/beta-invites', methods=['GET', 'POST'])
 def admin_beta_invites():

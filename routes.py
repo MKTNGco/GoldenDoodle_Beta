@@ -3395,6 +3395,50 @@ def admin_beta_invites():
     email_status = detect_email_system()
     return render_template('admin_beta_invites.html', email_status=email_status)
 
+@app.route('/admin/stats')
+@super_admin_required
+def admin_stats():
+    """Admin statistics dashboard"""
+    # Track admin access to stats
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Viewed Admin Statistics Dashboard'
+    )
+    return render_template('admin_stats.html')
+
+@app.route('/admin/invitation-stats')
+@super_admin_required
+def admin_invitation_stats():
+    """Get invitation statistics data"""
+    try:
+        from invitation_manager import invitation_manager
+        from user_source_tracker import user_source_tracker
+        
+        # Get all invitations
+        invitations = invitation_manager.get_all_invitations()
+        
+        # Get all user signups
+        signups = user_source_tracker.get_all_sources()
+        
+        # Track accessing invitation stats
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Fetched Invitation Statistics',
+            properties={
+                'total_invitations': len(invitations),
+                'total_signups': len(signups)
+            }
+        )
+        
+        return jsonify({
+            'invitations': invitations,
+            'signups': signups
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting invitation stats: {e}")
+        return jsonify({'error': 'Failed to load invitation statistics'}), 500
+
 @app.route('/debug-env')
 @super_admin_required
 def debug_env():

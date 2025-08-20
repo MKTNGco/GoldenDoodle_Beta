@@ -1,0 +1,427 @@
+
+{% extends "base.html" %}
+
+{% block title %}Admin Statistics - GoldenDoodleLM{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-chart-bar me-2"></i>Invitation System Statistics</h2>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary active" onclick="showAllData()">All Time</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterByWeek()">This Week</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterByType('beta')">Beta Only</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterByType('user_referral')">Referrals Only</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-paper-plane text-primary mb-2" style="font-size: 2rem;"></i>
+                    <h5 id="totalInvites">-</h5>
+                    <p class="text-muted">Total Invitations</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-user-check text-success mb-2" style="font-size: 2rem;"></i>
+                    <h5 id="acceptedInvites">-</h5>
+                    <p class="text-muted">Accepted</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-clock text-warning mb-2" style="font-size: 2rem;"></i>
+                    <h5 id="pendingInvites">-</h5>
+                    <p class="text-muted">Pending</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-percentage text-info mb-2" style="font-size: 2rem;"></i>
+                    <h5 id="acceptanceRate">-</h5>
+                    <p class="text-muted">Acceptance Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invitations by Type -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Invitations by Type</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Total</th>
+                                    <th>Accepted</th>
+                                    <th>Pending</th>
+                                    <th>Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="typeStatsTable">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Recent Signups</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Source</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentSignupsTable">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Invitations -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Pending Invitations</h5>
+                    <span class="badge bg-warning" id="pendingCount">0</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="pendingInvitationsTable">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Organization</th>
+                                    <th>Type</th>
+                                    <th>Invite Code</th>
+                                    <th>Created Date</th>
+                                    <th>Days Pending</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Invitations -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Invitations</h5>
+                    <div class="input-group" style="width: 300px;">
+                        <input type="text" class="form-control form-control-sm" id="searchInvitations" placeholder="Search invitations...">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="clearSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm" id="allInvitationsTable">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Organization</th>
+                                    <th>Type</th>
+                                    <th>Code</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Accepted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let allInvitations = [];
+let allSignups = [];
+let currentFilter = 'all';
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadInvitationStats();
+});
+
+async function loadInvitationStats() {
+    try {
+        const response = await fetch('/admin/invitation-stats');
+        const data = await response.json();
+        
+        allInvitations = data.invitations || [];
+        allSignups = data.signups || [];
+        
+        updateDashboard();
+    } catch (error) {
+        console.error('Error loading invitation stats:', error);
+        showError('Failed to load invitation statistics');
+    }
+}
+
+function updateDashboard() {
+    const filteredInvitations = getFilteredInvitations();
+    
+    // Update summary cards
+    updateSummaryCards(filteredInvitations);
+    
+    // Update type statistics
+    updateTypeStats(filteredInvitations);
+    
+    // Update recent signups
+    updateRecentSignups();
+    
+    // Update pending invitations
+    updatePendingInvitations(filteredInvitations);
+    
+    // Update all invitations table
+    updateAllInvitationsTable(filteredInvitations);
+}
+
+function getFilteredInvitations() {
+    let filtered = [...allInvitations];
+    
+    if (currentFilter === 'week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        filtered = filtered.filter(inv => new Date(inv.created_at) >= oneWeekAgo);
+    } else if (currentFilter !== 'all') {
+        filtered = filtered.filter(inv => inv.invitation_type === currentFilter);
+    }
+    
+    return filtered;
+}
+
+function updateSummaryCards(invitations) {
+    const total = invitations.length;
+    const accepted = invitations.filter(inv => inv.status === 'accepted').length;
+    const pending = invitations.filter(inv => inv.status === 'pending').length;
+    const rate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+    
+    document.getElementById('totalInvites').textContent = total;
+    document.getElementById('acceptedInvites').textContent = accepted;
+    document.getElementById('pendingInvites').textContent = pending;
+    document.getElementById('acceptanceRate').textContent = rate + '%';
+}
+
+function updateTypeStats(invitations) {
+    const typeStats = {};
+    
+    invitations.forEach(inv => {
+        const type = inv.invitation_type || 'unknown';
+        if (!typeStats[type]) {
+            typeStats[type] = { total: 0, accepted: 0, pending: 0 };
+        }
+        typeStats[type].total++;
+        if (inv.status === 'accepted') typeStats[type].accepted++;
+        if (inv.status === 'pending') typeStats[type].pending++;
+    });
+    
+    const tbody = document.getElementById('typeStatsTable');
+    tbody.innerHTML = '';
+    
+    Object.entries(typeStats).forEach(([type, stats]) => {
+        const rate = stats.total > 0 ? Math.round((stats.accepted / stats.total) * 100) : 0;
+        const row = `
+            <tr>
+                <td><span class="badge bg-primary">${type}</span></td>
+                <td>${stats.total}</td>
+                <td>${stats.accepted}</td>
+                <td>${stats.pending}</td>
+                <td>${rate}%</td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+}
+
+function updateRecentSignups() {
+    const recentSignups = allSignups
+        .sort((a, b) => new Date(b.signup_date) - new Date(a.signup_date))
+        .slice(0, 10);
+    
+    const tbody = document.getElementById('recentSignupsTable');
+    tbody.innerHTML = '';
+    
+    if (recentSignups.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No signups found</td></tr>';
+        return;
+    }
+    
+    recentSignups.forEach(signup => {
+        const date = new Date(signup.signup_date).toLocaleDateString();
+        const row = `
+            <tr>
+                <td>${signup.user_email}</td>
+                <td><span class="badge bg-secondary">${signup.signup_source}</span></td>
+                <td>${date}</td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+}
+
+function updatePendingInvitations(invitations) {
+    const pending = invitations.filter(inv => inv.status === 'pending');
+    document.getElementById('pendingCount').textContent = pending.length;
+    
+    const tbody = document.querySelector('#pendingInvitationsTable tbody');
+    tbody.innerHTML = '';
+    
+    if (pending.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No pending invitations</td></tr>';
+        return;
+    }
+    
+    pending.forEach(inv => {
+        const createdDate = new Date(inv.created_at);
+        const daysPending = Math.floor((new Date() - createdDate) / (1000 * 60 * 60 * 24));
+        
+        const row = `
+            <tr>
+                <td>${inv.invitee_email}</td>
+                <td>${inv.organization_name}</td>
+                <td><span class="badge bg-info">${inv.invitation_type}</span></td>
+                <td><code>${inv.invite_code}</code></td>
+                <td>${createdDate.toLocaleDateString()}</td>
+                <td>${daysPending} day${daysPending !== 1 ? 's' : ''}</td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+}
+
+function updateAllInvitationsTable(invitations) {
+    const tbody = document.querySelector('#allInvitationsTable tbody');
+    tbody.innerHTML = '';
+    
+    // Apply search filter
+    const searchTerm = document.getElementById('searchInvitations').value.toLowerCase();
+    const filtered = invitations.filter(inv => 
+        inv.invitee_email.toLowerCase().includes(searchTerm) ||
+        inv.organization_name.toLowerCase().includes(searchTerm) ||
+        inv.invite_code.toLowerCase().includes(searchTerm)
+    );
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No invitations found</td></tr>';
+        return;
+    }
+    
+    filtered.forEach(inv => {
+        const createdDate = new Date(inv.created_at).toLocaleDateString();
+        const acceptedDate = inv.accepted_at ? new Date(inv.accepted_at).toLocaleDateString() : '-';
+        
+        const statusBadge = inv.status === 'accepted' ? 'bg-success' : 
+                           inv.status === 'pending' ? 'bg-warning' : 'bg-secondary';
+        
+        const row = `
+            <tr>
+                <td>${inv.invitee_email}</td>
+                <td>${inv.organization_name}</td>
+                <td><span class="badge bg-info">${inv.invitation_type}</span></td>
+                <td><code>${inv.invite_code}</code></td>
+                <td><span class="badge ${statusBadge}">${inv.status}</span></td>
+                <td>${createdDate}</td>
+                <td>${acceptedDate}</td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+}
+
+// Filter functions
+function showAllData() {
+    currentFilter = 'all';
+    updateActiveButton(0);
+    updateDashboard();
+}
+
+function filterByWeek() {
+    currentFilter = 'week';
+    updateActiveButton(1);
+    updateDashboard();
+}
+
+function filterByType(type) {
+    currentFilter = type;
+    if (type === 'beta') updateActiveButton(2);
+    if (type === 'user_referral') updateActiveButton(3);
+    updateDashboard();
+}
+
+function updateActiveButton(activeIndex) {
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach((btn, index) => {
+        btn.classList.toggle('active', index === activeIndex);
+    });
+}
+
+// Search functionality
+document.getElementById('searchInvitations').addEventListener('input', function() {
+    updateAllInvitationsTable(getFilteredInvitations());
+});
+
+function clearSearch() {
+    document.getElementById('searchInvitations').value = '';
+    updateAllInvitationsTable(getFilteredInvitations());
+}
+
+function showError(message) {
+    const container = document.querySelector('.container-fluid');
+    const alert = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    container.insertAdjacentHTML('afterbegin', alert);
+}
+</script>
+{% endblock %}

@@ -16,5 +16,29 @@
     "status": "accepted",
     "created_at": "2025-08-19T23:32:47.455420",
     "accepted_at": "2025-08-20T00:31:30.955708"
+  },
+  {
+    "invite_code": "BETA9UFA",
+    "invitee_email": "user1@example.com",
+    "organization_name": "Org One",
+    "invitation_type": "beta",
+    "status": "pending",
+    "created_at": "2025-08-20T00:37:14.598209"
+  },
+  {
+    "invite_code": "BETAE7SC",
+    "invitee_email": "user2@example.com",
+    "organization_name": "Org Two",
+    "invitation_type": "beta",
+    "status": "pending",
+    "created_at": "2025-08-20T00:37:14.598953"
+  },
+  {
+    "invite_code": "BETAHI2M",
+    "invitee_email": "user3@example.com",
+    "organization_name": "Org Three",
+    "invitation_type": "beta",
+    "status": "pending",
+    "created_at": "2025-08-20T00:37:14.599400"
   }
 ]

@@ -72,7 +72,7 @@ def register():
             password = request.form.get('password', '')
             organization_name = request.form.get('organization_name', '').strip()
             user_type = request.form.get('user_type', 'independent')
-            subscription_level = request.form.get('subscription_level', 'entry')
+            subscription_level = request.form.get('subscription_level', 'free')
 
             # Validation
             if not all([first_name, last_name, email, password]):
@@ -223,6 +223,17 @@ def register():
                 }
             )
 
+            # Track user registration and source (non-critical)
+            try:
+                user_source_tracker.track_user_signup(
+                    user_email=email,
+                    signup_source='free_registration',
+                    invite_code=invitation_code if invitation_data else None
+                )
+                logger.info(f"Tracked signup source for {email}")
+            except Exception as tracking_error:
+                logger.warning(f"Failed to track signup source for {email}: {tracking_error}")
+
             # Check if this is a paid plan - redirect to checkout immediately
             if subscription_level in ['solo', 'team', 'professional']:
                 try:
@@ -354,13 +365,25 @@ def register():
                         'retry': True
                     }), 400
 
+            # Mark invitation as accepted if this was from an invitation
+            if invitation_data:
+                try:
+                    from invitation_manager import invitation_manager
+                    invitation_manager.mark_accepted(invitation_code)
+                    logger.info(f"Marked invitation {invitation_code} as accepted")
+                except Exception as inv_error:
+                    logger.warning(f"Failed to mark invitation as accepted: {inv_error}")
+
             # For free plans or fallback, send verification email
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
 
             if db_manager.create_verification_token(user_id, token_hash):
                 if email_service.send_verification_email(email, verification_token, first_name):
-                    flash('Account created successfully! Please check your email to verify your account before signing in.', 'success')
+                    if invitation_data:
+                        flash(f'Welcome! Your account has been created successfully. Please check your email to verify your account before signing in.', 'success')
+                    else:
+                        flash('Account created successfully! Please check your email to verify your account before signing in.', 'success')
                     return redirect(url_for('login'))
                 else:
                     flash('Account created, but we couldn\'t send the verification email. Please contact support.', 'warning')

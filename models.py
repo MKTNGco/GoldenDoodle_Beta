@@ -8,6 +8,7 @@ class TenantType(Enum):
     INDEPENDENT_USER = 'independent_user'
 
 class SubscriptionLevel(Enum):
+    FREE = 'free'
     SOLO = 'solo'
     PRO = 'pro'
     TEAM = 'team'

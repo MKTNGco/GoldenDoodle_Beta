@@ -24,6 +24,7 @@ STRIPE_DISABLED = os.environ.get('STRIPE_DISABLED', 'false').lower() == 'true'
 
 logger = logging.getLogger(__name__)
 
+
 @app.route('/')
 def index():
     """Home page"""
@@ -32,12 +33,14 @@ def index():
         return redirect(url_for('chat'))
     return render_template('index.html')
 
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration"""
     # Check if this is an organization invite
     is_organization_invite = request.args.get('invite') == 'organization'
-    organization_invite = session.get('organization_invite') if is_organization_invite else None
+    organization_invite = session.get(
+        'organization_invite') if is_organization_invite else None
 
     # Check for invitation codes via URL parameters
     invitation_code = request.args.get('ref') or request.args.get('invite')
@@ -51,8 +54,12 @@ def register():
         if invitation_data and invitation_data['status'] == 'pending':
             logger.info(f"Valid invitation found for code: {invitation_code}")
         elif invitation_data:
-            logger.warning(f"Invitation {invitation_code} found but status is: {invitation_data['status']}")
-            flash(f'This invitation has already been {invitation_data["status"]}.', 'warning')
+            logger.warning(
+                f"Invitation {invitation_code} found but status is: {invitation_data['status']}"
+            )
+            flash(
+                f'This invitation has already been {invitation_data["status"]}.',
+                'warning')
             invitation_data = None
         else:
             logger.warning(f"Invalid invitation code: {invitation_code}")
@@ -60,51 +67,73 @@ def register():
 
     # Handle payment cancellation
     if request.args.get('payment_cancelled'):
-        flash('Payment was cancelled. You can complete your registration with a free plan or try again with a paid plan.', 'info')
+        flash(
+            'Payment was cancelled. You can complete your registration with a free plan or try again with a paid plan.',
+            'info')
 
     if request.method == 'POST':
         # Check if this is an AJAX request expecting JSON
-        expects_json = (request.is_json or 
-                       'application/json' in request.headers.get('Accept', '') or 
-                       request.headers.get('Content-Type') == 'application/x-www-form-urlencoded')
+        expects_json = (request.is_json
+                        or 'application/json' in request.headers.get(
+                            'Accept', '')
+                        or request.headers.get('Content-Type')
+                        == 'application/x-www-form-urlencoded')
 
         try:
             first_name = request.form.get('first_name', '').strip()
             last_name = request.form.get('last_name', '').strip()
             email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '')
-            organization_name = request.form.get('organization_name', '').strip()
+            organization_name = request.form.get('organization_name',
+                                                 '').strip()
             user_type = request.form.get('user_type', 'independent')
             subscription_level = request.form.get('subscription_level', 'free')
 
             # Validation
             if not all([first_name, last_name, email, password]):
                 if expects_json:
-                    return jsonify({'error': 'All fields are required.', 'retry': True}), 400
+                    return jsonify({
+                        'error': 'All fields are required.',
+                        'retry': True
+                    }), 400
                 flash('All fields are required.', 'error')
-                return render_template('register.html', 
-                                     is_organization_invite=is_organization_invite,
-                                     organization_invite=organization_invite)
+                return render_template(
+                    'register.html',
+                    is_organization_invite=is_organization_invite,
+                    organization_invite=organization_invite)
 
             # Handle organization invite registration
             if organization_invite:
                 if email != organization_invite['email']:
                     if expects_json:
-                        return jsonify({'error': 'You must use the invited email address to register.', 'retry': True}), 400
-                    flash('You must use the invited email address to register.', 'error')
-                    return render_template('register.html', 
-                                         is_organization_invite=is_organization_invite,
-                                         organization_invite=organization_invite)
+                        return jsonify({
+                            'error':
+                            'You must use the invited email address to register.',
+                            'retry': True
+                        }), 400
+                    flash(
+                        'You must use the invited email address to register.',
+                        'error')
+                    return render_template(
+                        'register.html',
+                        is_organization_invite=is_organization_invite,
+                        organization_invite=organization_invite)
 
                 # Check if user already exists
                 existing_user = db_manager.get_user_by_email(email)
                 if existing_user:
                     if expects_json:
-                        return jsonify({'error': 'An account with this email already exists.', 'retry': True}), 400
-                    flash('An account with this email already exists.', 'error')
-                    return render_template('register.html', 
-                                         is_organization_invite=is_organization_invite,
-                                         organization_invite=organization_invite)
+                        return jsonify({
+                            'error':
+                            'An account with this email already exists.',
+                            'retry': True
+                        }), 400
+                    flash('An account with this email already exists.',
+                          'error')
+                    return render_template(
+                        'register.html',
+                        is_organization_invite=is_organization_invite,
+                        organization_invite=organization_invite)
 
                 # Create user as organization member with predetermined settings
                 user_id = db_manager.create_user(
@@ -113,7 +142,8 @@ def register():
                     last_name=last_name,
                     email=email,
                     password=password,
-                    subscription_level=SubscriptionLevel.TEAM,  # Predetermined for organization members
+                    subscription_level=SubscriptionLevel.
+                    TEAM,  # Predetermined for organization members
                     is_admin=False  # Regular team member, not admin
                 )
 
@@ -124,13 +154,15 @@ def register():
                     properties={
                         'email': email,
                         'first_name': first_name,
-                        'tenant_type': TenantType.COMPANY.value,  # Company type for organization members
-                        'subscription_level': SubscriptionLevel.TEAM.value # Team level for organization members
-                    }
-                )
+                        'tenant_type': TenantType.COMPANY.
+                        value,  # Company type for organization members
+                        'subscription_level': SubscriptionLevel.TEAM.
+                        value  # Team level for organization members
+                    })
 
                 # Mark invite as used
-                db_manager.use_organization_invite_token(organization_invite['token_hash'])
+                db_manager.use_organization_invite_token(
+                    organization_invite['token_hash'])
 
                 # Clear invite from session
                 session.pop('organization_invite', None)
@@ -140,34 +172,51 @@ def register():
                 token_hash = hash_token(verification_token)
 
                 if db_manager.create_verification_token(user_id, token_hash):
-                    if email_service.send_verification_email(email, verification_token, first_name):
-                        flash(f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.', 'success')
+                    if email_service.send_verification_email(
+                            email, verification_token, first_name):
+                        flash(
+                            f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.',
+                            'success')
                         return redirect(url_for('login'))
                     else:
-                        flash('Account created, but we couldn\'t send the verification email. Please contact support.', 'warning')
+                        flash(
+                            'Account created, but we couldn\'t send the verification email. Please contact support.',
+                            'warning')
                         return redirect(url_for('login'))
                 else:
-                    flash('Account created, but there was an issue with email verification. Please contact support.', 'warning')
+                    flash(
+                        'Account created, but there was an issue with email verification. Please contact support.',
+                        'warning')
                     return redirect(url_for('login'))
 
             # Regular registration flow
             if user_type == 'company' and not organization_name:
                 if expects_json:
-                    return jsonify({'error': 'Organization name is required for company accounts.', 'retry': True}), 400
-                flash('Organization name is required for company accounts.', 'error')
-                return render_template('register.html', 
-                                     is_organization_invite=is_organization_invite,
-                                     organization_invite=organization_invite)
+                    return jsonify({
+                        'error':
+                        'Organization name is required for company accounts.',
+                        'retry': True
+                    }), 400
+                flash('Organization name is required for company accounts.',
+                      'error')
+                return render_template(
+                    'register.html',
+                    is_organization_invite=is_organization_invite,
+                    organization_invite=organization_invite)
 
-            # Check if user already exists  
+            # Check if user already exists
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
                 if expects_json:
-                    return jsonify({'error': 'An account with this email already exists.', 'retry': True}), 400
+                    return jsonify({
+                        'error': 'An account with this email already exists.',
+                        'retry': True
+                    }), 400
                 flash('An account with this email already exists.', 'error')
-                return render_template('register.html', 
-                                     is_organization_invite=is_organization_invite,
-                                     organization_invite=organization_invite)
+                return render_template(
+                    'register.html',
+                    is_organization_invite=is_organization_invite,
+                    organization_invite=organization_invite)
 
             # Create tenant and determine brand voice limits
             subscription_enum = SubscriptionLevel(subscription_level)
@@ -184,8 +233,7 @@ def register():
                 tenant = db_manager.create_tenant(
                     name=organization_name,
                     tenant_type=TenantType.COMPANY,
-                    max_brand_voices=max_brand_voices
-                )
+                    max_brand_voices=max_brand_voices)
                 is_admin = True  # First user in company is admin
             else:
                 # Individual plans (Solo/Pro)
@@ -199,8 +247,7 @@ def register():
                 tenant = db_manager.create_tenant(
                     name=f"{first_name} {last_name}'s Account",
                     tenant_type=TenantType.INDEPENDENT_USER,
-                    max_brand_voices=max_brand_voices
-                )
+                    max_brand_voices=max_brand_voices)
                 is_admin = False
 
             # Create user
@@ -211,37 +258,41 @@ def register():
                 email=email,
                 password=password,
                 subscription_level=SubscriptionLevel(subscription_level),
-                is_admin=is_admin
-            )
+                is_admin=is_admin)
 
             user_id = user.user_id  # Extract the user_id string from the User object
 
             # Track user registration event
-            analytics_service.track_user_event(
-                user_id=str(user_id),
-                event_name='User Registered',
-                properties={
-                    'email': email,
-                    'first_name': first_name,
-                    'tenant_type': user_type,
-                    'subscription_level': subscription_level
-                }
-            )
+            analytics_service.track_user_event(user_id=str(user_id),
+                                               event_name='User Registered',
+                                               properties={
+                                                   'email':
+                                                   email,
+                                                   'first_name':
+                                                   first_name,
+                                                   'tenant_type':
+                                                   user_type,
+                                                   'subscription_level':
+                                                   subscription_level
+                                               })
 
             # Mark invitation as accepted if this was from an invitation
             if invitation_data:
                 try:
                     from invitation_manager import invitation_manager
                     invitation_manager.mark_accepted(invitation_code)
-                    logger.info(f"Marked invitation {invitation_code} as accepted")
+                    logger.info(
+                        f"Marked invitation {invitation_code} as accepted")
                 except Exception as inv_error:
-                    logger.warning(f"Failed to mark invitation as accepted: {inv_error}")
+                    logger.warning(
+                        f"Failed to mark invitation as accepted: {inv_error}")
 
             # Track user registration and source (non-critical)
             try:
                 # Determine signup source based on invitation type
                 if invitation_data:
-                    if invitation_data.get('invitation_type') == 'user_referral':
+                    if invitation_data.get(
+                            'invitation_type') == 'user_referral':
                         signup_source = 'user_referral'
                     elif invitation_data.get('invitation_type') == 'beta':
                         signup_source = 'invitation_beta'
@@ -253,9 +304,9 @@ def register():
                 user_source_tracker.track_user_signup(
                     user_email=email,
                     signup_source=signup_source,
-                    invite_code=invitation_code if invitation_data else None
-                )
-                logger.info(f"Tracked signup source for {email}: {signup_source}")
+                    invite_code=invitation_code if invitation_data else None)
+                logger.info(
+                    f"Tracked signup source for {email}: {signup_source}")
 
                 # Create trials based on user type
                 if signup_source == 'invitation_beta':
@@ -265,31 +316,38 @@ def register():
                         beta_trial_created = beta_trial_manager.create_beta_trial(
                             user_id=user_id,
                             user_email=email,
-                            invite_code=invitation_code
-                        )
+                            invite_code=invitation_code)
                         if beta_trial_created:
-                            logger.info(f"Created 90-day beta trial for {email}")
+                            logger.info(
+                                f"Created 90-day beta trial for {email}")
                         else:
-                            logger.warning(f"Failed to create beta trial for {email}")
+                            logger.warning(
+                                f"Failed to create beta trial for {email}")
                     except Exception as beta_error:
-                        logger.warning(f"Failed to create beta trial for {email}: {beta_error}")
+                        logger.warning(
+                            f"Failed to create beta trial for {email}: {beta_error}"
+                        )
                 else:
                     # Create 7-day premium trial for all other users (including free)
                     try:
                         from trial_utils import create_premium_trial_for_free_user
                         premium_trial_created = create_premium_trial_for_free_user(
-                            user_id=user_id,
-                            user_email=email
-                        )
+                            user_id=user_id, user_email=email)
                         if premium_trial_created:
-                            logger.info(f"Created 7-day premium trial for {email}")
+                            logger.info(
+                                f"Created 7-day premium trial for {email}")
                         else:
-                            logger.warning(f"Failed to create premium trial for {email}")
+                            logger.warning(
+                                f"Failed to create premium trial for {email}")
                     except Exception as trial_error:
-                        logger.warning(f"Failed to create premium trial for {email}: {trial_error}")
+                        logger.warning(
+                            f"Failed to create premium trial for {email}: {trial_error}"
+                        )
 
             except Exception as tracking_error:
-                logger.warning(f"Failed to track signup source for {email}: {tracking_error}")
+                logger.warning(
+                    f"Failed to track signup source for {email}: {tracking_error}"
+                )
 
             # Check if this is a beta user or if we should skip payment processing
             skip_payment = False
@@ -297,14 +355,19 @@ def register():
             # Check if Stripe is globally disabled
             if STRIPE_DISABLED:
                 skip_payment = True
-                logger.info(f"Stripe is disabled globally - skipping payment for {email}")
+                logger.info(
+                    f"Stripe is disabled globally - skipping payment for {email}"
+                )
             # Check if user is beta (from invitation)
-            elif invitation_data and invitation_data.get('invitation_type') == 'beta':
+            elif invitation_data and invitation_data.get(
+                    'invitation_type') == 'beta':
                 skip_payment = True
-                logger.info(f"Beta user detected - skipping payment for {email}")
+                logger.info(
+                    f"Beta user detected - skipping payment for {email}")
 
             # For paid plans, either process payment or skip for beta users
-            if subscription_level in ['solo', 'team', 'professional'] and not skip_payment:
+            if subscription_level in ['solo', 'team', 'professional'
+                                      ] and not skip_payment:
                 # Only process Stripe payment for non-beta users
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
@@ -312,11 +375,11 @@ def register():
                     customer = stripe_service.create_customer(
                         email=email,
                         name=f"{first_name} {last_name}",
-                        metadata={'user_id': user_id}
-                    )
+                        metadata={'user_id': user_id})
 
                     if customer:
-                        db_manager.update_user_stripe_info(user_id, stripe_customer_id=customer['id'])
+                        db_manager.update_user_stripe_info(
+                            user_id, stripe_customer_id=customer['id'])
 
                     # Map subscription level to Stripe price ID
                     price_mapping = {
@@ -342,13 +405,15 @@ def register():
                     base_url = request.url_root.rstrip('/')
 
                     # Ensure we're using the correct host for Replit
-                    if 'replit.dev' in base_url and not base_url.startswith('https://'):
+                    if 'replit.dev' in base_url and not base_url.startswith(
+                            'https://'):
                         base_url = base_url.replace('http://', 'https://')
 
                     success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
 
-                    logger.info(f"Creating Stripe checkout session for user {user_id}")
+                    logger.info(
+                        f"Creating Stripe checkout session for user {user_id}")
 
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
@@ -361,20 +426,26 @@ def register():
                             'plan_id': subscription_level,
                             'new_registration': 'true',
                             'trial_days': '0'
-                        }
-                    )
+                        })
 
                     if stripe_session and stripe_session.get('url'):
                         # Store pending registration in session for post-payment verification
                         session['pending_registration'] = {
-                            'user_id': user_id,
-                            'email': email,
-                            'first_name': first_name,
-                            'needs_verification': True,
-                            'original_invite_code': invitation_code if invitation_data else None
+                            'user_id':
+                            user_id,
+                            'email':
+                            email,
+                            'first_name':
+                            first_name,
+                            'needs_verification':
+                            True,
+                            'original_invite_code':
+                            invitation_code if invitation_data else None
                         }
 
-                        logger.info(f"✓ Stripe checkout session created: {stripe_session['id']}")
+                        logger.info(
+                            f"✓ Stripe checkout session created: {stripe_session['id']}"
+                        )
 
                         return jsonify({
                             'success': True,
@@ -392,7 +463,8 @@ def register():
                         except:
                             pass
                         return jsonify({
-                            'error': 'Payment session creation failed. Please try again.',
+                            'error':
+                            'Payment session creation failed. Please try again.',
                             'retry': True
                         }), 400
 
@@ -405,7 +477,8 @@ def register():
                     except:
                         pass
                     return jsonify({
-                        'error': f'Payment processing error: {str(stripe_error)}',
+                        'error':
+                        f'Payment processing error: {str(stripe_error)}',
                         'retry': True
                     }), 400
             else:
@@ -424,28 +497,43 @@ def register():
                 email_sent = False
                 if invitation_data:
                     if invitation_data.get('invitation_type') == 'beta':
-                        email_sent = email_service.send_beta_welcome_email(email, verification_token, first_name)
-                    elif invitation_data.get('invitation_type') == 'user_referral':
-                        email_sent = email_service.send_referral_welcome_email(email, verification_token, first_name)
+                        email_sent = email_service.send_beta_welcome_email(
+                            email, verification_token, first_name)
+                    elif invitation_data.get(
+                            'invitation_type') == 'user_referral':
+                        email_sent = email_service.send_referral_welcome_email(
+                            email, verification_token, first_name)
                     else:
-                        email_sent = email_service.send_verification_email(email, verification_token, first_name)
+                        email_sent = email_service.send_verification_email(
+                            email, verification_token, first_name)
                 else:
-                    email_sent = email_service.send_verification_email(email, verification_token, first_name)
+                    email_sent = email_service.send_verification_email(
+                        email, verification_token, first_name)
 
                 if email_sent:
                     if invitation_data:
                         if invitation_data.get('invitation_type') == 'beta':
-                            flash('Welcome to the GoldenDoodleLM Beta! Your account has been created with a 90-day trial. Please check your email to verify your account.', 'success')
+                            flash(
+                                'Welcome to the GoldenDoodleLM Beta! Your account has been created with a 90-day trial. Please check your email to verify your account.',
+                                'success')
                         else:
-                            flash('Welcome! Your account has been created successfully. Please check your email to verify your account before signing in.', 'success')
+                            flash(
+                                'Welcome! Your account has been created successfully. Please check your email to verify your account before signing in.',
+                                'success')
                     else:
-                        flash('Account created successfully! Please check your email to verify your account before signing in.', 'success')
+                        flash(
+                            'Account created successfully! Please check your email to verify your account before signing in.',
+                            'success')
                     return redirect(url_for('login'))
                 else:
-                    flash('Account created, but we couldn\'t send the verification email. Please contact support.', 'warning')
+                    flash(
+                        'Account created, but we couldn\'t send the verification email. Please contact support.',
+                        'warning')
                     return redirect(url_for('login'))
             else:
-                flash('Account created, but there was an issue with email verification. Please contact support.', 'warning')
+                flash(
+                    'Account created, but there was an issue with email verification. Please contact support.',
+                    'warning')
                 return redirect(url_for('login'))
 
         except Exception as e:
@@ -465,22 +553,27 @@ def register():
             # Always return JSON for AJAX requests
             if expects_json:
                 return jsonify({
-                    'error': 'An error occurred during registration. Please try again.',
+                    'error':
+                    'An error occurred during registration. Please try again.',
                     'retry': True
                 }), 500
             else:
-                flash('An error occurred during registration. Please try again.', 'error')
-                return render_template('register.html', 
-                                     is_organization_invite=is_organization_invite,
-                                     organization_invite=organization_invite,
-                                     invitation_data=invitation_data,
-                                     invitation_code=invitation_code)
+                flash(
+                    'An error occurred during registration. Please try again.',
+                    'error')
+                return render_template(
+                    'register.html',
+                    is_organization_invite=is_organization_invite,
+                    organization_invite=organization_invite,
+                    invitation_data=invitation_data,
+                    invitation_code=invitation_code)
 
-    return render_template('register.html', 
-                         is_organization_invite=is_organization_invite,
-                         organization_invite=organization_invite,
-                         invitation_data=invitation_data,
-                         invitation_code=invitation_code)
+    return render_template('register.html',
+                           is_organization_invite=is_organization_invite,
+                           organization_invite=organization_invite,
+                           invitation_data=invitation_data,
+                           invitation_code=invitation_code)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -496,21 +589,25 @@ def login():
         user = db_manager.get_user_by_email(email)
         if user and db_manager.verify_password(user, password):
             if not user.email_verified:
-                flash('Please verify your email address before signing in. Check your inbox for the verification link.', 'warning')
-                return render_template('login.html', show_resend=True, email=email)
+                flash(
+                    'Please verify your email address before signing in. Check your inbox for the verification link.',
+                    'warning')
+                return render_template('login.html',
+                                       show_resend=True,
+                                       email=email)
 
             # Update last login timestamp
             db_manager.update_user_last_login(user.user_id)
 
             # Track user login event
-            analytics_service.track_user_event(
-                user_id=str(user.user_id),
-                event_name='User Login',
-                properties={
-                    'email': user.email,
-                    'subscription_level': user.subscription_level
-                }
-            )
+            analytics_service.track_user_event(user_id=str(user.user_id),
+                                               event_name='User Login',
+                                               properties={
+                                                   'email':
+                                                   user.email,
+                                                   'subscription_level':
+                                                   user.subscription_level
+                                               })
 
             login_user(user)
             flash('Welcome back!', 'success')
@@ -521,28 +618,27 @@ def login():
                 if parsed_url.netloc and parsed_url.netloc != request.host:
                     # External redirect detected, ignore and use default
                     return redirect(url_for('chat'))
-            return redirect(next_page) if next_page else redirect(url_for('chat'))
+            return redirect(next_page) if next_page else redirect(
+                url_for('chat'))
         else:
             flash('Invalid email or password.', 'error')
 
     return render_template('login.html')
 
+
 @app.route('/logout')
 def logout():
     """User logout"""
-    user = get_current_user() # Get user before logging out
+    user = get_current_user()  # Get user before logging out
     logout_user()
     if user:
         # Track user logout event
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='User Logout',
-            properties={
-                'email': user.email
-            }
-        )
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='User Logout',
+                                           properties={'email': user.email})
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
+
 
 @app.route('/verify-email')
 def verify_email():
@@ -557,20 +653,18 @@ def verify_email():
 
     if user_id:
         # Track email verification event
-        user = db_manager.get_user_by_id(user_id) # Fetch user to get details
+        user = db_manager.get_user_by_id(user_id)  # Fetch user to get details
         if user:
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
                 event_name='Email Verified',
-                properties={
-                    'email': user.email
-                }
-            )
+                properties={'email': user.email})
         flash('Email verified successfully! You can now sign in.', 'success')
         return redirect(url_for('login'))
     else:
         flash('Invalid or expired verification link.', 'error')
         return redirect(url_for('login'))
+
 
 @app.route('/resend-verification', methods=['POST'])
 def resend_verification():
@@ -596,24 +690,30 @@ def resend_verification():
         token_hash = hash_token(verification_token)
 
         if db_manager.create_verification_token(user.user_id, token_hash):
-            if email_service.send_verification_email(email, verification_token, user.first_name):
+            if email_service.send_verification_email(email, verification_token,
+                                                     user.first_name):
                 # Track resend verification email event
                 analytics_service.track_user_event(
                     user_id=str(user.user_id),
                     event_name='Verification Email Resent',
-                    properties={
-                        'email': user.email
-                    }
-                )
-                return jsonify({'success': True, 'message': 'Verification email sent successfully'})
+                    properties={'email': user.email})
+                return jsonify({
+                    'success':
+                    True,
+                    'message':
+                    'Verification email sent successfully'
+                })
             else:
-                return jsonify({'error': 'Failed to send verification email'}), 500
+                return jsonify({'error':
+                                'Failed to send verification email'}), 500
         else:
-            return jsonify({'error': 'Failed to create verification token'}), 500
+            return jsonify({'error':
+                            'Failed to create verification token'}), 500
 
     except Exception as e:
         logger.error(f"Error resending verification: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -631,28 +731,35 @@ def forgot_password():
             reset_token = generate_verification_token()
             token_hash = hash_token(reset_token)
 
-            if db_manager.create_password_reset_token(user.user_id, token_hash):
-                if email_service.send_password_reset_email(email, reset_token, user.first_name):
+            if db_manager.create_password_reset_token(user.user_id,
+                                                      token_hash):
+                if email_service.send_password_reset_email(
+                        email, reset_token, user.first_name):
                     # Track password reset request event
                     analytics_service.track_user_event(
                         user_id=str(user.user_id),
                         event_name='Password Reset Requested',
-                        properties={
-                            'email': user.email
-                        }
-                    )
-                    flash('Password reset link sent to your email address.', 'success')
+                        properties={'email': user.email})
+                    flash('Password reset link sent to your email address.',
+                          'success')
                 else:
-                    flash('Failed to send password reset email. Please try again.', 'error')
+                    flash(
+                        'Failed to send password reset email. Please try again.',
+                        'error')
             else:
-                flash('Failed to generate password reset link. Please try again.', 'error')
+                flash(
+                    'Failed to generate password reset link. Please try again.',
+                    'error')
         else:
             # Don't reveal if email exists or not
-            flash('If an account with that email exists, a password reset link has been sent.', 'info')
+            flash(
+                'If an account with that email exists, a password reset link has been sent.',
+                'info')
 
         return redirect(url_for('login'))
 
     return render_template('forgot_password.html')
+
 
 @app.route('/reset-password', methods=['GET', 'POST'])
 def reset_password():
@@ -693,7 +800,8 @@ def reset_password():
             conn = db_manager.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE users 
                 SET password_hash = %s
                 WHERE user_id = %s
@@ -712,12 +820,10 @@ def reset_password():
                 analytics_service.track_user_event(
                     user_id=str(user.user_id),
                     event_name='Password Reset Success',
-                    properties={
-                        'email': user.email
-                    }
-                )
+                    properties={'email': user.email})
 
-            flash('Password reset successfully! You can now sign in.', 'success')
+            flash('Password reset successfully! You can now sign in.',
+                  'success')
             return redirect(url_for('login'))
 
         except Exception as e:
@@ -726,6 +832,7 @@ def reset_password():
             return render_template('reset_password.html', token=token)
 
     return render_template('reset_password.html', token=token)
+
 
 @app.route('/chat')
 def chat():
@@ -740,34 +847,33 @@ def chat():
             return redirect(url_for('logout'))
 
         # Get brand voices - all voices are treated as company voices now
-        company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+        company_brand_voices = db_manager.get_company_brand_voices(
+            tenant.tenant_id)
         user_brand_voices = []  # No longer using user-specific brand voices
 
         # Track user visit to chat page
         analytics_service.track_user_event(
             user_id=str(user.user_id),
             event_name='Visited Chat Page',
-            properties={
-                'subscription_level': user.subscription_level.value
-            }
-        )
+            properties={'subscription_level': user.subscription_level.value})
 
-        return render_template('chat.html', 
-                             user=user, 
-                             tenant=tenant,
-                             company_brand_voices=company_brand_voices,
-                             user_brand_voices=user_brand_voices,
-                             content_modes=CONTENT_MODE_CONFIG,
-                             is_demo=False)
+        return render_template('chat.html',
+                               user=user,
+                               tenant=tenant,
+                               company_brand_voices=company_brand_voices,
+                               user_brand_voices=user_brand_voices,
+                               content_modes=CONTENT_MODE_CONFIG,
+                               is_demo=False)
     else:
         # Demo mode - limited functionality
-        return render_template('chat.html', 
-                             user=None, 
-                             tenant=None,
-                             company_brand_voices=[],
-                             user_brand_voices=[],
-                             content_modes=CONTENT_MODE_CONFIG,
-                             is_demo=True)
+        return render_template('chat.html',
+                               user=None,
+                               tenant=None,
+                               company_brand_voices=[],
+                               user_brand_voices=[],
+                               content_modes=CONTENT_MODE_CONFIG,
+                               is_demo=True)
+
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -782,13 +888,14 @@ def generate():
         content_mode = data.get('content_mode')
         brand_voice_id = data.get('brand_voice_id')
         is_demo = data.get('is_demo', False)
-        session_id = data.get('session_id') # Added for tracking
+        session_id = data.get('session_id')  # Added for tracking
 
         logger.info(f"Prompt length: {len(prompt)}")
         logger.info(f"Content mode: {content_mode}")
         logger.info(f"Brand voice ID: {brand_voice_id}")
         logger.info(f"Is demo: {is_demo}")
-        logger.info(f"Conversation history length: {len(conversation_history)}")
+        logger.info(
+            f"Conversation history length: {len(conversation_history)}")
 
         if not prompt:
             logger.warning("No prompt provided")
@@ -812,19 +919,18 @@ def generate():
                 conversation_history=conversation_history,
                 content_mode=content_mode,
                 brand_voice_context=None,
-                trauma_informed_context=trauma_informed_context
-            )
+                trauma_informed_context=trauma_informed_context)
 
             # Track demo generation event
             analytics_service.track_user_event(
-                user_id='anonymous_demo_user', # Use a placeholder for anonymous users
+                user_id=
+                'anonymous_demo_user',  # Use a placeholder for anonymous users
                 event_name='Chat Message Generated (Demo)',
                 properties={
                     'content_mode': content_mode,
                     'prompt_length': len(prompt),
                     'response_length': len(response)
-                }
-            )
+                })
 
             return jsonify({'response': response})
 
@@ -836,7 +942,8 @@ def generate():
             estimated_tokens += len(msg.get('content', '')) // 4
 
         # Check user limits before proceeding
-        limits_check = db_manager.check_user_limits(user.user_id, content_mode, estimated_tokens)
+        limits_check = db_manager.check_user_limits(user.user_id, content_mode,
+                                                    estimated_tokens)
         if not limits_check['allowed']:
             return jsonify({'error': limits_check['error']}), 403
 
@@ -848,22 +955,31 @@ def generate():
         brand_voice_context = None
         if brand_voice_id:
             # Get brand voice from database - all voices are company voices now
-            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            selected_brand_voice = next((bv for bv in company_brand_voices if bv.brand_voice_id == brand_voice_id), None)
+            company_brand_voices = db_manager.get_company_brand_voices(
+                tenant.tenant_id)
+            selected_brand_voice = next(
+                (bv for bv in company_brand_voices
+                 if bv.brand_voice_id == brand_voice_id), None)
 
             if selected_brand_voice:
-                brand_voice_context = rag_service.get_brand_voice_context(selected_brand_voice.markdown_content)
+                brand_voice_context = rag_service.get_brand_voice_context(
+                    selected_brand_voice.markdown_content)
 
         # Get trauma-informed context
         trauma_informed_context = rag_service.get_trauma_informed_context()
 
         # Generate content with conversation history
         logger.info(f"=== CALLING GEMINI SERVICE ===")
-        logger.info(f"About to call gemini_service.generate_content_with_history")
+        logger.info(
+            f"About to call gemini_service.generate_content_with_history")
         logger.info(f"Prompt: {prompt[:100]}...")
         logger.info(f"Content mode: {content_mode}")
-        logger.info(f"Brand voice context length: {len(brand_voice_context) if brand_voice_context else 0}")
-        logger.info(f"Trauma informed context length: {len(trauma_informed_context) if trauma_informed_context else 0}")
+        logger.info(
+            f"Brand voice context length: {len(brand_voice_context) if brand_voice_context else 0}"
+        )
+        logger.info(
+            f"Trauma informed context length: {len(trauma_informed_context) if trauma_informed_context else 0}"
+        )
 
         try:
             response = gemini_service.generate_content_with_history(
@@ -871,11 +987,14 @@ def generate():
                 conversation_history=conversation_history,
                 content_mode=content_mode,
                 brand_voice_context=brand_voice_context,
-                trauma_informed_context=trauma_informed_context
-            )
+                trauma_informed_context=trauma_informed_context)
 
-            logger.info(f"✓ Gemini service returned response of length: {len(response) if response else 0}")
-            logger.info(f"Response preview: {response[:100] if response else 'No response'}")
+            logger.info(
+                f"✓ Gemini service returned response of length: {len(response) if response else 0}"
+            )
+            logger.info(
+                f"Response preview: {response[:100] if response else 'No response'}"
+            )
         except Exception as gemini_error:
             logger.error(f"❌ Error in Gemini service call: {gemini_error}")
             raise
@@ -886,61 +1005,79 @@ def generate():
         db_manager.update_user_token_usage(user.user_id, total_tokens_used)
 
         # Save to chat history if user is logged in
-        if session_id: # Use session_id from request data
+        if session_id:  # Use session_id from request data
             # Verify session belongs to user before saving
             user_sessions = db_manager.get_user_chat_sessions(user.user_id)
-            session_belongs_to_user = any(s['session_id'] == session_id for s in user_sessions)
+            session_belongs_to_user = any(s['session_id'] == session_id
+                                          for s in user_sessions)
 
             if not session_belongs_to_user:
-                logger.warning(f"Session {session_id} does not belong to user {user.user_id}")
+                logger.warning(
+                    f"Session {session_id} does not belong to user {user.user_id}"
+                )
                 return jsonify({'error': 'Invalid session'}), 400
 
-            logger.info(f"Saving message to session {session_id} for user {user.user_id}")
+            logger.info(
+                f"Saving message to session {session_id} for user {user.user_id}"
+            )
 
             # Check chat history limits first
             user_plan = db_manager.get_user_plan(user.user_id)
-            if user_plan and user_plan['chat_history_limit'] != -1:  # -1 means unlimited
+            if user_plan and user_plan[
+                    'chat_history_limit'] != -1:  # -1 means unlimited
                 if len(user_sessions) >= user_plan['chat_history_limit']:
                     # Don't save to history if limit reached
                     pass
                 else:
                     # Add user message
-                    db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
+                    db_manager.add_chat_message(session_id, 'user', prompt,
+                                                content_mode, brand_voice_id)
                     # Add assistant response
-                    db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
+                    db_manager.add_chat_message(session_id, 'assistant',
+                                                response, content_mode,
+                                                brand_voice_id)
 
                     # Update session title if this is the first exchange
                     messages = db_manager.get_chat_messages(session_id)
-                    if len(messages) <= 2:  # First user message + first assistant response
+                    if len(
+                            messages
+                    ) <= 2:  # First user message + first assistant response
                         # Generate a short title from the first user message
-                        title = prompt[:50] + "..." if len(prompt) > 50 else prompt
+                        title = prompt[:50] + "..." if len(
+                            prompt) > 50 else prompt
                         db_manager.update_chat_session_title(session_id, title)
             else:
                 # Unlimited history - save normally
                 # Add user message
-                db_manager.add_chat_message(session_id, 'user', prompt, content_mode, brand_voice_id)
+                db_manager.add_chat_message(session_id, 'user', prompt,
+                                            content_mode, brand_voice_id)
                 # Add assistant response
-                db_manager.add_chat_message(session_id, 'assistant', response, content_mode, brand_voice_id)
+                db_manager.add_chat_message(session_id, 'assistant', response,
+                                            content_mode, brand_voice_id)
 
                 # Update session title if this is the first exchange
                 messages = db_manager.get_chat_messages(session_id)
-                if len(messages) <= 2:  # First user message + first assistant response
+                if len(messages
+                       ) <= 2:  # First user message + first assistant response
                     # Generate a short title from the first user message
                     title = prompt[:50] + "..." if len(prompt) > 50 else prompt
                     db_manager.update_chat_session_title(session_id, title)
 
         # Track chat generation event
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Chat Message Generated',
-            properties={
-                'content_mode': content_mode,
-                'has_brand_voice': bool(brand_voice_id),
-                'prompt_length': len(prompt),
-                'response_length': len(response),
-                'session_id': str(session_id)
-            }
-        )
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='Chat Message Generated',
+                                           properties={
+                                               'content_mode':
+                                               content_mode,
+                                               'has_brand_voice':
+                                               bool(brand_voice_id),
+                                               'prompt_length':
+                                               len(prompt),
+                                               'response_length':
+                                               len(response),
+                                               'session_id':
+                                               str(session_id)
+                                           })
 
         logger.info(f"=== ROUTE COMPLETING SUCCESSFULLY ===")
         return jsonify({'response': response})
@@ -949,22 +1086,29 @@ def generate():
         logger.error(f"❌ Generation error: {e}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        return jsonify({'error': 'An error occurred while generating content. Please try again.'}), 500
+        return jsonify({
+            'error':
+            'An error occurred while generating content. Please try again.'
+        }), 500
+
 
 @app.route('/how-to')
 def how_to():
     """How to use GoldenDoodleLM guide page"""
     return render_template('how_to.html')
 
+
 @app.route('/our-story')
 def our_story():
     """Our story page - tells the story of GoldenDoodleLM"""
     return render_template('our_story.html')
 
+
 @app.route('/pricing')
 def pricing():
     """Pricing page with four-tier pricing model"""
     return render_template('pricing.html')
+
 
 @app.route('/account')
 @login_required
@@ -979,7 +1123,8 @@ def account():
         return redirect(url_for('logout'))
 
     # Get brand voices - all voices are treated as company voices now
-    company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+    company_brand_voices = db_manager.get_company_brand_voices(
+        tenant.tenant_id)
     user_brand_voices = []  # No longer using user-specific brand voices
 
     # Determine max user voices based on subscription
@@ -987,7 +1132,9 @@ def account():
         max_user_voices = 10
     elif user.subscription_level == SubscriptionLevel.SOLO:
         max_user_voices = 1
-    elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
+    elif user.subscription_level in [
+            SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE
+    ]:
         max_user_voices = 10
     else:
         max_user_voices = 1
@@ -996,17 +1143,15 @@ def account():
     analytics_service.track_user_event(
         user_id=str(user.user_id),
         event_name='Visited Account Page',
-        properties={
-            'subscription_level': user.subscription_level
-        }
-    )
+        properties={'subscription_level': user.subscription_level})
 
     return render_template('account.html',
-                         user=user,
-                         tenant=tenant,
-                         company_brand_voices=company_brand_voices,
-                         user_brand_voices=user_brand_voices,
-                         max_user_voices=max_user_voices)
+                           user=user,
+                           tenant=tenant,
+                           company_brand_voices=company_brand_voices,
+                           user_brand_voices=user_brand_voices,
+                           max_user_voices=max_user_voices)
+
 
 @app.route('/update-profile', methods=['POST'])
 @login_required
@@ -1029,13 +1174,15 @@ def update_profile():
         if email != user.email:
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
-                return jsonify({'error': 'Email address is already in use'}), 400
+                return jsonify({'error':
+                                'Email address is already in use'}), 400
 
         # Update user in database
         conn = db_manager.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE users 
             SET first_name = %s, last_name = %s, email = %s
             WHERE user_id = %s
@@ -1046,21 +1193,24 @@ def update_profile():
         conn.close()
 
         # Track profile update event
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Profile Updated',
-            properties={
-                'email': email,
-                'first_name': first_name,
-                'last_name': last_name
-            }
-        )
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='Profile Updated',
+                                           properties={
+                                               'email': email,
+                                               'first_name': first_name,
+                                               'last_name': last_name
+                                           })
 
-        return jsonify({'success': True, 'message': 'Profile updated successfully'})
+        return jsonify({
+            'success': True,
+            'message': 'Profile updated successfully'
+        })
 
     except Exception as e:
         logger.error(f"Error updating profile: {e}")
-        return jsonify({'error': 'An error occurred while updating your profile'}), 500
+        return jsonify(
+            {'error': 'An error occurred while updating your profile'}), 500
+
 
 @app.route('/change-password', methods=['POST'])
 @login_required
@@ -1076,7 +1226,8 @@ def change_password():
         new_password = data.get('new_password', '')
 
         if not current_password or not new_password:
-            return jsonify({'error': 'Current and new passwords are required'}), 400
+            return jsonify({'error':
+                            'Current and new passwords are required'}), 400
 
         # Verify current password
         if not db_manager.verify_password(user, current_password):
@@ -1089,7 +1240,8 @@ def change_password():
         conn = db_manager.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE users 
             SET password_hash = %s
             WHERE user_id = %s
@@ -1100,19 +1252,20 @@ def change_password():
         conn.close()
 
         # Track password change event
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Password Changed',
-            properties={
-                'email': user.email
-            }
-        )
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='Password Changed',
+                                           properties={'email': user.email})
 
-        return jsonify({'success': True, 'message': 'Password changed successfully'})
+        return jsonify({
+            'success': True,
+            'message': 'Password changed successfully'
+        })
 
     except Exception as e:
         logger.error(f"Error changing password: {e}")
-        return jsonify({'error': 'An error occurred while changing your password'}), 500
+        return jsonify(
+            {'error': 'An error occurred while changing your password'}), 500
+
 
 @app.route('/delete-account', methods=['POST'])
 @login_required
@@ -1137,11 +1290,15 @@ def delete_account():
             return jsonify({'error': 'Invalid tenant'}), 400
 
         if tenant.tenant_type == TenantType.COMPANY:
-            return jsonify({'error': 'Organization members cannot delete their accounts. Please contact your organization admin.'}), 400
+            return jsonify({
+                'error':
+                'Organization members cannot delete their accounts. Please contact your organization admin.'
+            }), 400
 
         # Log deletion reason if provided
         if delete_reason:
-            logger.info(f"Account deletion reason for {user.email}: {delete_reason}")
+            logger.info(
+                f"Account deletion reason for {user.email}: {delete_reason}")
 
         # Delete the user and their tenant (since they're independent)
         user_deleted = db_manager.delete_user(user.user_id)
@@ -1149,25 +1306,33 @@ def delete_account():
 
         if user_deleted and tenant_deleted:
             # Track account deletion event
-            analytics_service.track_user_event(
-                user_id=str(user.user_id),
-                event_name='Account Deleted',
-                properties={
-                    'email': user.email,
-                    'delete_reason': delete_reason
-                }
-            )
+            analytics_service.track_user_event(user_id=str(user.user_id),
+                                               event_name='Account Deleted',
+                                               properties={
+                                                   'email': user.email,
+                                                   'delete_reason':
+                                                   delete_reason
+                                               })
             # Log out the user
             logout_user()
             logger.info(f"Account successfully deleted for user: {user.email}")
-            return jsonify({'success': True, 'message': 'Account deleted successfully'})
+            return jsonify({
+                'success': True,
+                'message': 'Account deleted successfully'
+            })
         else:
             logger.error(f"Failed to delete account for user: {user.email}")
-            return jsonify({'error': 'Failed to delete account. Please contact support.'}), 500
+            return jsonify(
+                {'error':
+                 'Failed to delete account. Please contact support.'}), 500
 
     except Exception as e:
         logger.error(f"Error deleting account: {e}")
-        return jsonify({'error': 'An error occurred while deleting your account. Please contact support.'}), 500
+        return jsonify({
+            'error':
+            'An error occurred while deleting your account. Please contact support.'
+        }), 500
+
 
 @app.route('/brand-voices')
 @login_required
@@ -1182,7 +1347,8 @@ def brand_voices():
         return redirect(url_for('logout'))
 
     # Get brand voices - all voices are treated as company voices now
-    company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+    company_brand_voices = db_manager.get_company_brand_voices(
+        tenant.tenant_id)
     user_brand_voices = []  # No longer using user-specific brand voices
 
     # Check limits based on subscription level
@@ -1190,35 +1356,38 @@ def brand_voices():
         max_user_voices = 10
     elif user.subscription_level == SubscriptionLevel.SOLO:
         max_user_voices = 1
-    elif user.subscription_level in [SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE]:
+    elif user.subscription_level in [
+            SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE
+    ]:
         max_user_voices = 10  # Team members can have personal voices too
     else:
         max_user_voices = 1  # Default
 
     can_create_user_voice = len(user_brand_voices) < max_user_voices
-    can_create_company_voice = (user.is_admin and 
-                               tenant.tenant_type == TenantType.COMPANY and 
-                               len(company_brand_voices) < tenant.max_brand_voices)
+    can_create_company_voice = (user.is_admin
+                                and tenant.tenant_type == TenantType.COMPANY
+                                and len(company_brand_voices)
+                                < tenant.max_brand_voices)
 
     # Track user visit to brand voices page
-    analytics_service.track_user_event(
-        user_id=str(user.user_id),
-        event_name='Visited Brand Voices Page',
-        properties={
-            'subscription_level': user.subscription_level,
-            'is_admin': user.is_admin,
-            'tenant_type': tenant.tenant_type
-        }
-    )
+    analytics_service.track_user_event(user_id=str(user.user_id),
+                                       event_name='Visited Brand Voices Page',
+                                       properties={
+                                           'subscription_level':
+                                           user.subscription_level,
+                                           'is_admin': user.is_admin,
+                                           'tenant_type': tenant.tenant_type
+                                       })
 
     return render_template('brand_voices.html',
-                         user=user,
-                         tenant=tenant,
-                         company_brand_voices=company_brand_voices,
-                         user_brand_voices=user_brand_voices,
-                         can_create_user_voice=can_create_user_voice,
-                         can_create_company_voice=can_create_company_voice,
-                         max_user_voices=max_user_voices)
+                           user=user,
+                           tenant=tenant,
+                           company_brand_voices=company_brand_voices,
+                           user_brand_voices=user_brand_voices,
+                           can_create_user_voice=can_create_user_voice,
+                           can_create_company_voice=can_create_company_voice,
+                           max_user_voices=max_user_voices)
+
 
 @app.route('/brand-voice-wizard')
 @login_required
@@ -1256,12 +1425,16 @@ def brand_voice_wizard():
         # Get brand voice to verify permission
         company_brand_voices = []
         if tenant.tenant_type == TenantType.COMPANY:
-            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            company_brand_voices = db_manager.get_company_brand_voices(
+                tenant.tenant_id)
 
-        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        user_brand_voices = db_manager.get_user_brand_voices(
+            tenant.tenant_id, user.user_id)
         all_brand_voices = company_brand_voices + user_brand_voices
 
-        selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == edit_id), None)
+        selected_brand_voice = next(
+            (bv for bv in all_brand_voices if bv.brand_voice_id == edit_id),
+            None)
 
         if not selected_brand_voice:
             flash('Brand voice not found.', 'error')
@@ -1280,19 +1453,18 @@ def brand_voice_wizard():
         voice_type = 'company' if not selected_brand_voice.user_id else 'user'
 
     # Track user visit to brand voice wizard
-    analytics_service.track_user_event(
-        user_id=str(user.user_id),
-        event_name='Visited Brand Voice Wizard',
-        properties={
-            'voice_type': voice_type,
-            'editing': bool(edit_id)
-        }
-    )
+    analytics_service.track_user_event(user_id=str(user.user_id),
+                                       event_name='Visited Brand Voice Wizard',
+                                       properties={
+                                           'voice_type': voice_type,
+                                           'editing': bool(edit_id)
+                                       })
 
-    return render_template('brand_voice_wizard.html', 
-                         voice_type=voice_type, 
-                         user=user, 
-                         edit_id=edit_id)
+    return render_template('brand_voice_wizard.html',
+                           voice_type=voice_type,
+                           user=user,
+                           edit_id=edit_id)
+
 
 @app.route('/create-brand-voice', methods=['POST'])
 @login_required
@@ -1304,27 +1476,39 @@ def create_brand_voice():
         data = request.get_json()
 
         if not data:
-            logger.error("No JSON data received in brand voice creation request")
+            logger.error(
+                "No JSON data received in brand voice creation request")
             return jsonify({'error': 'No data received'}), 400
 
         # Required fields
         company_name = data.get('company_name', '').strip()
         company_url = data.get('company_url', '').strip()
         voice_short_name = data.get('voice_short_name', '').strip()
-        voice_type = data.get('voice_type', 'user') # Although we always create as company, this might be used for context
-        brand_voice_id = data.get('brand_voice_id')  # For editing existing voices
+        voice_type = data.get(
+            'voice_type', 'user'
+        )  # Although we always create as company, this might be used for context
+        brand_voice_id = data.get(
+            'brand_voice_id')  # For editing existing voices
 
         logger.info(f"Request method: {request.method}")
-        logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not set')}")
+        logger.info(
+            f"Content-Type: {request.headers.get('Content-Type', 'Not set')}")
         logger.info(f"Request data received: {bool(data)}")
-        logger.info(f"Creating brand voice: '{voice_short_name}' for voice_type: {voice_type}")
+        logger.info(
+            f"Creating brand voice: '{voice_short_name}' for voice_type: {voice_type}"
+        )
         logger.info(f"Company: '{company_name}', URL: '{company_url}'")
         logger.info(f"Is editing: {bool(brand_voice_id)}")
-        logger.info(f"Raw data keys: {list(data.keys()) if data else 'No data'}")
+        logger.info(
+            f"Raw data keys: {list(data.keys()) if data else 'No data'}")
 
         if not all([company_name, company_url, voice_short_name]):
-            logger.error(f"Missing required fields: company_name={bool(company_name)}, company_url={bool(company_url)}, voice_short_name={bool(voice_short_name)}")
-            return jsonify({'error': 'Company name, URL, and voice name are required'}), 400
+            logger.error(
+                f"Missing required fields: company_name={bool(company_name)}, company_url={bool(company_url)}, voice_short_name={bool(voice_short_name)}"
+            )
+            return jsonify(
+                {'error':
+                 'Company name, URL, and voice name are required'}), 400
 
         user = get_current_user()
         if not user:
@@ -1335,8 +1519,12 @@ def create_brand_voice():
             logger.error(f"Invalid tenant for user {user.user_id}")
             return jsonify({'error': 'Invalid tenant'}), 400
 
-        logger.info(f"User: {user.user_id} ({user.email}), Tenant: {tenant.tenant_id} ({tenant.name})")
-        logger.info(f"Tenant type: {tenant.tenant_type}, Max voices: {tenant.max_brand_voices}")
+        logger.info(
+            f"User: {user.user_id} ({user.email}), Tenant: {tenant.tenant_id} ({tenant.name})"
+        )
+        logger.info(
+            f"Tenant type: {tenant.tenant_type}, Max voices: {tenant.max_brand_voices}"
+        )
 
         # Determine if this is an edit or create operation
         is_editing = bool(brand_voice_id)
@@ -1345,84 +1533,135 @@ def create_brand_voice():
         logger.info(f"Creating brand voice for tenant {tenant.tenant_id}")
 
         if not is_editing:
-            existing_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            logger.info(f"Existing company voices BEFORE creation: {len(existing_company_voices)}/{tenant.max_brand_voices}")
+            existing_company_voices = db_manager.get_company_brand_voices(
+                tenant.tenant_id)
+            logger.info(
+                f"Existing company voices BEFORE creation: {len(existing_company_voices)}/{tenant.max_brand_voices}"
+            )
             for voice in existing_company_voices:
-                logger.info(f"  Existing voice: '{voice.name}' (ID: {voice.brand_voice_id})")
+                logger.info(
+                    f"  Existing voice: '{voice.name}' (ID: {voice.brand_voice_id})"
+                )
 
             # Use a more generous limit for individuals to ensure they can create voices
-            max_allowed = max(tenant.max_brand_voices, 10)  # Allow at least 10 voices
+            max_allowed = max(tenant.max_brand_voices,
+                              10)  # Allow at least 10 voices
 
             if len(existing_company_voices) >= max_allowed:
-                logger.error(f"Brand voice limit exceeded: {len(existing_company_voices)}/{max_allowed}")
-                return jsonify({'error': f'Maximum of {max_allowed} brand voices allowed'}), 400
+                logger.error(
+                    f"Brand voice limit exceeded: {len(existing_company_voices)}/{max_allowed}"
+                )
+                return jsonify({
+                    'error':
+                    f'Maximum of {max_allowed} brand voices allowed'
+                }), 400
 
         # Always set user_id to None since we're treating all voices as company voices
-        user_id_for_db = None 
+        user_id_for_db = None
 
         # Collect all wizard data
         wizard_data = {
-            'company_name': company_name,
-            'company_url': company_url,
-            'voice_short_name': voice_short_name,
-            'mission_statement': data.get('mission_statement', ''),
-            'vision_statement': data.get('vision_statement', ''),
-            'core_values': data.get('core_values', ''),
-            'elevator_pitch': data.get('elevator_pitch', ''),
-            'about_us_content': data.get('about_us_content', ''),
-            'press_release_boilerplate': data.get('press_release_boilerplate', ''),
-            'primary_audience_persona': data.get('primary_audience_persona', ''),
-            'audience_pain_points': data.get('audience_pain_points', ''),
-            'desired_relationship': data.get('desired_relationship', ''),
-            'audience_language': data.get('audience_language', ''),
-            'personality_formal_casual': int(data.get('personality_formal_casual', 3)),
-            'personality_serious_playful': int(data.get('personality_serious_playful', 3)),
-            'personality_traditional_modern': int(data.get('personality_traditional_modern', 3)),
-            'personality_authoritative_collaborative': int(data.get('personality_authoritative_collaborative', 3)),
-            'personality_accessible_exclusive': int(data.get('personality_accessible_exclusive', 3)),
-            'brand_as_person': data.get('brand_as_person', ''),
-            'brand_spokesperson': data.get('brand_spokesperson', ''),
-            'admired_brands': data.get('admired_brands', ''),
-            'words_to_embrace': data.get('words_to_embrace', ''),
-            'words_to_avoid': data.get('words_to_avoid', ''),
-            'punctuation_contractions': data.get('punctuation_contractions'),
-            'punctuation_oxford_comma': data.get('punctuation_oxford_comma'),
-            'punctuation_extras': data.get('punctuation_extras', ''),
-            'point_of_view': data.get('point_of_view', ''),
-            'sentence_structure': data.get('sentence_structure', ''),
-            'handling_good_news': data.get('handling_good_news', ''),
-            'handling_bad_news': data.get('handling_bad_news', ''),
-            'competitors': data.get('competitors', ''),
-            'competitor_voices': data.get('competitor_voices', ''),
-            'voice_differentiation': data.get('voice_differentiation', '')
+            'company_name':
+            company_name,
+            'company_url':
+            company_url,
+            'voice_short_name':
+            voice_short_name,
+            'mission_statement':
+            data.get('mission_statement', ''),
+            'vision_statement':
+            data.get('vision_statement', ''),
+            'core_values':
+            data.get('core_values', ''),
+            'elevator_pitch':
+            data.get('elevator_pitch', ''),
+            'about_us_content':
+            data.get('about_us_content', ''),
+            'press_release_boilerplate':
+            data.get('press_release_boilerplate', ''),
+            'primary_audience_persona':
+            data.get('primary_audience_persona', ''),
+            'audience_pain_points':
+            data.get('audience_pain_points', ''),
+            'desired_relationship':
+            data.get('desired_relationship', ''),
+            'audience_language':
+            data.get('audience_language', ''),
+            'personality_formal_casual':
+            int(data.get('personality_formal_casual', 3)),
+            'personality_serious_playful':
+            int(data.get('personality_serious_playful', 3)),
+            'personality_traditional_modern':
+            int(data.get('personality_traditional_modern', 3)),
+            'personality_authoritative_collaborative':
+            int(data.get('personality_authoritative_collaborative', 3)),
+            'personality_accessible_exclusive':
+            int(data.get('personality_accessible_exclusive', 3)),
+            'brand_as_person':
+            data.get('brand_as_person', ''),
+            'brand_spokesperson':
+            data.get('brand_spokesperson', ''),
+            'admired_brands':
+            data.get('admired_brands', ''),
+            'words_to_embrace':
+            data.get('words_to_embrace', ''),
+            'words_to_avoid':
+            data.get('words_to_avoid', ''),
+            'punctuation_contractions':
+            data.get('punctuation_contractions'),
+            'punctuation_oxford_comma':
+            data.get('punctuation_oxford_comma'),
+            'punctuation_extras':
+            data.get('punctuation_extras', ''),
+            'point_of_view':
+            data.get('point_of_view', ''),
+            'sentence_structure':
+            data.get('sentence_structure', ''),
+            'handling_good_news':
+            data.get('handling_good_news', ''),
+            'handling_bad_news':
+            data.get('handling_bad_news', ''),
+            'competitors':
+            data.get('competitors', ''),
+            'competitor_voices':
+            data.get('competitor_voices', ''),
+            'voice_differentiation':
+            data.get('voice_differentiation', '')
         }
 
         # Generate comprehensive markdown content for RAG
         markdown_content = generate_brand_voice_markdown(wizard_data)
-        logger.info(f"Generated markdown content length: {len(markdown_content)}")
+        logger.info(
+            f"Generated markdown content length: {len(markdown_content)}")
 
         # Create or update brand voice with comprehensive data
         if is_editing:
             # Verify permissions for editing
             existing_voices = []
             if voice_type == 'company':
-                existing_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+                existing_voices = db_manager.get_company_brand_voices(
+                    tenant.tenant_id)
             else:
-                existing_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+                existing_voices = db_manager.get_user_brand_voices(
+                    tenant.tenant_id, user.user_id)
 
             # Check if the brand voice exists and user has permission
-            voice_exists = any(bv.brand_voice_id == brand_voice_id for bv in existing_voices)
+            voice_exists = any(bv.brand_voice_id == brand_voice_id
+                               for bv in existing_voices)
             if not voice_exists:
-                logger.error(f"Brand voice {brand_voice_id} not found or permission denied for user {user.user_id}")
-                return jsonify({'error': 'Brand voice not found or permission denied'}), 404
+                logger.error(
+                    f"Brand voice {brand_voice_id} not found or permission denied for user {user.user_id}"
+                )
+                return jsonify(
+                    {'error':
+                     'Brand voice not found or permission denied'}), 404
 
             brand_voice = db_manager.update_brand_voice(
                 tenant_id=tenant.tenant_id,
                 brand_voice_id=brand_voice_id,
                 wizard_data=wizard_data,
                 markdown_content=markdown_content,
-                user_id=user_id_for_db
-            )
+                user_id=user_id_for_db)
             logger.info(f"Updated brand voice: {brand_voice.brand_voice_id}")
 
             return_message = f'Brand voice "{voice_short_name}" updated successfully!'
@@ -1432,29 +1671,34 @@ def create_brand_voice():
                 tenant_id=tenant.tenant_id,
                 wizard_data=wizard_data,
                 markdown_content=markdown_content,
-                user_id=user_id_for_db
+                user_id=user_id_for_db)
+            logger.info(
+                f"✓ Successfully created brand voice: {brand_voice.brand_voice_id}"
             )
-            logger.info(f"✓ Successfully created brand voice: {brand_voice.brand_voice_id}")
 
             # Debugging: Fetch all company voices again to see if the new one is present
-            current_company_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            logger.info(f"Company voices AFTER creation: {len(current_company_voices)}/{tenant.max_brand_voices}")
+            current_company_voices = db_manager.get_company_brand_voices(
+                tenant.tenant_id)
+            logger.info(
+                f"Company voices AFTER creation: {len(current_company_voices)}/{tenant.max_brand_voices}"
+            )
             for voice in current_company_voices:
-                logger.info(f"  Voice: '{voice.name}' (ID: {voice.brand_voice_id})")
+                logger.info(
+                    f"  Voice: '{voice.name}' (ID: {voice.brand_voice_id})")
 
             return_message = f'Brand voice "{voice_short_name}" created successfully!'
 
         # Track brand voice creation/update event
         analytics_service.track_user_event(
             user_id=str(user.user_id),
-            event_name='Brand Voice Created' if not is_editing else 'Brand Voice Updated',
+            event_name='Brand Voice Created'
+            if not is_editing else 'Brand Voice Updated',
             properties={
                 'brand_voice_name': voice_short_name,
                 'brand_voice_id': str(brand_voice.brand_voice_id),
-                'is_company_voice': True, # Always company voice now
+                'is_company_voice': True,  # Always company voice now
                 'is_editing': is_editing
-            }
-        )
+            })
 
         return jsonify({
             'success': True,
@@ -1464,7 +1708,11 @@ def create_brand_voice():
 
     except Exception as e:
         logger.error(f"Error creating brand voice: {e}")
-        return jsonify({'error': 'An error occurred while creating the brand voice. Please try again.'}), 500
+        return jsonify({
+            'error':
+            'An error occurred while creating the brand voice. Please try again.'
+        }), 500
+
 
 @app.route('/get-brand-voice/<brand_voice_id>')
 @login_required
@@ -1481,32 +1729,46 @@ def get_brand_voice(brand_voice_id):
         # Get brand voice from database
         company_brand_voices = []
         if tenant.tenant_type == TenantType.COMPANY:
-            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            company_brand_voices = db_manager.get_company_brand_voices(
+                tenant.tenant_id)
 
-        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        user_brand_voices = db_manager.get_user_brand_voices(
+            tenant.tenant_id, user.user_id)
         all_brand_voices = company_brand_voices + user_brand_voices
 
-        selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == brand_voice_id), None)
+        selected_brand_voice = next((bv for bv in all_brand_voices
+                                     if bv.brand_voice_id == brand_voice_id),
+                                    None)
 
         if not selected_brand_voice:
-            logger.warning(f"Brand voice {brand_voice_id} not found for user {user.user_id}")
+            logger.warning(
+                f"Brand voice {brand_voice_id} not found for user {user.user_id}"
+            )
             return jsonify({'error': 'Brand voice not found'}), 404
 
         # Check permissions
         if selected_brand_voice.user_id and selected_brand_voice.user_id != user.user_id:
-            logger.warning(f"Permission denied for user {user.user_id} to access brand voice {brand_voice_id} owned by {selected_brand_voice.user_id}")
+            logger.warning(
+                f"Permission denied for user {user.user_id} to access brand voice {brand_voice_id} owned by {selected_brand_voice.user_id}"
+            )
             return jsonify({'error': 'Permission denied'}), 403
 
         if not selected_brand_voice.user_id and not user.is_admin:
-            logger.warning(f"Permission denied for non-admin user {user.user_id} to access company brand voice {brand_voice_id}")
+            logger.warning(
+                f"Permission denied for non-admin user {user.user_id} to access company brand voice {brand_voice_id}"
+            )
             return jsonify({'error': 'Permission denied'}), 403
 
-        logger.info(f"Successfully retrieved brand voice {brand_voice_id} for user {user.user_id}")
+        logger.info(
+            f"Successfully retrieved brand voice {brand_voice_id} for user {user.user_id}"
+        )
         return jsonify(selected_brand_voice.configuration)
 
     except Exception as e:
         logger.error(f"Error getting brand voice {brand_voice_id}: {e}")
-        return jsonify({'error': 'An error occurred while loading the brand voice'}), 500
+        return jsonify(
+            {'error': 'An error occurred while loading the brand voice'}), 500
+
 
 @app.route('/delete-brand-voice/<brand_voice_id>', methods=['POST'])
 @login_required
@@ -1523,12 +1785,16 @@ def delete_brand_voice(brand_voice_id):
         # Get brand voice from database to check permissions
         company_brand_voices = []
         if tenant.tenant_type == TenantType.COMPANY:
-            company_brand_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            company_brand_voices = db_manager.get_company_brand_voices(
+                tenant.tenant_id)
 
-        user_brand_voices = db_manager.get_user_brand_voices(tenant.tenant_id, user.user_id)
+        user_brand_voices = db_manager.get_user_brand_voices(
+            tenant.tenant_id, user.user_id)
         all_brand_voices = company_brand_voices + user_brand_voices
 
-        selected_brand_voice = next((bv for bv in all_brand_voices if bv.brand_voice_id == brand_voice_id), None)
+        selected_brand_voice = next((bv for bv in all_brand_voices
+                                     if bv.brand_voice_id == brand_voice_id),
+                                    None)
 
         if not selected_brand_voice:
             return jsonify({'error': 'Brand voice not found'}), 404
@@ -1541,7 +1807,8 @@ def delete_brand_voice(brand_voice_id):
             return jsonify({'error': 'Permission denied'}), 403
 
         # Delete the brand voice
-        if db_manager.delete_brand_voice(tenant.tenant_id, brand_voice_id, selected_brand_voice.user_id):
+        if db_manager.delete_brand_voice(tenant.tenant_id, brand_voice_id,
+                                         selected_brand_voice.user_id):
             # Track brand voice deletion event
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -1550,16 +1817,22 @@ def delete_brand_voice(brand_voice_id):
                     'brand_voice_id': str(brand_voice_id),
                     'brand_voice_name': selected_brand_voice.name,
                     'is_company_voice': selected_brand_voice.user_id is None
-                }
+                })
+            logger.info(
+                f"Successfully deleted brand voice {brand_voice_id} for user {user.user_id}"
             )
-            logger.info(f"Successfully deleted brand voice {brand_voice_id} for user {user.user_id}")
-            return jsonify({'success': True, 'message': 'Brand voice deleted successfully'})
+            return jsonify({
+                'success': True,
+                'message': 'Brand voice deleted successfully'
+            })
         else:
             return jsonify({'error': 'Failed to delete brand voice'}), 500
 
     except Exception as e:
         logger.error(f"Error deleting brand voice {brand_voice_id}: {e}")
-        return jsonify({'error': 'An error occurred while deleting the brand voice'}), 500
+        return jsonify(
+            {'error': 'An error occurred while deleting the brand voice'}), 500
+
 
 @app.route('/auto-save-brand-voice', methods=['POST'])
 @login_required
@@ -1581,7 +1854,9 @@ def auto_save_brand_voice():
             logger.warning("Auto-save failed: Missing required fields")
             return jsonify({'error': 'Required fields missing'}), 400
 
-        logger.info(f"Attempting auto-save for brand voice: '{voice_short_name}' by user {user.user_id}")
+        logger.info(
+            f"Attempting auto-save for brand voice: '{voice_short_name}' by user {user.user_id}"
+        )
 
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant:
@@ -1604,21 +1879,26 @@ def auto_save_brand_voice():
                     markdown_content=markdown_content,
                     user_id=None  # Always create as company voice
                 )
-                logger.info(f"Updated draft brand voice: {brand_voice.brand_voice_id}")
+                logger.info(
+                    f"Updated draft brand voice: {brand_voice.brand_voice_id}")
             except Exception as update_error:
-                logger.warning(f"Failed to update existing draft, creating new one: {update_error}")
+                logger.warning(
+                    f"Failed to update existing draft, creating new one: {update_error}"
+                )
                 # If update fails, create a new one
                 brand_voice = db_manager.create_comprehensive_brand_voice(
                     tenant_id=tenant.tenant_id,
                     wizard_data=data,
                     markdown_content=markdown_content,
-                    user_id=None
-                )
+                    user_id=None)
                 profile_id = brand_voice.brand_voice_id
         else:
             # Check if a brand voice with this name already exists to avoid duplicates
-            existing_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
-            existing_voice = next((v for v in existing_voices if v.name == voice_short_name), None)
+            existing_voices = db_manager.get_company_brand_voices(
+                tenant.tenant_id)
+            existing_voice = next(
+                (v for v in existing_voices if v.name == voice_short_name),
+                None)
 
             if existing_voice:
                 # Update the existing voice instead of creating a duplicate
@@ -1628,19 +1908,21 @@ def auto_save_brand_voice():
                         brand_voice_id=existing_voice.brand_voice_id,
                         wizard_data=data,
                         markdown_content=markdown_content,
-                        user_id=None
-                    )
+                        user_id=None)
                     profile_id = brand_voice.brand_voice_id
-                    logger.info(f"Updated existing brand voice instead of creating duplicate: {brand_voice.brand_voice_id}")
+                    logger.info(
+                        f"Updated existing brand voice instead of creating duplicate: {brand_voice.brand_voice_id}"
+                    )
                 except Exception as update_error:
-                    logger.warning(f"Failed to update existing voice, creating new one: {update_error}")
+                    logger.warning(
+                        f"Failed to update existing voice, creating new one: {update_error}"
+                    )
                     # If update fails, create a new one
                     brand_voice = db_manager.create_comprehensive_brand_voice(
                         tenant_id=tenant.tenant_id,
                         wizard_data=data,
                         markdown_content=markdown_content,
-                        user_id=None
-                    )
+                        user_id=None)
                     profile_id = brand_voice.brand_voice_id
             else:
                 # Create new draft
@@ -1648,22 +1930,22 @@ def auto_save_brand_voice():
                     tenant_id=tenant.tenant_id,
                     wizard_data=data,
                     markdown_content=markdown_content,
-                    user_id=None
-                )
+                    user_id=None)
                 profile_id = brand_voice.brand_voice_id
 
         # Track auto-save event
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Brand Voice Auto-Saved',
-            properties={
-                'brand_voice_name': voice_short_name,
-                'profile_id': profile_id,
-                'is_editing': is_editing
-            }
-        )
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='Brand Voice Auto-Saved',
+                                           properties={
+                                               'brand_voice_name':
+                                               voice_short_name,
+                                               'profile_id': profile_id,
+                                               'is_editing': is_editing
+                                           })
 
-        logger.info(f"Auto-save successful for '{voice_short_name}' (Profile ID: {profile_id})")
+        logger.info(
+            f"Auto-save successful for '{voice_short_name}' (Profile ID: {profile_id})"
+        )
 
         return jsonify({
             'success': True,
@@ -1674,6 +1956,7 @@ def auto_save_brand_voice():
     except Exception as e:
         logger.error(f"Error auto-saving brand voice: {e}")
         return jsonify({'error': 'Auto-save failed'}), 500
+
 
 def generate_brand_voice_markdown(data):
     """Generate comprehensive markdown content for brand voice"""
@@ -1782,14 +2065,16 @@ def generate_brand_voice_markdown(data):
 """
 
     if data.get('punctuation_contractions') is not None:
-        contractions = "Use contractions" if data['punctuation_contractions'] else "Avoid contractions"
+        contractions = "Use contractions" if data[
+            'punctuation_contractions'] else "Avoid contractions"
         markdown += f"""### Contractions
 {contractions}
 
 """
 
     if data.get('punctuation_oxford_comma') is not None:
-        oxford = "Use Oxford comma" if data['punctuation_oxford_comma'] else "No Oxford comma"
+        oxford = "Use Oxford comma" if data[
+            'punctuation_oxford_comma'] else "No Oxford comma"
         markdown += f"""### Oxford Comma
 {oxford}
 
@@ -1863,9 +2148,6 @@ def generate_brand_voice_markdown(data):
     return markdown
 
 
-
-
-
 @app.route('/platform-admin')
 @super_admin_required
 def platform_admin():
@@ -1877,11 +2159,11 @@ def platform_admin():
 
     # Track admin access
     analytics_service.track_user_event(
-        user_id='platform_admin', # Placeholder for admin user
-        event_name='Visited Platform Admin Dashboard'
-    )
+        user_id='platform_admin',  # Placeholder for admin user
+        event_name='Visited Platform Admin Dashboard')
 
     return render_template('platform_admin.html', users=users, tenants=tenants)
+
 
 @app.route('/admin/delete-user/<user_id>', methods=['POST'])
 @super_admin_required
@@ -1901,8 +2183,7 @@ def admin_delete_user(user_id):
                 properties={
                     'deleted_user_id': user_id,
                     'deleted_user_email': email
-                }
-            )
+                })
             flash('User deleted successfully.', 'success')
             logger.info(f"User {user_id} deleted successfully.")
         else:
@@ -1913,6 +2194,7 @@ def admin_delete_user(user_id):
         flash('An error occurred while deleting the user.', 'error')
 
     return redirect(url_for('platform_admin'))
+
 
 @app.route('/admin/delete-tenant/<tenant_id>', methods=['POST'])
 @super_admin_required
@@ -1932,8 +2214,7 @@ def admin_delete_tenant(tenant_id):
                 properties={
                     'deleted_tenant_id': tenant_id,
                     'deleted_tenant_name': tenant_name
-                }
-            )
+                })
             flash('Organization deleted successfully.', 'success')
             logger.info(f"Tenant {tenant_id} deleted successfully.")
         else:
@@ -1944,6 +2225,7 @@ def admin_delete_tenant(tenant_id):
         flash('An error occurred while deleting the organization.', 'error')
 
     return redirect(url_for('platform_admin'))
+
 
 @app.route('/admin/organization/<tenant_id>')
 @super_admin_required
@@ -1959,7 +2241,8 @@ def admin_organization_details(tenant_id):
 
         # Get organization members
         organization_users = db_manager.get_organization_users(tenant_id)
-        logger.info(f"Found {len(organization_users)} members for tenant {tenant_id}.")
+        logger.info(
+            f"Found {len(organization_users)} members for tenant {tenant_id}.")
 
         # Track admin viewing organization details
         analytics_service.track_user_event(
@@ -1968,16 +2251,17 @@ def admin_organization_details(tenant_id):
             properties={
                 'organization_id': tenant_id,
                 'organization_name': tenant.name
-            }
-        )
+            })
 
-        return render_template('admin_organization_details.html', 
-                             tenant=tenant, 
-                             organization_users=organization_users)
+        return render_template('admin_organization_details.html',
+                               tenant=tenant,
+                               organization_users=organization_users)
     except Exception as e:
-        logger.error(f"Error loading organization details for tenant {tenant_id}: {e}")
+        logger.error(
+            f"Error loading organization details for tenant {tenant_id}: {e}")
         flash('An error occurred while loading organization details.', 'error')
         return redirect(url_for('platform_admin'))
+
 
 @app.route('/admin/update-subscription', methods=['POST'])
 @super_admin_required
@@ -1989,11 +2273,17 @@ def admin_update_subscription():
         subscription_level = data.get('subscription_level')
 
         if not user_id or not subscription_level:
-            logger.warning("Admin update subscription failed: Missing user_id or subscription_level")
-            return jsonify({'error': 'User ID and subscription level are required'}), 400
+            logger.warning(
+                "Admin update subscription failed: Missing user_id or subscription_level"
+            )
+            return jsonify(
+                {'error': 'User ID and subscription level are required'}), 400
 
-        logger.info(f"Admin updating subscription for user {user_id} to {subscription_level}")
-        user_before_update = db_manager.get_user_by_id(user_id) # Get user before update for tracking
+        logger.info(
+            f"Admin updating subscription for user {user_id} to {subscription_level}"
+        )
+        user_before_update = db_manager.get_user_by_id(
+            user_id)  # Get user before update for tracking
 
         if db_manager.update_user_subscription(user_id, subscription_level):
             # Track subscription update by admin
@@ -2001,19 +2291,28 @@ def admin_update_subscription():
                 user_id='platform_admin',
                 event_name='User Subscription Updated by Admin',
                 properties={
-                    'user_id': user_id,
-                    'previous_subscription': user_before_update.subscription_level if user_before_update else 'unknown',
-                    'new_subscription': subscription_level
-                }
-            )
-            logger.info(f"Subscription updated successfully for user {user_id}")
-            return jsonify({'success': True, 'message': 'Subscription updated successfully'})
+                    'user_id':
+                    user_id,
+                    'previous_subscription':
+                    user_before_update.subscription_level
+                    if user_before_update else 'unknown',
+                    'new_subscription':
+                    subscription_level
+                })
+            logger.info(
+                f"Subscription updated successfully for user {user_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Subscription updated successfully'
+            })
         else:
             logger.warning(f"Failed to update subscription for user {user_id}")
             return jsonify({'error': 'Failed to update subscription'}), 500
     except Exception as e:
         logger.error(f"Error updating subscription for user {user_id}: {e}")
-        return jsonify({'error': 'An error occurred while updating subscription'}), 500
+        return jsonify(
+            {'error': 'An error occurred while updating subscription'}), 500
+
 
 @app.route('/send-organization-invite', methods=['POST'])
 @login_required
@@ -2024,24 +2323,32 @@ def send_organization_invite():
         email = data.get('email', '').strip().lower()
 
         if not email:
-            logger.warning("Send organization invite failed: Email is required.")
+            logger.warning(
+                "Send organization invite failed: Email is required.")
             return jsonify({'error': 'Email address is required'}), 400
 
         user = get_current_user()
         if not user or not user.is_admin:
-            logger.warning("Send organization invite failed: User is not an admin.")
+            logger.warning(
+                "Send organization invite failed: User is not an admin.")
             return jsonify({'error': 'Admin access required'}), 403
 
         tenant = db_manager.get_tenant_by_id(user.tenant_id)
         if not tenant or tenant.tenant_type != TenantType.COMPANY:
-            logger.warning("Send organization invite failed: Tenant is not a company or not found.")
+            logger.warning(
+                "Send organization invite failed: Tenant is not a company or not found."
+            )
             return jsonify({'error': 'Organization account required'}), 400
 
         # Check if user already exists in this organization
         existing_user = db_manager.get_user_by_email(email)
         if existing_user and existing_user.tenant_id == user.tenant_id:
-            logger.warning(f"Send organization invite failed: User {email} already in organization {tenant.name}.")
-            return jsonify({'error': 'User is already a member of this organization'}), 400
+            logger.warning(
+                f"Send organization invite failed: User {email} already in organization {tenant.name}."
+            )
+            return jsonify(
+                {'error':
+                 'User is already a member of this organization'}), 400
 
         # Generate invite token
         from email_service import generate_verification_token, hash_token
@@ -2049,15 +2356,15 @@ def send_organization_invite():
         token_hash = hash_token(invite_token)
 
         # Create invite in database
-        if db_manager.create_organization_invite(user.tenant_id, user.user_id, email, token_hash):
-            logger.info(f"Organization invite created for {email} to tenant {tenant.name}.")
+        if db_manager.create_organization_invite(user.tenant_id, user.user_id,
+                                                 email, token_hash):
+            logger.info(
+                f"Organization invite created for {email} to tenant {tenant.name}."
+            )
             # Send invite email
             if email_service.send_organization_invite_email(
-                email, 
-                invite_token, 
-                tenant.name, 
-                f"{user.first_name} {user.last_name}"
-            ):
+                    email, invite_token, tenant.name,
+                    f"{user.first_name} {user.last_name}"):
                 # Track organization invite sent
                 analytics_service.track_user_event(
                     user_id=str(user.user_id),
@@ -2065,23 +2372,30 @@ def send_organization_invite():
                     properties={
                         'organization_id': tenant.tenant_id,
                         'invited_email': email
-                    }
-                )
+                    })
                 logger.info(f"Invitation email sent successfully to {email}.")
                 return jsonify({
-                    'success': True, 
-                    'message': f'Invitation sent to {email} successfully'
+                    'success':
+                    True,
+                    'message':
+                    f'Invitation sent to {email} successfully'
                 })
             else:
                 logger.error(f"Failed to send invitation email to {email}.")
-                return jsonify({'error': 'Failed to send invitation email'}), 500
+                return jsonify({'error':
+                                'Failed to send invitation email'}), 500
         else:
-            logger.error(f"Failed to create organization invite in database for {email}.")
+            logger.error(
+                f"Failed to create organization invite in database for {email}."
+            )
             return jsonify({'error': 'Failed to create invitation'}), 500
 
     except Exception as e:
-        logger.error(f"Error sending organization invite for email {email}: {e}")
-        return jsonify({'error': 'An error occurred while sending the invitation'}), 500
+        logger.error(
+            f"Error sending organization invite for email {email}: {e}")
+        return jsonify(
+            {'error': 'An error occurred while sending the invitation'}), 500
+
 
 @app.route('/join-organization')
 def join_organization():
@@ -2097,7 +2411,9 @@ def join_organization():
     invite_data = db_manager.verify_organization_invite_token(token_hash)
 
     if not invite_data:
-        logger.warning(f"Join organization failed: Invalid or expired token hash: {token_hash}")
+        logger.warning(
+            f"Join organization failed: Invalid or expired token hash: {token_hash}"
+        )
         flash('Invalid or expired invitation link.', 'error')
         return redirect(url_for('login'))
 
@@ -2105,23 +2421,33 @@ def join_organization():
     tenant = db_manager.get_tenant_by_id(tenant_id)
 
     if not tenant:
-        logger.error(f"Join organization failed: Tenant {tenant_id} not found for token hash {token_hash}.")
+        logger.error(
+            f"Join organization failed: Tenant {tenant_id} not found for token hash {token_hash}."
+        )
         flash('Organization not found.', 'error')
         return redirect(url_for('login'))
 
-    logger.info(f"Processing invite for email {email} to organization {tenant.name} (Tenant ID: {tenant_id})")
+    logger.info(
+        f"Processing invite for email {email} to organization {tenant.name} (Tenant ID: {tenant_id})"
+    )
 
     # Check if user already exists
     existing_user = db_manager.get_user_by_email(email)
 
     if existing_user:
         if existing_user.tenant_id == tenant_id:
-            logger.info(f"User {email} is already a member of organization {tenant.name}.")
+            logger.info(
+                f"User {email} is already a member of organization {tenant.name}."
+            )
             flash('You are already a member of this organization.', 'info')
             return redirect(url_for('login'))
         else:
-            logger.warning(f"User {email} exists but is in a different organization (Tenant ID: {existing_user.tenant_id}). Cannot join {tenant.name}.")
-            flash('This email is already associated with another account. Please contact support.', 'error')
+            logger.warning(
+                f"User {email} exists but is in a different organization (Tenant ID: {existing_user.tenant_id}). Cannot join {tenant.name}."
+            )
+            flash(
+                'This email is already associated with another account. Please contact support.',
+                'error')
             return redirect(url_for('login'))
 
     # Store invite info in session for registration
@@ -2135,16 +2461,17 @@ def join_organization():
 
     # Track organization invite accepted
     analytics_service.track_user_event(
-        user_id=f'invited_user_{email}', # Use email as identifier for unregisted user
+        user_id=
+        f'invited_user_{email}',  # Use email as identifier for unregisted user
         event_name='Organization Invite Accepted',
         properties={
             'organization_id': tenant_id,
             'organization_name': tenant.name,
             'invited_email': email
-        }
-    )
+        })
 
     return redirect(url_for('register', invite='organization'))
+
 
 @app.route('/get-pending-invites/<tenant_id>')
 @login_required
@@ -2153,12 +2480,17 @@ def get_pending_invites(tenant_id):
     try:
         user = get_current_user()
         if not user or not user.is_admin or user.tenant_id != tenant_id:
-            logger.warning(f"Permission denied for user {user.user_id} to get pending invites for tenant {tenant_id}.")
+            logger.warning(
+                f"Permission denied for user {user.user_id} to get pending invites for tenant {tenant_id}."
+            )
             return jsonify({'error': 'Permission denied'}), 403
 
-        logger.info(f"Fetching pending invites for tenant {tenant_id} by admin user {user.user_id}.")
+        logger.info(
+            f"Fetching pending invites for tenant {tenant_id} by admin user {user.user_id}."
+        )
         invites = db_manager.get_pending_invites(tenant_id)
-        logger.info(f"Found {len(invites)} pending invites for tenant {tenant_id}.")
+        logger.info(
+            f"Found {len(invites)} pending invites for tenant {tenant_id}.")
 
         # Track viewing pending invites
         analytics_service.track_user_event(
@@ -2167,14 +2499,15 @@ def get_pending_invites(tenant_id):
             properties={
                 'organization_id': tenant_id,
                 'invite_count': len(invites)
-            }
-        )
+            })
 
         return jsonify({'invites': invites})
 
     except Exception as e:
-        logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
+        logger.error(
+            f"Error getting pending invites for tenant {tenant_id}: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/get-active-users/<tenant_id>')
 @login_required
@@ -2183,28 +2516,44 @@ def get_active_users(tenant_id):
     try:
         user = get_current_user()
         if not user or not user.is_admin or user.tenant_id != tenant_id:
-            logger.warning(f"Permission denied for user {user.user_id} to get active users for tenant {tenant_id}.")
+            logger.warning(
+                f"Permission denied for user {user.user_id} to get active users for tenant {tenant_id}."
+            )
             return jsonify({'error': 'Permission denied'}), 403
 
-        logger.info(f"Fetching active users for tenant {tenant_id} by admin user {user.user_id}.")
+        logger.info(
+            f"Fetching active users for tenant {tenant_id} by admin user {user.user_id}."
+        )
         organization_users = db_manager.get_organization_users(tenant_id)
 
         # Convert users to JSON-serializable format
         users_data = []
         for org_user in organization_users:
             users_data.append({
-                'user_id': org_user.user_id,
-                'first_name': org_user.first_name,
-                'last_name': org_user.last_name,
-                'email': org_user.email,
-                'is_admin': org_user.is_admin,
-                'email_verified': org_user.email_verified,
-                'subscription_level': org_user.subscription_level.value,
-                'created_at': org_user.created_at.isoformat() if org_user.created_at else None,
-                'last_login': org_user.last_login.isoformat() if org_user.last_login else None
+                'user_id':
+                org_user.user_id,
+                'first_name':
+                org_user.first_name,
+                'last_name':
+                org_user.last_name,
+                'email':
+                org_user.email,
+                'is_admin':
+                org_user.is_admin,
+                'email_verified':
+                org_user.email_verified,
+                'subscription_level':
+                org_user.subscription_level.value,
+                'created_at':
+                org_user.created_at.isoformat()
+                if org_user.created_at else None,
+                'last_login':
+                org_user.last_login.isoformat()
+                if org_user.last_login else None
             })
 
-        logger.info(f"Found {len(users_data)} active users for tenant {tenant_id}.")
+        logger.info(
+            f"Found {len(users_data)} active users for tenant {tenant_id}.")
 
         # Track viewing active users
         analytics_service.track_user_event(
@@ -2213,14 +2562,14 @@ def get_active_users(tenant_id):
             properties={
                 'organization_id': tenant_id,
                 'user_count': len(users_data)
-            }
-        )
+            })
 
         return jsonify({'users': users_data})
 
     except Exception as e:
         logger.error(f"Error getting active users for tenant {tenant_id}: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/api/chat-sessions', methods=['GET'])
 @login_required
@@ -2237,16 +2586,14 @@ def get_chat_sessions():
         analytics_service.track_user_event(
             user_id=str(user.user_id),
             event_name='Fetched Chat Sessions',
-            properties={
-                'session_count': len(sessions)
-            }
-        )
+            properties={'session_count': len(sessions)})
 
         return jsonify({'sessions': sessions})
 
     except Exception as e:
         logger.error(f"Error getting chat sessions: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/api/chat-sessions', methods=['POST'])
 @login_required
@@ -2262,7 +2609,9 @@ def create_chat_session():
 
         session_id = db_manager.create_chat_session(user.user_id, title)
         if session_id:
-            logger.info(f"Created new chat session {session_id} for user {user.user_id}")
+            logger.info(
+                f"Created new chat session {session_id} for user {user.user_id}"
+            )
             # Track new chat session creation
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -2270,16 +2619,17 @@ def create_chat_session():
                 properties={
                     'session_id': str(session_id),
                     'session_title': title
-                }
-            )
+                })
             return jsonify({'session_id': session_id, 'title': title})
         else:
-            logger.error(f"Failed to create chat session for user {user.user_id}")
+            logger.error(
+                f"Failed to create chat session for user {user.user_id}")
             return jsonify({'error': 'Failed to create chat session'}), 500
 
     except Exception as e:
         logger.error(f"Error creating chat session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/api/chat-sessions/<session_id>/messages', methods=['GET'])
 @login_required
@@ -2298,20 +2648,19 @@ def get_chat_messages(session_id):
         messages = db_manager.get_chat_messages(session_id)
 
         # Track fetching chat messages
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Fetched Chat Messages',
-            properties={
-                'session_id': str(session_id),
-                'message_count': len(messages)
-            }
-        )
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='Fetched Chat Messages',
+                                           properties={
+                                               'session_id': str(session_id),
+                                               'message_count': len(messages)
+                                           })
 
         return jsonify({'messages': messages})
 
     except Exception as e:
         logger.error(f"Error getting chat messages: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/api/chat-sessions/<session_id>', methods=['DELETE'])
 @login_required
@@ -2327,10 +2676,7 @@ def delete_chat_session(session_id):
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
                 event_name='Deleted Chat Session',
-                properties={
-                    'session_id': str(session_id)
-                }
-            )
+                properties={'session_id': str(session_id)})
             return jsonify({'success': True})
         else:
             return jsonify({'error': 'Failed to delete session'}), 500
@@ -2338,6 +2684,7 @@ def delete_chat_session(session_id):
     except Exception as e:
         logger.error(f"Error deleting chat session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/new-session', methods=['POST'])
 @login_required
@@ -2350,7 +2697,9 @@ def new_session():
 
         session_id = db_manager.create_chat_session(user.user_id, "New Chat")
         if session_id:
-            logger.info(f"Created new chat session {session_id} for user {user.user_id}")
+            logger.info(
+                f"Created new chat session {session_id} for user {user.user_id}"
+            )
             # Track new session creation via this endpoint
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -2358,16 +2707,17 @@ def new_session():
                 properties={
                     'session_id': str(session_id),
                     'session_title': 'New Chat'
-                }
-            )
+                })
             return jsonify({'session_id': session_id, 'success': True})
         else:
-            logger.error(f"Failed to create chat session for user {user.user_id}")
+            logger.error(
+                f"Failed to create chat session for user {user.user_id}")
             return jsonify({'error': 'Failed to create session'}), 500
 
     except Exception as e:
         logger.error(f"Error creating new session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/chat-history')
 @login_required
@@ -2384,22 +2734,27 @@ def chat_history():
         analytics_service.track_user_event(
             user_id=str(user.user_id),
             event_name='Fetched Chat History',
-            properties={
-                'session_count': len(sessions)
-            }
-        )
+            properties={'session_count': len(sessions)})
 
         return jsonify([{
-            'id': session['session_id'],
-            'title': session['title'],
-            'created_at': session['created_at'].isoformat() if session['created_at'] else None,
-            'updated_at': session['updated_at'].isoformat() if session['updated_at'] else None,
-            'message_count': session['message_count']
+            'id':
+            session['session_id'],
+            'title':
+            session['title'],
+            'created_at':
+            session['created_at'].isoformat()
+            if session['created_at'] else None,
+            'updated_at':
+            session['updated_at'].isoformat()
+            if session['updated_at'] else None,
+            'message_count':
+            session['message_count']
         } for session in sessions])
 
     except Exception as e:
         logger.error(f"Error getting chat history: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/chat/<session_id>')
 @login_required
@@ -2418,31 +2773,36 @@ def get_chat(session_id):
             return jsonify({'error': 'Session not found'}), 404
 
         messages = db_manager.get_chat_messages(session_id)
-        session_title = next((s['title'] for s in sessions if s['session_id'] == session_id), 'New Chat')
+        session_title = next(
+            (s['title'] for s in sessions if s['session_id'] == session_id),
+            'New Chat')
 
         # Track fetching specific chat
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Fetched Specific Chat',
-            properties={
-                'session_id': str(session_id),
-                'session_title': session_title,
-                'message_count': len(messages)
-            }
-        )
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='Fetched Specific Chat',
+                                           properties={
+                                               'session_id': str(session_id),
+                                               'session_title': session_title,
+                                               'message_count': len(messages)
+                                           })
 
         return jsonify({
-            'title': session_title,
+            'title':
+            session_title,
             'messages': [{
-                'content': msg['content'],
-                'sender': 'user' if msg['message_type'] == 'user' else 'ai',
-                'created_at': msg['created_at'].isoformat() if msg['created_at'] else None
+                'content':
+                msg['content'],
+                'sender':
+                'user' if msg['message_type'] == 'user' else 'ai',
+                'created_at':
+                msg['created_at'].isoformat() if msg['created_at'] else None
             } for msg in messages]
         })
 
     except Exception as e:
         logger.error(f"Error getting chat {session_id}: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/api/get-plans', methods=['GET'])
 def get_plans():
@@ -2460,19 +2820,19 @@ def get_plans():
 
         # Track fetching plans
         analytics_service.track_user_event(
-            user_id='anonymous_user' if not get_current_user() else str(get_current_user().user_id),
+            user_id='anonymous_user'
+            if not get_current_user() else str(get_current_user().user_id),
             event_name='Fetched Pricing Plans',
-            properties={
-                'plan_count': len(plans)
-            }
-        )
+            properties={'plan_count': len(plans)})
 
         return jsonify(plans)
     except Exception as e:
         logger.error(f"Error getting pricing plans: {e}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        return jsonify({'error': 'An error occurred while loading pricing plans'}), 500
+        return jsonify(
+            {'error': 'An error occurred while loading pricing plans'}), 500
+
 
 @app.route('/api/user-plan', methods=['GET'])
 @login_required
@@ -2492,32 +2852,30 @@ def get_user_plan():
             event_name='Fetched User Plan',
             properties={
                 'plan_name': plan.get('plan_name') if plan else None,
-                'monthly_tokens': usage.get('tokens_used_month') if usage else None
-            }
-        )
+                'monthly_tokens':
+                usage.get('tokens_used_month') if usage else None
+            })
 
-        return jsonify({
-            'plan': plan,
-            'usage': usage
-        })
+        return jsonify({'plan': plan, 'usage': usage})
     except Exception as e:
         logger.error(f"Error getting user plan: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.errorhandler(404)
 def not_found_error(error):
     logger.warning(f"404 Not Found: {error}")
     # Track 404 errors
-    user_id = get_current_user().user_id if get_current_user() else 'anonymous_user'
-    analytics_service.track_user_event(
-        user_id=str(user_id),
-        event_name='Page Not Found (404)',
-        properties={
-            'path': request.path,
-            'error_message': str(error)
-        }
-    )
+    user_id = get_current_user().user_id if get_current_user(
+    ) else 'anonymous_user'
+    analytics_service.track_user_event(user_id=str(user_id),
+                                       event_name='Page Not Found (404)',
+                                       properties={
+                                           'path': request.path,
+                                           'error_message': str(error)
+                                       })
     return render_template('404.html'), 404
+
 
 @app.route('/create-checkout-session', methods=['POST'])
 @login_required
@@ -2526,7 +2884,10 @@ def create_checkout_session():
     try:
         # Check if Stripe is disabled
         if STRIPE_DISABLED:
-            return jsonify({'error': 'Payment processing is currently disabled for beta access'}), 400
+            return jsonify({
+                'error':
+                'Payment processing is currently disabled for beta access'
+            }), 400
 
         data = request.get_json()
         plan_id = data.get('plan_id')
@@ -2538,11 +2899,11 @@ def create_checkout_session():
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
 
-        # Map plan_id to Stripe price_id 
+        # Map plan_id to Stripe price_id
         price_mapping = {
-            'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',    # The Practitioner
-            'team': 'price_1RvL4sHynku0jyEH4go1pRLM',     # The Organization
-            'professional': 'price_1RvL79Hynku0jyEHm7b89IPr' # The Powerhouse
+            'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',  # The Practitioner
+            'team': 'price_1RvL4sHynku0jyEH4go1pRLM',  # The Organization
+            'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'  # The Powerhouse
         }
 
         price_id = price_mapping.get(plan_id)
@@ -2550,17 +2911,18 @@ def create_checkout_session():
             return jsonify({'error': 'Plan not available'}), 400
 
         # Create or get Stripe customer
-        stripe_customer_id = user.stripe_customer_id if hasattr(user, 'stripe_customer_id') else None
+        stripe_customer_id = user.stripe_customer_id if hasattr(
+            user, 'stripe_customer_id') else None
 
         if not stripe_customer_id:
             customer = stripe_service.create_customer(
                 email=user.email,
                 name=f"{user.first_name} {user.last_name}",
-                metadata={'user_id': user.user_id}
-            )
+                metadata={'user_id': user.user_id})
             if customer:
                 stripe_customer_id = customer['id']
-                db_manager.update_user_stripe_info(user.user_id, stripe_customer_id=stripe_customer_id)
+                db_manager.update_user_stripe_info(
+                    user.user_id, stripe_customer_id=stripe_customer_id)
 
         # Create checkout session
         base_url = request.url_root.rstrip('/')
@@ -2576,8 +2938,7 @@ def create_checkout_session():
             metadata={
                 'user_id': user.user_id,
                 'plan_id': plan_id
-            }
-        )
+            })
 
         if session:
             # Track checkout session creation
@@ -2588,8 +2949,7 @@ def create_checkout_session():
                     'plan_id': plan_id,
                     'price_id': price_id,
                     'session_id': session.get('id')
-                }
-            )
+                })
             return jsonify({'checkout_url': session['url']})
         else:
             return jsonify({'error': 'Failed to create checkout session'}), 500
@@ -2597,6 +2957,7 @@ def create_checkout_session():
     except Exception as e:
         logger.error(f"Error creating checkout session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/payment-success')
 def payment_success():
@@ -2632,8 +2993,7 @@ def payment_success():
                     properties={
                         'email': user.email,
                         'subscription_level': user.subscription_level
-                    }
-                )
+                    })
 
                 # Track user signup source for paid registration (non-critical)
                 try:
@@ -2641,62 +3001,78 @@ def payment_success():
                     original_invite_code = None
                     if 'pending_registration' in session:
                         pending_reg = session.get('pending_registration')
-                        original_invite_code = pending_reg.get('original_invite_code')
+                        original_invite_code = pending_reg.get(
+                            'original_invite_code')
 
                     # Mark invitation as accepted if applicable
                     if original_invite_code:
                         try:
                             from invitation_manager import invitation_manager
-                            invitation_manager.mark_accepted(original_invite_code)
-                            logger.info(f"Marked invitation {original_invite_code} as accepted for paid user")
+                            invitation_manager.mark_accepted(
+                                original_invite_code)
+                            logger.info(
+                                f"Marked invitation {original_invite_code} as accepted for paid user"
+                            )
                         except Exception as inv_error:
-                            logger.warning(f"Failed to mark invitation as accepted: {inv_error}")
+                            logger.warning(
+                                f"Failed to mark invitation as accepted: {inv_error}"
+                            )
 
                     user_source_tracker.track_user_signup(
                         user_email=user.email,
                         signup_source=f'paid_{user.subscription_level.value}',
-                        invite_code=original_invite_code
-                    )
+                        invite_code=original_invite_code)
                     logger.info(f"Tracked paid signup for {user.email}")
 
                     # Check if this was a beta user who upgraded to paid
                     if original_invite_code:
                         from beta_trial_manager import beta_trial_manager
-                        if beta_trial_manager.is_beta_user(user.email, original_invite_code):
+                        if beta_trial_manager.is_beta_user(
+                                user.email, original_invite_code):
                             beta_trial_manager.create_beta_trial(
                                 user_id=str(user.user_id),
                                 user_email=user.email,
-                                invite_code=original_invite_code
+                                invite_code=original_invite_code)
+                            logger.info(
+                                f"Created beta trial for paid beta user {user.email}"
                             )
-                            logger.info(f"Created beta trial for paid beta user {user.email}")
 
                 except Exception as tracking_error:
-                    logger.warning(f"Failed to track paid signup for {user.email}: {tracking_error}")
+                    logger.warning(
+                        f"Failed to track paid signup for {user.email}: {tracking_error}"
+                    )
 
-                flash('Welcome to GoldenDoodleLM! Your subscription is active.', 'success')
+                flash(
+                    'Welcome to GoldenDoodleLM! Your subscription is active.',
+                    'success')
                 return redirect(url_for('chat'))
             else:
-                flash('Account setup completed. Please sign in with your credentials.', 'info')
+                flash(
+                    'Account setup completed. Please sign in with your credentials.',
+                    'info')
                 return redirect(url_for('login'))
 
     # Regular logged-in user payment success
     user = get_current_user()
     if user:
         # Track successful payment for existing user
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Payment Successful',
-            properties={
-                'subscription_level': user.subscription_level,
-                'session_id': session_id
-            }
-        )
-        flash('Payment successful! Your subscription is being activated.', 'success')
+        analytics_service.track_user_event(user_id=str(user.user_id),
+                                           event_name='Payment Successful',
+                                           properties={
+                                               'subscription_level':
+                                               user.subscription_level,
+                                               'session_id': session_id
+                                           })
+        flash('Payment successful! Your subscription is being activated.',
+              'success')
         return redirect(url_for('account'))
 
     # Fallback
-    flash('Payment completed. Please sign in to access your account.', 'success')
-    return redirect(url_for('login')) # Redirect to login for unauthenticated users after payment
+    flash('Payment completed. Please sign in to access your account.',
+          'success')
+    return redirect(url_for(
+        'login'))  # Redirect to login for unauthenticated users after payment
+
 
 @app.route('/analytics')
 @super_admin_required
@@ -2704,10 +3080,9 @@ def analytics_dashboard():
     """Analytics dashboard for user tracking"""
     # Track admin access to analytics dashboard
     analytics_service.track_user_event(
-        user_id='platform_admin',
-        event_name='Visited Analytics Dashboard'
-    )
+        user_id='platform_admin', event_name='Visited Analytics Dashboard')
     return render_template('analytics_dashboard.html')
+
 
 @app.route('/analytics/users', methods=['GET'])
 @super_admin_required
@@ -2765,21 +3140,23 @@ def analytics_users():
         conn.close()
 
         # Track viewing user analytics
-        analytics_service.track_user_event(
-            user_id='platform_admin',
-            event_name='Viewed User Analytics'
-        )
+        analytics_service.track_user_event(user_id='platform_admin',
+                                           event_name='Viewed User Analytics')
 
         return jsonify({
             'registration_trends': [dict(row) for row in registration_trends],
-            'active_users': dict(active_users),
-            'subscription_distribution': [dict(row) for row in subscription_dist],
-            'token_usage': dict(token_usage) if token_usage else {}
+            'active_users':
+            dict(active_users),
+            'subscription_distribution':
+            [dict(row) for row in subscription_dist],
+            'token_usage':
+            dict(token_usage) if token_usage else {}
         })
 
     except Exception as e:
         logger.error(f"Error getting analytics: {e}")
         return jsonify({'error': 'Failed to get analytics'}), 500
+
 
 @app.route('/analytics/usage', methods=['GET'])
 @super_admin_required
@@ -2821,14 +3198,13 @@ def analytics_usage():
         conn.close()
 
         # Track viewing usage analytics
-        analytics_service.track_user_event(
-            user_id='platform_admin',
-            event_name='Viewed Usage Analytics'
-        )
+        analytics_service.track_user_event(user_id='platform_admin',
+                                           event_name='Viewed Usage Analytics')
 
         return jsonify({
             'chat_statistics': [dict(row) for row in chat_stats],
-            'brand_voice_stats': dict(brand_voice_stats) if brand_voice_stats else {}
+            'brand_voice_stats':
+            dict(brand_voice_stats) if brand_voice_stats else {}
         })
 
     except Exception as e:
@@ -2836,6 +3212,7 @@ def analytics_usage():
         return jsonify({'error': 'Failed to get usage analytics'}), 500
 
     return redirect(url_for('login'))
+
 
 @app.route('/billing-portal', methods=['POST'])
 @login_required
@@ -2852,16 +3229,13 @@ def create_billing_portal():
 
         return_url = f"{request.url_root}account"
         portal_url = stripe_service.create_billing_portal_session(
-            customer_id=stripe_customer_id,
-            return_url=return_url
-        )
+            customer_id=stripe_customer_id, return_url=return_url)
 
         if portal_url:
             # Track access to billing portal
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
-                event_name='Accessed Billing Portal'
-            )
+                event_name='Accessed Billing Portal')
             return jsonify({'url': portal_url})
         else:
             return jsonify({'error': 'Failed to create billing portal'}), 500
@@ -2869,6 +3243,7 @@ def create_billing_portal():
     except Exception as e:
         logger.error(f"Error creating billing portal: {e}")
         return jsonify({'error': 'An error occurred'}), 500
+
 
 @app.route('/stripe-webhook', methods=['POST'])
 def stripe_webhook():
@@ -2901,13 +3276,15 @@ def stripe_webhook():
         logger.error(f"Error handling Stripe webhook: {e}")
         return jsonify({'error': 'Webhook handler error'}), 500
 
+
 def handle_subscription_created(subscription):
     """Handle subscription created event"""
     try:
         customer_id = subscription['customer']
         subscription_id = subscription['id']
         status = subscription['status']
-        current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
+        current_period_end = datetime.fromtimestamp(
+            subscription['current_period_end'])
 
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
@@ -2915,8 +3292,7 @@ def handle_subscription_created(subscription):
                 user.user_id,
                 stripe_subscription_id=subscription_id,
                 subscription_status=status,
-                current_period_end=current_period_end
-            )
+                current_period_end=current_period_end)
             # Track subscription creation via webhook
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -2924,13 +3300,16 @@ def handle_subscription_created(subscription):
                 properties={
                     'subscription_id': subscription_id,
                     'status': status,
-                    'plan_id': subscription.get('plan', {}).get('id') # Extract plan ID if available
-                }
+                    'plan_id': subscription.get('plan', {}).get(
+                        'id')  # Extract plan ID if available
+                })
+            logger.info(
+                f"Updated subscription for user {user.user_id}: {subscription_id}"
             )
-            logger.info(f"Updated subscription for user {user.user_id}: {subscription_id}")
 
     except Exception as e:
         logger.error(f"Error handling subscription created: {e}")
+
 
 def handle_subscription_updated(subscription):
     """Handle subscription updated event"""
@@ -2938,15 +3317,15 @@ def handle_subscription_updated(subscription):
         customer_id = subscription['customer']
         subscription_id = subscription['id']
         status = subscription['status']
-        current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
+        current_period_end = datetime.fromtimestamp(
+            subscription['current_period_end'])
 
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
             db_manager.update_user_stripe_info(
                 user.user_id,
                 subscription_status=status,
-                current_period_end=current_period_end
-            )
+                current_period_end=current_period_end)
             # Track subscription update via webhook
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -2954,12 +3333,14 @@ def handle_subscription_updated(subscription):
                 properties={
                     'subscription_id': subscription_id,
                     'status': status
-                }
+                })
+            logger.info(
+                f"Updated subscription status for user {user.user_id}: {status}"
             )
-            logger.info(f"Updated subscription status for user {user.user_id}: {status}")
 
     except Exception as e:
         logger.error(f"Error handling subscription updated: {e}")
+
 
 def handle_subscription_deleted(subscription):
     """Handle subscription cancelled/deleted event"""
@@ -2968,23 +3349,19 @@ def handle_subscription_deleted(subscription):
 
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
-            db_manager.update_user_stripe_info(
-                user.user_id,
-                subscription_status='cancelled',
-                stripe_subscription_id=None
-            )
+            db_manager.update_user_stripe_info(user.user_id,
+                                               subscription_status='cancelled',
+                                               stripe_subscription_id=None)
             # Track subscription deletion via webhook
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
                 event_name='Subscription Deleted (via Webhook)',
-                properties={
-                    'status': 'cancelled'
-                }
-            )
+                properties={'status': 'cancelled'})
             logger.info(f"Cancelled subscription for user {user.user_id}")
 
     except Exception as e:
         logger.error(f"Error handling subscription deleted: {e}")
+
 
 def handle_payment_succeeded(invoice):
     """Handle successful payment"""
@@ -2997,7 +3374,8 @@ def handle_payment_succeeded(invoice):
             # Update user status based on payment success
             db_manager.update_user_stripe_info(
                 user.user_id,
-                subscription_status='active' # Ensure status is active after successful payment
+                subscription_status=
+                'active'  # Ensure status is active after successful payment
             )
             # Track payment success via webhook
             analytics_service.track_user_event(
@@ -3006,12 +3384,12 @@ def handle_payment_succeeded(invoice):
                 properties={
                     'invoice_id': invoice.get('id'),
                     'subscription_id': subscription_id
-                }
-            )
+                })
             logger.info(f"Payment succeeded for user {user.user_id}")
 
     except Exception as e:
         logger.error(f"Error handling payment succeeded: {e}")
+
 
 def handle_payment_failed(invoice):
     """Handle failed payment"""
@@ -3020,10 +3398,8 @@ def handle_payment_failed(invoice):
 
         user = db_manager.get_user_by_stripe_customer_id(customer_id)
         if user:
-            db_manager.update_user_stripe_info(
-                user.user_id,
-                subscription_status='past_due'
-            )
+            db_manager.update_user_stripe_info(user.user_id,
+                                               subscription_status='past_due')
             # Track payment failure via webhook
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -3031,27 +3407,27 @@ def handle_payment_failed(invoice):
                 properties={
                     'invoice_id': invoice.get('id'),
                     'due_amount': invoice.get('amount_due')
-                }
-            )
+                })
             logger.info(f"Payment failed for user {user.user_id}")
 
     except Exception as e:
         logger.error(f"Error handling payment failed: {e}")
 
+
 @app.errorhandler(404)
 def not_found_error(error):
     logger.warning(f"404 Not Found: {error}")
     # Track 404 errors
-    user_id = get_current_user().user_id if get_current_user() else 'anonymous_user'
-    analytics_service.track_user_event(
-        user_id=str(user_id),
-        event_name='Page Not Found (404)',
-        properties={
-            'path': request.path,
-            'error_message': str(error)
-        }
-    )
+    user_id = get_current_user().user_id if get_current_user(
+    ) else 'anonymous_user'
+    analytics_service.track_user_event(user_id=str(user_id),
+                                       event_name='Page Not Found (404)',
+                                       properties={
+                                           'path': request.path,
+                                           'error_message': str(error)
+                                       })
     return render_template('404.html'), 404
+
 
 @app.route('/test-stripe')
 def test_stripe():
@@ -3068,8 +3444,7 @@ def test_stripe():
             test_customer = stripe_service.create_customer(
                 email="test@example.com",
                 name="Test User",
-                metadata={'test': 'true'}
-            )
+                metadata={'test': 'true'})
             if test_customer:
                 customer_creation_test = 'success'
         except Exception as ce:
@@ -3089,8 +3464,7 @@ def test_stripe():
                     success_url=f"{request.url_root.rstrip('/')}/test-success",
                     cancel_url=f"{request.url_root.rstrip('/')}/test-cancel",
                     customer_id=test_customer['id'],
-                    metadata={'test': 'true'}
-                )
+                    metadata={'test': 'true'})
                 if test_checkout:
                     checkout_session_test = 'success'
         except Exception as checkout_ex:
@@ -3100,40 +3474,45 @@ def test_stripe():
 
         # Track Stripe test execution
         analytics_service.track_user_event(
-            user_id='platform_admin', # Assuming this test is run by an admin
+            user_id='platform_admin',  # Assuming this test is run by an admin
             event_name='Ran Stripe Test',
             properties={
                 'test_mode': test_mode,
                 'api_key_configured': api_key_configured,
                 'customer_creation_test': customer_creation_test,
                 'checkout_session_test': checkout_session_test
-            }
-        )
+            })
 
         return jsonify({
-            'stripe_configured': True,
-            'test_mode': test_mode,
-            'api_key_configured': api_key_configured,
-            'customer_creation_test': customer_creation_test,
-            'checkout_session_test': checkout_session_test,
-            'checkout_error': checkout_error,
-            'checkout_url': test_checkout.get('url') if test_checkout else None,
-            'publishable_key': stripe_service.get_publishable_key()[:20] + "..." if stripe_service.get_publishable_key() else 'Not set',
-            'price_ids': stripe_service.plan_price_mapping
+            'stripe_configured':
+            True,
+            'test_mode':
+            test_mode,
+            'api_key_configured':
+            api_key_configured,
+            'customer_creation_test':
+            customer_creation_test,
+            'checkout_session_test':
+            checkout_session_test,
+            'checkout_error':
+            checkout_error,
+            'checkout_url':
+            test_checkout.get('url') if test_checkout else None,
+            'publishable_key':
+            stripe_service.get_publishable_key()[:20] +
+            "..." if stripe_service.get_publishable_key() else 'Not set',
+            'price_ids':
+            stripe_service.plan_price_mapping
         })
 
     except Exception as e:
         logger.error(f"Stripe test failed: {e}")
         # Track Stripe test failure
-        analytics_service.track_user_event(
-            user_id='platform_admin',
-            event_name='Stripe Test Failed',
-            properties={'error': str(e)}
-        )
-        return jsonify({
-            'stripe_configured': False,
-            'error': str(e)
-        }), 500
+        analytics_service.track_user_event(user_id='platform_admin',
+                                           event_name='Stripe Test Failed',
+                                           properties={'error': str(e)})
+        return jsonify({'stripe_configured': False, 'error': str(e)}), 500
+
 
 @app.route('/test-stripe-direct')
 def test_stripe_direct():
@@ -3147,16 +3526,14 @@ def test_stripe_direct():
             price_id='price_1RvL44Hynku0jyEH12IrEJuI',  # Solo plan
             success_url=f"{base_url}/test-success",
             cancel_url=f"{base_url}/test-cancel",
-            metadata={'test': 'direct_test'}
-        )
+            metadata={'test': 'direct_test'})
 
         if test_checkout and test_checkout.get('url'):
             # Track direct Stripe test execution
             analytics_service.track_user_event(
                 user_id='platform_admin',
                 event_name='Ran Direct Stripe Test',
-                properties={'checkout_url_exists': True}
-            )
+                properties={'checkout_url_exists': True})
             # Return an HTML page that immediately redirects
             return f'''
             <!DOCTYPE html>
@@ -3176,8 +3553,7 @@ def test_stripe_direct():
             analytics_service.track_user_event(
                 user_id='platform_admin',
                 event_name='Direct Stripe Test Failed',
-                properties={'checkout_url_exists': False}
-            )
+                properties={'checkout_url_exists': False})
             return "Failed to create checkout session", 500
 
     except Exception as e:
@@ -3186,9 +3562,9 @@ def test_stripe_direct():
         analytics_service.track_user_event(
             user_id='platform_admin',
             event_name='Direct Stripe Test Failed',
-            properties={'error': str(e)}
-        )
+            properties={'error': str(e)})
         return f"Error: {str(e)}", 500
+
 
 @app.route('/debug-stripe-full')
 def debug_stripe_full():
@@ -3199,15 +3575,20 @@ def debug_stripe_full():
 
         # Environment check
         env_status = {
-            'STRIPE_SECRET_KEY_TEST': 'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
-            'STRIPE_PUBLISHABLE_KEY_TEST': 'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
-            'STRIPE_WEBHOOK_SECRET': 'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set'
+            'STRIPE_SECRET_KEY_TEST':
+            'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
+            'STRIPE_PUBLISHABLE_KEY_TEST':
+            'Set'
+            if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
+            'STRIPE_WEBHOOK_SECRET':
+            'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set'
         }
 
         # Service status
         service_status = {
             'test_mode': stripe_service.test_mode,
-            'publishable_key_available': bool(stripe_service.get_publishable_key()),
+            'publishable_key_available':
+            bool(stripe_service.get_publishable_key()),
             'price_mapping': stripe_service.plan_price_mapping
         }
 
@@ -3229,8 +3610,7 @@ def debug_stripe_full():
             test_customer = stripe_service.create_customer(
                 email="debug@example.com",
                 name="Debug User",
-                metadata={'debug': 'true'}
-            )
+                metadata={'debug': 'true'})
             if test_customer:
                 customer_test = f"✓ Success: {test_customer['id']}"
             else:
@@ -3247,8 +3627,7 @@ def debug_stripe_full():
                 price_id='price_1RvL44Hynku0jyEH12IrEJuI',
                 success_url=f"{base_url}/test-success",
                 cancel_url=f"{base_url}/test-cancel",
-                metadata={'debug': 'true'}
-            )
+                metadata={'debug': 'true'})
             if test_session:
                 checkout_test = f"✓ Success: {test_session['id']}"
             else:
@@ -3330,6 +3709,7 @@ def debug_stripe_full():
         </html>
         ''', 500
 
+
 @app.route('/test-success')
 def test_success():
     """Test success page"""
@@ -3344,6 +3724,7 @@ def test_success():
     </body>
     </html>
     '''
+
 
 @app.route('/test-cancel')
 def test_cancel():
@@ -3360,14 +3741,18 @@ def test_cancel():
     </html>
     '''
 
+
 @app.route('/debug-stripe-webhook')
 def debug_stripe_webhook():
     """Test webhook configuration"""
     try:
         webhook_status = {
-            'webhook_secret_configured': bool(os.environ.get('STRIPE_WEBHOOK_SECRET')),
-            'webhook_endpoint': f"{request.url_root.rstrip('/')}/stripe-webhook",
-            'test_payload': 'Ready to receive webhook events'
+            'webhook_secret_configured':
+            bool(os.environ.get('STRIPE_WEBHOOK_SECRET')),
+            'webhook_endpoint':
+            f"{request.url_root.rstrip('/')}/stripe-webhook",
+            'test_payload':
+            'Ready to receive webhook events'
         }
 
         return f'''
@@ -3399,6 +3784,7 @@ def debug_stripe_webhook():
     except Exception as e:
         return f"Error: {str(e)}", 500
 
+
 @app.route('/send-user-invitations', methods=['POST'])
 @login_required
 def send_user_invitations():
@@ -3410,7 +3796,8 @@ def send_user_invitations():
         invitation_type = data.get('invitation_type', 'colleague')
 
         if not email_list:
-            return jsonify({'error': 'Please enter at least one email address.'}), 400
+            return jsonify(
+                {'error': 'Please enter at least one email address.'}), 400
 
         user = get_current_user()
         if not user:
@@ -3444,8 +3831,12 @@ def send_user_invitations():
                     continue
 
                 # Check if invitation already exists
-                existing_invitations = invitation_manager.get_invitations_by_email(email)
-                pending_invitations = [inv for inv in existing_invitations if inv['status'] == 'pending']
+                existing_invitations = invitation_manager.get_invitations_by_email(
+                    email)
+                pending_invitations = [
+                    inv for inv in existing_invitations
+                    if inv['status'] == 'pending'
+                ]
 
                 if pending_invitations:
                     results.append({
@@ -3460,8 +3851,7 @@ def send_user_invitations():
                 invite_code = invitation_manager.create_invitation(
                     email=email,
                     org_name=f"{user.first_name} {user.last_name}",
-                    invitation_type='user_referral'
-                )
+                    invitation_type='user_referral')
 
                 # Send invitation email
                 email_sent = email_service.send_user_referral_email(
@@ -3469,8 +3859,7 @@ def send_user_invitations():
                     invite_code=invite_code,
                     inviter_name=f"{user.first_name} {user.last_name}",
                     invitation_type=invitation_type,
-                    personal_message=personal_message
-                )
+                    personal_message=personal_message)
 
                 results.append({
                     'email': email,
@@ -3488,8 +3877,7 @@ def send_user_invitations():
                         'invited_email': email,
                         'invitation_type': invitation_type,
                         'has_personal_message': bool(personal_message)
-                    }
-                )
+                    })
 
             except Exception as e:
                 logger.error(f"Error creating invitation for {email}: {e}")
@@ -3508,7 +3896,9 @@ def send_user_invitations():
 
     except Exception as e:
         logger.error(f"Error sending user invitations: {e}")
-        return jsonify({'error': 'An error occurred while sending invitations.'}), 500
+        return jsonify(
+            {'error': 'An error occurred while sending invitations.'}), 500
+
 
 @app.route('/my-invitations')
 @login_required
@@ -3526,26 +3916,25 @@ def get_my_invitations():
         user_name = f"{user.first_name} {user.last_name}"
 
         user_invitations = [
-            inv for inv in all_invitations 
-            if inv.get('invitation_type') == 'user_referral' 
+            inv for inv in all_invitations
+            if inv.get('invitation_type') == 'user_referral'
             and inv.get('organization_name') == user_name
         ]
 
         # Calculate statistics
         total_sent = len(user_invitations)
-        accepted_count = len([inv for inv in user_invitations if inv['status'] == 'accepted'])
-        pending_count = len([inv for inv in user_invitations if inv['status'] == 'pending'])
+        accepted_count = len(
+            [inv for inv in user_invitations if inv['status'] == 'accepted'])
+        pending_count = len(
+            [inv for inv in user_invitations if inv['status'] == 'pending'])
 
         # Get pending invitations for display
-        pending_invitations = [
-            {
-                'email': inv['invitee_email'],
-                'invite_code': inv['invite_code'],
-                'created_at': inv['created_at'],
-                'status': inv['status']
-            }
-            for inv in user_invitations if inv['status'] == 'pending'
-        ]
+        pending_invitations = [{
+            'email': inv['invitee_email'],
+            'invite_code': inv['invite_code'],
+            'created_at': inv['created_at'],
+            'status': inv['status']
+        } for inv in user_invitations if inv['status'] == 'pending']
 
         return jsonify({
             'total_sent': total_sent,
@@ -3558,6 +3947,7 @@ def get_my_invitations():
         logger.error(f"Error getting user invitations: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
+
 @app.route('/admin/beta-invites', methods=['GET', 'POST'])
 def admin_beta_invites():
     """Admin page for sending beta invitations"""
@@ -3567,11 +3957,15 @@ def admin_beta_invites():
         send_emails = request.form.get('send_emails') == 'on'
 
         if not invitations_text:
-            flash('Please enter at least one email,organization pair.', 'error')
+            flash('Please enter at least one email,organization pair.',
+                  'error')
             return render_template('admin_beta_invites.html')
 
         # Parse the textarea input (each line should be email,organization)
-        lines = [line.strip() for line in invitations_text.split('\n') if line.strip()]
+        lines = [
+            line.strip() for line in invitations_text.split('\n')
+            if line.strip()
+        ]
         results = []
 
         from invitation_manager import invitation_manager
@@ -3588,7 +3982,8 @@ def admin_beta_invites():
                 if len(parts) != 2:
                     results.append({
                         'line': line,
-                        'error': 'Invalid format. Expected: email,organization',
+                        'error':
+                        'Invalid format. Expected: email,organization',
                         'success': False,
                         'email_sent': False
                     })
@@ -3611,8 +4006,7 @@ def admin_beta_invites():
                     email=email,
                     org_name=organization,
                     invitation_type='beta',
-                    prefix='BETA'
-                )
+                    prefix='BETA')
 
                 # Create the invitation link
                 base_url = request.url_root.rstrip('/')
@@ -3627,13 +4021,14 @@ def admin_beta_invites():
                         email_sent = email_service.send_beta_invitation_email(
                             to_email=email,
                             invite_code=invite_code,
-                            organization_name=organization
-                        )
+                            organization_name=organization)
                         if not email_sent:
                             email_error = "Failed to send email"
                     except Exception as email_ex:
                         email_error = f"Email error: {str(email_ex)}"
-                        logger.error(f"Failed to send beta invitation email to {email}: {email_ex}")
+                        logger.error(
+                            f"Failed to send beta invitation email to {email}: {email_ex}"
+                        )
 
                 result = {
                     'line': line,
@@ -3656,15 +4051,17 @@ def admin_beta_invites():
                     'email_sent': False
                 })
 
-        return render_template('admin_beta_results.html', 
-                             results=results, 
-                             email_status=email_status,
-                             emails_requested=send_emails)
+        return render_template('admin_beta_results.html',
+                               results=results,
+                               email_status=email_status,
+                               emails_requested=send_emails)
 
     # GET request - show the form
     from email_service import detect_email_system
     email_status = detect_email_system()
-    return render_template('admin_beta_invites.html', email_status=email_status)
+    return render_template('admin_beta_invites.html',
+                           email_status=email_status)
+
 
 @app.route('/admin/stats')
 @super_admin_required
@@ -3673,43 +4070,8 @@ def admin_stats():
     # Track admin access to stats
     analytics_service.track_user_event(
         user_id='platform_admin',
-        event_name='Viewed Admin Statistics Dashboard'
-    )
+        event_name='Viewed Admin Statistics Dashboard')
     return render_template('admin_stats.html')
-
-# TEMPORARILY DISABLED - DUPLICATE ROUTE CONFLICT
-# @app.route('/admin/invitation-stats')
-# @super_admin_required
-# def admin_invitation_stats():
-#     """Get invitation statistics data"""
-#     try:
-#         from invitation_manager import invitation_manager
-#         from user_source_tracker import user_source_tracker
-#         
-#         # Get all invitations
-#         invitations = invitation_manager.get_all_invitations()
-#         
-#         # Get all user signups
-#         signups = user_source_tracker.get_all_sources()
-#         
-#         # Track accessing invitation stats
-#         analytics_service.track_user_event(
-#             user_id='platform_admin',
-#             event_name='Fetched Invitation Statistics',
-#             properties={
-#                 'total_invitations': len(invitations),
-#                 'total_signups': len(signups)
-#             }
-#         )
-#         
-#         return jsonify({
-#             'invitations': invitations,
-#             'signups': signups
-#         })
-#         
-#     except Exception as e:
-#         logger.error(f"Error getting invitation stats: {e}")
-#         return jsonify({'error': 'Failed to load invitation statistics'}), 500
 
 
 @app.route('/admin/invitation-data')
@@ -3733,17 +4095,14 @@ def admin_invitation_data():
             properties={
                 'total_invitations': len(invitations),
                 'total_signups': len(signups)
-            }
-        )
+            })
 
-        return jsonify({
-            'invitations': invitations,
-            'signups': signups
-        })
+        return jsonify({'invitations': invitations, 'signups': signups})
 
     except Exception as e:
         logger.error(f"Error getting invitation stats: {e}")
         return jsonify({'error': 'Failed to load invitation statistics'}), 500
+
 
 @app.route('/admin/beta-trials')
 @super_admin_required
@@ -3751,10 +4110,9 @@ def admin_beta_trials():
     """Admin page for beta trial management"""
     # Track admin access to beta trials
     analytics_service.track_user_event(
-        user_id='platform_admin',
-        event_name='Visited Beta Trials Dashboard'
-    )
+        user_id='platform_admin', event_name='Visited Beta Trials Dashboard')
     return render_template('admin_beta_trials.html')
+
 
 @app.route('/admin/beta-trial-stats')
 @super_admin_required
@@ -3778,8 +4136,10 @@ def admin_beta_trial_stats():
 
             if user:
                 trial_data['user_name'] = f"{user.first_name} {user.last_name}"
-                trial_data['subscription_level'] = user.subscription_level.value
-                trial_data['user_created_at'] = user.created_at.isoformat() if user.created_at else None
+                trial_data[
+                    'subscription_level'] = user.subscription_level.value
+                trial_data['user_created_at'] = user.created_at.isoformat(
+                ) if user.created_at else None
             else:
                 trial_data['user_name'] = 'User not found'
                 trial_data['subscription_level'] = 'unknown'
@@ -3808,17 +4168,14 @@ def admin_beta_trial_stats():
             properties={
                 'total_beta_trials': len(beta_trials),
                 'active_trials': stats.get('active_trials', 0)
-            }
-        )
+            })
 
-        return jsonify({
-            'beta_trials': enhanced_trials,
-            'stats': stats
-        })
+        return jsonify({'beta_trials': enhanced_trials, 'stats': stats})
 
     except Exception as e:
         logger.error(f"Error getting beta trial stats: {e}")
         return jsonify({'error': 'Failed to load beta trial statistics'}), 500
+
 
 @app.route('/debug-env')
 @super_admin_required
@@ -3827,18 +4184,23 @@ def debug_env():
     import os
 
     env_status = {
-        'STRIPE_SECRET_KEY_TEST': 'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
-        'STRIPE_PUBLISHABLE_KEY_TEST': 'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
-        'STRIPE_WEBHOOK_SECRET': 'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set',
-        'SENDGRID_API_KEY': 'Set' if os.environ.get("SENDGRID_API_KEY") else 'Not Set',
-        'GEMINI_API_KEY': 'Set' if os.environ.get("GEMINI_API_KEY") else 'Not Set'
+        'STRIPE_SECRET_KEY_TEST':
+        'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
+        'STRIPE_PUBLISHABLE_KEY_TEST':
+        'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
+        'STRIPE_WEBHOOK_SECRET':
+        'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set',
+        'SENDGRID_API_KEY':
+        'Set' if os.environ.get("SENDGRID_API_KEY") else 'Not Set',
+        'GEMINI_API_KEY':
+        'Set' if os.environ.get("GEMINI_API_KEY") else 'Not Set'
     }
     # Track viewing debug env
     analytics_service.track_user_event(
         user_id='platform_admin',
-        event_name='Viewed Debug Environment Variables'
-    )
+        event_name='Viewed Debug Environment Variables')
     return jsonify(env_status)
+
 
 @app.route('/submit-feedback', methods=['POST'])
 def submit_feedback():
@@ -3852,7 +4214,8 @@ def submit_feedback():
         system_info = request.form.get('system_info', '').strip()
 
         if not all([feedback_type, message]):
-            return jsonify({'error': 'Feedback type and message are required'}), 400
+            return jsonify({'error':
+                            'Feedback type and message are required'}), 400
 
         # Prepare feedback data
         feedback_data = {
@@ -3898,7 +4261,8 @@ def submit_feedback():
 
                 total_size += file_size
                 if total_size > max_size:
-                    return jsonify({'error': 'Total file size exceeds 10MB limit'}), 400
+                    return jsonify(
+                        {'error': 'Total file size exceeds 10MB limit'}), 400
 
                 # Read file content
                 file_content = file.read()
@@ -3913,24 +4277,30 @@ def submit_feedback():
         # Send feedback email
         if email_service.send_feedback_email(feedback_data, attachments):
             # Track feedback submission
-            analytics_service.track_user_event(
-                user_id=user_id_for_tracking,
-                event_name='Feedback Submitted',
-                properties={
-                    'feedback_type': feedback_type,
-                    'has_attachments': len(attachments) > 0,
-                    'message_length': len(message)
-                }
-            )
+            analytics_service.track_user_event(user_id=user_id_for_tracking,
+                                               event_name='Feedback Submitted',
+                                               properties={
+                                                   'feedback_type':
+                                                   feedback_type,
+                                                   'has_attachments':
+                                                   len(attachments) > 0,
+                                                   'message_length':
+                                                   len(message)
+                                               })
             logger.info(f"Feedback submitted: {feedback_type}")
-            return jsonify({'success': True, 'message': 'Feedback sent successfully'})
+            return jsonify({
+                'success': True,
+                'message': 'Feedback sent successfully'
+            })
         else:
             logger.error("Failed to send feedback email")
             return jsonify({'error': 'Failed to send feedback email'}), 500
 
     except Exception as e:
         logger.error(f"Error processing feedback: {e}")
-        return jsonify({'error': 'An error occurred while processing your feedback'}), 500
+        return jsonify(
+            {'error': 'An error occurred while processing your feedback'}), 500
+
 
 @app.route('/health')
 def health_check():
@@ -3966,17 +4336,18 @@ def health_check():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+
 @app.errorhandler(500)
 def internal_error(error):
     logger.error(f"500 Internal Server Error: {error}")
     # Track 500 errors
-    user_id = get_current_user().user_id if get_current_user() else 'anonymous_user'
+    user_id = get_current_user().user_id if get_current_user(
+    ) else 'anonymous_user'
     analytics_service.track_user_event(
         user_id=str(user_id),
         event_name='Internal Server Error (500)',
         properties={
             'path': request.path,
             'error_message': str(error)
-        }
-    )
+        })
     return render_template('500.html'), 500

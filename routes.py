@@ -414,8 +414,13 @@ def register():
                 skip_payment = True
                 logger.info(f"Stripe is disabled globally - skipping payment for {email}")
 
-            # For paid plans, either process payment or skip for beta users
-            if subscription_level in ['solo', 'team', 'professional'] and not skip_payment:
+            # For beta users, skip all payment processing and go directly to email verification
+            if skip_payment:
+                logger.info(f"Skipping payment processing for user: {email}")
+                # Jump directly to the email verification section
+                pass
+            # For paid plans and non-beta users, process payment
+            elif subscription_level in ['solo', 'team', 'professional']:
                 # Only process Stripe payment for non-beta users
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
@@ -530,13 +535,10 @@ def register():
                         'retry': True
                     }), 400
             else:
-                # Skip payment for beta users or free plans - proceed directly to email verification
-                if skip_payment:
-                    logger.info(f"Skipping payment for beta user: {email}")
-                else:
-                    logger.info(f"Free plan selected for user: {email}")
+                # Free plan selected - no payment required
+                logger.info(f"Free plan selected for user: {email}")
 
-            # For free plans or fallback, send verification email
+            # For free plans, beta users, or when payment is skipped, send verification email
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
 

@@ -798,7 +798,7 @@ class DatabaseManager:
             if not self._is_safe_identifier(tenant_id):
                 logger.error(f"Invalid tenant_id format: {tenant_id}")
                 return []
-                
+
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -854,7 +854,7 @@ class DatabaseManager:
             if not self._is_safe_identifier(tenant_id):
                 logger.error(f"Invalid tenant_id format: {tenant_id}")
                 return []
-                
+
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -891,7 +891,7 @@ class DatabaseManager:
             if not self._is_safe_identifier(tenant_id):
                 logger.error(f"Invalid tenant_id format: {tenant_id}")
                 raise ValueError("Invalid tenant_id format")
-                
+
             brand_voice_id = str(uuid.uuid4())
 
             conn = self.get_connection()
@@ -957,7 +957,7 @@ class DatabaseManager:
             if not self._is_safe_identifier(tenant_id):
                 logger.error(f"Invalid tenant_id format: {tenant_id}")
                 raise ValueError("Invalid tenant_id format")
-                
+
             name = wizard_data['voice_short_name']
             configuration = wizard_data.copy()
 
@@ -1008,7 +1008,7 @@ class DatabaseManager:
             if not self._is_safe_identifier(tenant_id):
                 logger.error(f"Invalid tenant_id format: {tenant_id}")
                 raise ValueError("Invalid tenant_id format")
-                
+
             brand_voice_id = str(uuid.uuid4())
             name = wizard_data['voice_short_name']
 
@@ -1062,7 +1062,7 @@ class DatabaseManager:
             if not self._is_safe_identifier(tenant_id):
                 logger.error(f"Invalid tenant_id format: {tenant_id}")
                 return False
-                
+
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1214,7 +1214,7 @@ class DatabaseManager:
             result = cursor.fetchone()
             if result:
                 tenant_id = str(result[0])
-                
+
                 # Validate tenant_id to prevent SQL injection
                 if not self._is_safe_identifier(tenant_id):
                     logger.error(f"Invalid tenant_id format: {tenant_id}")
@@ -1260,7 +1260,7 @@ class DatabaseManager:
             if not self._is_safe_identifier(tenant_id):
                 logger.error(f"Invalid tenant_id format: {tenant_id}")
                 return False
-                
+
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -2125,6 +2125,51 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting user by Stripe customer ID: {e}")
             return None
+
+    def execute_query(self, query: str, params: tuple = None) -> list:
+        """Execute a query and return results"""
+        conn = self.get_connection()
+        if not conn:
+            return []
+
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(query, params)
+
+                # If it's a SELECT query, fetch results
+                if query.strip().upper().startswith('SELECT'):
+                    return cursor.fetchall()
+                else:
+                    # For INSERT, UPDATE, DELETE, return number of affected rows
+                    conn.commit()
+                    return cursor.rowcount
+
+        except Exception as e:
+            logger.error(f"Database error executing query: {e}")
+            conn.rollback()
+            return []
+        finally:
+            conn.close()
+
+    def execute_script(self, script: str) -> bool:
+        """Execute a multi-statement SQL script"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(script)
+                conn.commit()
+                logger.info("SQL script executed successfully")
+                return True
+
+        except Exception as e:
+            logger.error(f"Database error executing script: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
 
 # Global database manager instance
 db_manager = DatabaseManager()

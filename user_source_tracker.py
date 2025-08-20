@@ -1,40 +1,15 @@
-import json
-import os
+
+import logging
 from datetime import datetime
 from typing import Dict, Optional, List
-import logging
+from database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
 class UserSourceTracker:
-    def __init__(self, json_file_path: str = "user_sources.json"):
-        """Initialize the user source tracker with a JSON file path."""
-        self.json_file_path = json_file_path
-        self._ensure_file_exists()
-
-    def _ensure_file_exists(self):
-        """Create the JSON file if it doesn't exist."""
-        if not os.path.exists(self.json_file_path):
-            with open(self.json_file_path, 'w') as f:
-                json.dump([], f)
-
-    def _load_sources(self) -> List[Dict]:
-        """Load all source tracking data from the JSON file."""
-        try:
-            with open(self.json_file_path, 'r') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"Error loading user sources: {e}")
-            return []
-
-    def _save_sources(self, sources: List[Dict]):
-        """Save all source tracking data to the JSON file."""
-        try:
-            with open(self.json_file_path, 'w') as f:
-                json.dump(sources, f, indent=2, default=str)
-        except Exception as e:
-            logger.error(f"Error saving user sources: {e}")
-            # Don't raise exception - we don't want tracking failures to break registration
+    def __init__(self):
+        """Initialize the user source tracker with database connection."""
+        self.db = DatabaseManager()
 
     def track_user_signup(self, user_email: str, signup_source: str, invite_code: str = None) -> bool:
         """
@@ -49,20 +24,22 @@ class UserSourceTracker:
             True if tracking was successful, False otherwise
         """
         try:
-            sources = self._load_sources()
+            query = """
+            INSERT INTO user_sources (
+                user_email, signup_source, invite_code, 
+                signup_date, tracked_at
+            ) VALUES (%s, %s, %s, %s, %s)
+            """
 
-            # Create tracking entry
-            tracking_entry = {
-                "user_email": user_email.lower().strip(),
-                "signup_source": signup_source,
-                "invite_code": invite_code,
-                "signup_date": datetime.now().isoformat(),
-                "tracked_at": datetime.now().isoformat()
-            }
+            params = (
+                user_email.lower().strip(),
+                signup_source,
+                invite_code,
+                datetime.now().isoformat(),
+                datetime.now().isoformat()
+            )
 
-            # Add to list and save
-            sources.append(tracking_entry)
-            self._save_sources(sources)
+            self.db.execute_query(query, params)
 
             logger.info(f"Tracked signup source for {user_email}: {signup_source}")
             return True
@@ -82,12 +59,13 @@ class UserSourceTracker:
             Source tracking data if found, None otherwise
         """
         try:
-            sources = self._load_sources()
-            email_lower = user_email.lower().strip()
+            results = self.db.execute_query(
+                "SELECT * FROM user_sources WHERE user_email = %s ORDER BY tracked_at DESC LIMIT 1",
+                (user_email.lower().strip(),)
+            )
 
-            for source in sources:
-                if source['user_email'] == email_lower:
-                    return source
+            if results:
+                return dict(results[0])
 
             return None
 
@@ -106,8 +84,12 @@ class UserSourceTracker:
             List of source tracking entries
         """
         try:
-            sources = self._load_sources()
-            return [source for source in sources if source['signup_source'] == signup_source]
+            results = self.db.execute_query(
+                "SELECT * FROM user_sources WHERE signup_source = %s ORDER BY signup_date DESC",
+                (signup_source,)
+            )
+
+            return [dict(row) for row in results]
 
         except Exception as e:
             logger.error(f"Error getting sources by type {signup_source}: {e}")
@@ -124,8 +106,12 @@ class UserSourceTracker:
             List of source tracking entries
         """
         try:
-            sources = self._load_sources()
-            return [source for source in sources if source.get('invite_code') == invite_code]
+            results = self.db.execute_query(
+                "SELECT * FROM user_sources WHERE invite_code = %s ORDER BY signup_date DESC",
+                (invite_code,)
+            )
+
+            return [dict(row) for row in results]
 
         except Exception as e:
             logger.error(f"Error getting invite code usage for {invite_code}: {e}")
@@ -139,9 +125,11 @@ class UserSourceTracker:
             Dictionary with signup statistics
         """
         try:
-            sources = self._load_sources()
+            # Get total count
+            total_result = self.db.execute_query("SELECT COUNT(*) as count FROM user_sources")
+            total_signups = total_result[0]['count'] if total_result else 0
 
-            if not sources:
+            if total_signups == 0:
                 return {
                     'total_signups': 0,
                     'sources': {},
@@ -149,21 +137,27 @@ class UserSourceTracker:
                     'organic_signups': 0
                 }
 
-            # Count by source
-            source_counts = {}
-            invite_signups = 0
+            # Get counts by source
+            source_results = self.db.execute_query("""
+            SELECT signup_source, COUNT(*) as count 
+            FROM user_sources 
+            GROUP BY signup_source
+            """)
 
-            for source in sources:
-                signup_source = source['signup_source']
-                source_counts[signup_source] = source_counts.get(signup_source, 0) + 1
+            source_counts = {row['signup_source']: row['count'] for row in source_results}
 
-                if source.get('invite_code'):
-                    invite_signups += 1
+            # Get invite signups count
+            invite_result = self.db.execute_query("""
+            SELECT COUNT(*) as count 
+            FROM user_sources 
+            WHERE invite_code IS NOT NULL
+            """)
+            invite_signups = invite_result[0]['count'] if invite_result else 0
 
-            organic_signups = len(sources) - invite_signups
+            organic_signups = total_signups - invite_signups
 
             return {
-                'total_signups': len(sources),
+                'total_signups': total_signups,
                 'sources': source_counts,
                 'invite_signups': invite_signups,
                 'organic_signups': organic_signups
@@ -180,7 +174,59 @@ class UserSourceTracker:
         Returns:
             List of all source tracking entries
         """
-        return self._load_sources()
+        try:
+            results = self.db.execute_query(
+                "SELECT * FROM user_sources ORDER BY signup_date DESC"
+            )
+
+            return [dict(row) for row in results]
+
+        except Exception as e:
+            logger.error(f"Error getting all sources: {e}")
+            return []
+
+    def get_source_trends(self, days: int = 30) -> Dict:
+        """
+        Get signup source trends for the last N days.
+
+        Args:
+            days: Number of days to look back
+
+        Returns:
+            Dictionary with trend data
+        """
+        try:
+            query = """
+            SELECT 
+                signup_source,
+                DATE(signup_date) as signup_day,
+                COUNT(*) as daily_count
+            FROM user_sources 
+            WHERE signup_date >= NOW() - INTERVAL '%s days'
+            GROUP BY signup_source, DATE(signup_date)
+            ORDER BY signup_day DESC, signup_source
+            """
+
+            results = self.db.execute_query(query, (days,))
+
+            trends = {}
+            for row in results:
+                source = row['signup_source']
+                day = row['signup_day'].isoformat() if hasattr(row['signup_day'], 'isoformat') else str(row['signup_day'])
+                count = row['daily_count']
+
+                if source not in trends:
+                    trends[source] = {}
+                trends[source][day] = count
+
+            return {
+                'period_days': days,
+                'trends': trends
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting source trends: {e}")
+            return {'error': str(e)}
 
 # Global instance for easy access
 user_source_tracker = UserSourceTracker()

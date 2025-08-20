@@ -742,6 +742,12 @@ a:hover {
     color: var(--charcoal);
 }
 
+.alert-primary {
+    background-color: #ffc7c7;
+    border-color: #ffc7c7;
+    color: var(--charcoal);
+}
+
 .alert-success {
     background-color: var(--aqua-mist);
     border-color: var(--clearwater-teal);

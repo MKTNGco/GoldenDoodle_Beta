@@ -17,6 +17,7 @@ import stripe
 import os
 import logging
 import psycopg2.extras
+import user_source_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +39,12 @@ def register():
     # Check for invitation codes via URL parameters
     invitation_code = request.args.get('ref') or request.args.get('invite')
     invitation_data = None
-    
+
     if invitation_code and invitation_code != 'organization':
         # Look up invitation in the invitations.json file
         from invitation_manager import invitation_manager
         invitation_data = invitation_manager.get_invitation(invitation_code)
-        
+
         if invitation_data and invitation_data['status'] == 'pending':
             logger.info(f"Valid invitation found for code: {invitation_code}")
         elif invitation_data:
@@ -1349,7 +1350,7 @@ def create_brand_voice():
                 logger.info(f"  Voice: '{voice.name}' (ID: {voice.brand_voice_id})")
 
             return_message = f'Brand voice "{voice_short_name}" created successfully!'
-        
+
         # Track brand voice creation/update event
         analytics_service.track_user_event(
             user_id=str(user.user_id),
@@ -1896,7 +1897,7 @@ def admin_update_subscription():
 
         logger.info(f"Admin updating subscription for user {user_id} to {subscription_level}")
         user_before_update = db_manager.get_user_by_id(user_id) # Get user before update for tracking
-        
+
         if db_manager.update_user_subscription(user_id, subscription_level):
             # Track subscription update by admin
             analytics_service.track_user_event(
@@ -2034,7 +2035,7 @@ def join_organization():
         'organization_name': tenant.name
     }
     logger.info(f"Storing organization invite details in session for {email}.")
-    
+
     # Track organization invite accepted
     analytics_service.track_user_event(
         user_id=f'invited_user_{email}', # Use email as identifier for unregisted user
@@ -2061,7 +2062,7 @@ def get_pending_invites(tenant_id):
         logger.info(f"Fetching pending invites for tenant {tenant_id} by admin user {user.user_id}.")
         invites = db_manager.get_pending_invites(tenant_id)
         logger.info(f"Found {len(invites)} pending invites for tenant {tenant_id}.")
-        
+
         # Track viewing pending invites
         analytics_service.track_user_event(
             user_id=str(user.user_id),
@@ -2071,7 +2072,7 @@ def get_pending_invites(tenant_id):
                 'invite_count': len(invites)
             }
         )
-        
+
         return jsonify({'invites': invites})
 
     except Exception as e:
@@ -2107,7 +2108,7 @@ def get_active_users(tenant_id):
             })
 
         logger.info(f"Found {len(users_data)} active users for tenant {tenant_id}.")
-        
+
         # Track viewing active users
         analytics_service.track_user_event(
             user_id=str(user.user_id),
@@ -2117,7 +2118,7 @@ def get_active_users(tenant_id):
                 'user_count': len(users_data)
             }
         )
-        
+
         return jsonify({'users': users_data})
 
     except Exception as e:
@@ -2134,7 +2135,7 @@ def get_chat_sessions():
             return jsonify({'error': 'Authentication required'}), 401
 
         sessions = db_manager.get_user_chat_sessions(user.user_id)
-        
+
         # Track fetching chat sessions
         analytics_service.track_user_event(
             user_id=str(user.user_id),
@@ -2143,7 +2144,7 @@ def get_chat_sessions():
                 'session_count': len(sessions)
             }
         )
-        
+
         return jsonify({'sessions': sessions})
 
     except Exception as e:
@@ -2198,7 +2199,7 @@ def get_chat_messages(session_id):
             return jsonify({'error': 'Session not found'}), 404
 
         messages = db_manager.get_chat_messages(session_id)
-        
+
         # Track fetching chat messages
         analytics_service.track_user_event(
             user_id=str(user.user_id),
@@ -2208,7 +2209,7 @@ def get_chat_messages(session_id):
                 'message_count': len(messages)
             }
         )
-        
+
         return jsonify({'messages': messages})
 
     except Exception as e:
@@ -2281,7 +2282,7 @@ def chat_history():
             return jsonify({'error': 'Authentication required'}), 401
 
         sessions = db_manager.get_user_chat_sessions(user.user_id)
-        
+
         # Track fetching chat history
         analytics_service.track_user_event(
             user_id=str(user.user_id),
@@ -2290,7 +2291,7 @@ def chat_history():
                 'session_count': len(sessions)
             }
         )
-        
+
         return jsonify([{
             'id': session['session_id'],
             'title': session['title'],
@@ -2321,7 +2322,7 @@ def get_chat(session_id):
 
         messages = db_manager.get_chat_messages(session_id)
         session_title = next((s['title'] for s in sessions if s['session_id'] == session_id), 'New Chat')
-        
+
         # Track fetching specific chat
         analytics_service.track_user_event(
             user_id=str(user.user_id),
@@ -2332,7 +2333,7 @@ def get_chat(session_id):
                 'message_count': len(messages)
             }
         )
-        
+
         return jsonify({
             'title': session_title,
             'messages': [{
@@ -2496,17 +2497,6 @@ def create_checkout_session():
         logger.error(f"Error creating checkout session: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
-@app.route('/analytics')
-@super_admin_required
-def analytics_dashboard():
-    """Analytics dashboard for user tracking"""
-    # Track admin access to analytics dashboard
-    analytics_service.track_user_event(
-        user_id='platform_admin',
-        event_name='Visited Analytics Dashboard'
-    )
-    return render_template('analytics_dashboard.html')
-
 @app.route('/payment-success')
 def payment_success():
     """Handle successful payment"""
@@ -2533,7 +2523,7 @@ def payment_success():
             if user:
                 login_user(user)
                 session.pop('pending_registration', None)
-                
+
                 # Track successful new user registration via payment
                 analytics_service.track_user_event(
                     user_id=str(user.user_id),
@@ -2543,7 +2533,18 @@ def payment_success():
                         'subscription_level': user.subscription_level
                     }
                 )
-                
+
+                # Track user signup source for paid registration (non-critical)
+                try:
+                    user_source_tracker.track_user_signup(
+                        user_email=user.email,
+                        signup_source=f'paid_{user.subscription_level.value}',
+                        invite_code=None
+                    )
+                    logger.info(f"Tracked paid signup for {user.email}")
+                except Exception as tracking_error:
+                    logger.warning(f"Failed to track paid signup for {user.email}: {tracking_error}")
+
                 flash('Welcome to GoldenDoodleLM! Your subscription is active.', 'success')
                 return redirect(url_for('chat'))
             else:
@@ -2568,6 +2569,17 @@ def payment_success():
     # Fallback
     flash('Payment completed. Please sign in to access your account.', 'success')
     return redirect(url_for('login')) # Redirect to login for unauthenticated users after payment
+
+@app.route('/analytics')
+@super_admin_required
+def analytics_dashboard():
+    """Analytics dashboard for user tracking"""
+    # Track admin access to analytics dashboard
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Visited Analytics Dashboard'
+    )
+    return render_template('analytics_dashboard.html')
 
 @app.route('/analytics/users', methods=['GET'])
 @super_admin_required

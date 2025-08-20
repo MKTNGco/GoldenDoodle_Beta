@@ -12,8 +12,8 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-# Define RealDictCursor for use in methods
-RealDictCursor = psycopg2.extras.RealDictCursor
+# Define RealDictCursor for use in methods  
+from psycopg2.extras import RealDictCursor
 
 class DatabaseManager:
     def __init__(self):
@@ -380,7 +380,10 @@ class DatabaseManager:
             conn.close()
 
             # Populate default pricing plans
-            self.populate_pricing_plans()
+            try:
+                self.populate_pricing_plans()
+            except AttributeError:
+                logger.warning("populate_pricing_plans method not found, skipping pricing plans initialization")
 
             logger.info("Main database initialized successfully")
 
@@ -1457,11 +1460,494 @@ class DatabaseManager:
         finally:
             conn.close()
 
+    def populate_pricing_plans(self):
+        """Populate default pricing plans"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if plans already exist
+            cursor.execute("SELECT COUNT(*) FROM pricing_plans")
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                logger.info(f"Found {count} existing pricing plans")
+                cursor.close()
+                conn.close()
+                return
+            
+            # Insert default pricing plans
+            default_plans = [
+                ('free', 'Free', 0.00, 0.00, 'Individual', 'Get started with basic features', False, 'basic', 20000, 0, False, 10, 1, 'community'),
+                ('solo', 'The Practitioner', 29.00, 290.00, 'Individual', 'Perfect for solo practitioners', True, 'extended', 100000, 1, False, 50, 1, 'email'),
+                ('team', 'The Organization', 99.00, 990.00, 'Team', 'Ideal for small organizations', True, 'full', 500000, 3, True, -1, 10, 'priority'),
+                ('professional', 'The Powerhouse', 199.00, 1990.00, 'Enterprise', 'For large organizations', True, 'premium', 1000000, 10, True, -1, 25, 'dedicated')
+            ]
+            
+            for plan in default_plans:
+                cursor.execute("""
+                    INSERT INTO pricing_plans 
+                    (plan_id, name, price_monthly, price_annual, target_user, core_value, 
+                     analysis_brainstorm, templates, token_limit, brand_voices, 
+                     admin_controls, chat_history_limit, user_seats, support_level)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, plan)
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("Default pricing plans populated successfully")
+            
+        except Exception as e:
+            logger.error(f"Error populating pricing plans: {e}")
+
+    def get_user_by_id(self, user_id: str) -> Optional[User]:
+        """Get user by ID"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT * FROM users WHERE user_id = %s
+            """, (user_id,))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                user = User(
+                    user_id=str(row['user_id']),
+                    tenant_id=str(row['tenant_id']),
+                    first_name=row['first_name'],
+                    last_name=row['last_name'],
+                    email=row['email'],
+                    password_hash=row['password_hash'],
+                    subscription_level=SubscriptionLevel(row['subscription_level']),
+                    is_admin=row['is_admin']
+                )
+                user.email_verified = row.get('email_verified', False)
+                user.created_at = row.get('created_at')
+                user.last_login = row.get('last_login')
+                return user
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting user by ID: {e}")
+            return None
+
+    def mark_email_verified(self, user_id: str) -> bool:
+        """Mark user email as verified"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET email_verified = TRUE 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error marking email as verified: {e}")
+            return False
+
+    def update_user_last_login(self, user_id: str) -> bool:
+        """Update user's last login timestamp"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET last_login = CURRENT_TIMESTAMP 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating last login: {e}")
+            return False
+
+    def get_all_pricing_plans(self) -> List[Dict]:
+        """Get all pricing plans"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT * FROM pricing_plans ORDER BY price_monthly ASC
+            """)
+
+            plans = [dict(row) for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            return plans
+
+        except Exception as e:
+            logger.error(f"Error getting pricing plans: {e}")
+            return []
+
+    def get_user_plan(self, user_id: str) -> Optional[Dict]:
+        """Get user's current plan details"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT u.subscription_level, u.subscription_status, u.current_period_end,
+                       p.name as plan_name, p.price_monthly, p.token_limit, p.brand_voices,
+                       p.chat_history_limit, p.user_seats, p.support_level
+                FROM users u
+                LEFT JOIN pricing_plans p ON u.subscription_level = p.plan_id
+                WHERE u.user_id = %s
+            """, (user_id,))
+
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if result:
+                return dict(result)
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting user plan: {e}")
+            return None
+
+    def get_user_token_usage(self, user_id: str) -> Optional[Dict]:
+        """Get user's token usage"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            # Reset monthly usage if new month
+            current_month = datetime.now().month
+            current_year = datetime.now().year
+
+            cursor.execute("""
+                UPDATE user_token_usage 
+                SET tokens_used_month = 0, current_month = %s, current_year = %s, last_reset = CURRENT_TIMESTAMP
+                WHERE user_id = %s AND (current_month != %s OR current_year != %s)
+            """, (current_month, current_year, user_id, current_month, current_year))
+
+            # Get or create usage record
+            cursor.execute("""
+                INSERT INTO user_token_usage (user_id, current_month, current_year)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_id) DO NOTHING
+            """, (user_id, current_month, current_year))
+
+            cursor.execute("""
+                SELECT * FROM user_token_usage WHERE user_id = %s
+            """, (user_id,))
+
+            result = cursor.fetchone()
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            if result:
+                return dict(result)
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting user token usage: {e}")
+            return None
+
+    def check_user_limits(self, user_id: str, content_mode: str, estimated_tokens: int) -> Dict:
+        """Check if user can perform the requested action within their limits"""
+        try:
+            plan = self.get_user_plan(user_id)
+            usage = self.get_user_token_usage(user_id)
+
+            if not plan or not usage:
+                return {'allowed': False, 'error': 'Unable to verify user limits'}
+
+            # Check token limits
+            token_limit = plan.get('token_limit', 20000)
+            if token_limit != -1:  # -1 means unlimited
+                current_usage = usage.get('tokens_used_month', 0)
+                if current_usage + estimated_tokens > token_limit:
+                    return {'allowed': False, 'error': f'Monthly token limit exceeded ({current_usage}/{token_limit})'}
+
+            return {'allowed': True}
+
+        except Exception as e:
+            logger.error(f"Error checking user limits: {e}")
+            return {'allowed': False, 'error': 'Error checking limits'}
+
+    def update_user_token_usage(self, user_id: str, tokens_used: int) -> bool:
+        """Update user's token usage"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE user_token_usage 
+                SET tokens_used_month = tokens_used_month + %s,
+                    tokens_used_total = tokens_used_total + %s
+                WHERE user_id = %s
+            """, (tokens_used, tokens_used, user_id))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating user token usage: {e}")
+            return False
+
+    def create_chat_session(self, user_id: str, title: str = "New Chat") -> Optional[str]:
+        """Create a new chat session"""
+        try:
+            import uuid
+            session_id = str(uuid.uuid4())
+            
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO chat_sessions (session_id, user_id, title)
+                VALUES (%s, %s, %s)
+            """, (session_id, user_id, title))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return session_id
+
+        except Exception as e:
+            logger.error(f"Error creating chat session: {e}")
+            return None
+
+    def get_user_chat_sessions(self, user_id: str) -> List[Dict]:
+        """Get user's chat sessions"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT cs.session_id, cs.title, cs.created_at, cs.updated_at,
+                       COUNT(cm.message_id) as message_count
+                FROM chat_sessions cs
+                LEFT JOIN chat_messages cm ON cs.session_id = cm.session_id
+                WHERE cs.user_id = %s
+                GROUP BY cs.session_id, cs.title, cs.created_at, cs.updated_at
+                ORDER BY cs.updated_at DESC
+            """, (user_id,))
+
+            sessions = [dict(row) for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            return sessions
+
+        except Exception as e:
+            logger.error(f"Error getting user chat sessions: {e}")
+            return []
+
+    def get_chat_messages(self, session_id: str) -> List[Dict]:
+        """Get messages for a chat session"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT * FROM chat_messages 
+                WHERE session_id = %s 
+                ORDER BY created_at ASC
+            """, (session_id,))
+
+            messages = [dict(row) for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            return messages
+
+        except Exception as e:
+            logger.error(f"Error getting chat messages: {e}")
+            return []
+
+    def add_chat_message(self, session_id: str, message_type: str, content: str, content_mode: str = None, brand_voice_id: str = None) -> bool:
+        """Add a message to a chat session"""
+        try:
+            import uuid
+            message_id = str(uuid.uuid4())
+            
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO chat_messages (message_id, session_id, message_type, content, content_mode, brand_voice_id)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (message_id, session_id, message_type, content, content_mode, brand_voice_id))
+
+            # Update session's updated_at timestamp
+            cursor.execute("""
+                UPDATE chat_sessions 
+                SET updated_at = CURRENT_TIMESTAMP 
+                WHERE session_id = %s
+            """, (session_id,))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error adding chat message: {e}")
+            return False
+
+    def update_chat_session_title(self, session_id: str, title: str) -> bool:
+        """Update chat session title"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE chat_sessions 
+                SET title = %s, updated_at = CURRENT_TIMESTAMP 
+                WHERE session_id = %s
+            """, (title, session_id))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating chat session title: {e}")
+            return False
+
+    def delete_chat_session(self, session_id: str, user_id: str) -> bool:
+        """Delete a chat session and its messages"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Verify session belongs to user
+            cursor.execute("""
+                DELETE FROM chat_sessions 
+                WHERE session_id = %s AND user_id = %s
+            """, (session_id, user_id))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error deleting chat session: {e}")
+            return False
+
+    def create_organization_invite(self, tenant_id: str, invited_by_user_id: str, email: str, token_hash: str) -> bool:
+        """Create an organization invite"""
+        try:
+            expires_at = datetime.utcnow() + timedelta(days=7)  # 7 days to accept
+
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO organization_invite_tokens (tenant_id, invited_by_user_id, email, token_hash, expires_at)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (tenant_id, invited_by_user_id, email, token_hash, expires_at))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error creating organization invite: {e}")
+            return False
+
+    def verify_organization_invite_token(self, token_hash: str) -> Optional[tuple]:
+        """Verify organization invite token and return tenant_id and email"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT tenant_id, email FROM organization_invite_tokens 
+                WHERE token_hash = %s AND expires_at > %s AND used = FALSE
+            """, (token_hash, datetime.utcnow()))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                return (str(row[0]), row[1])
+            return None
+
+        except Exception as e:
+            logger.error(f"Error verifying organization invite token: {e}")
+            return None
+
+    def use_organization_invite_token(self, token_hash: str) -> bool:
+        """Mark organization invite token as used"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE organization_invite_tokens 
+                SET used = TRUE 
+                WHERE token_hash = %s
+            """, (token_hash,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error marking organization invite token as used: {e}")
+            return False
+
+    def get_pending_invites(self, tenant_id: str) -> List[Dict]:
+        """Get pending organization invites for a tenant"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT email, created_at, expires_at
+                FROM organization_invite_tokens
+                WHERE tenant_id = %s AND used = FALSE AND expires_at > %s
+                ORDER BY created_at DESC
+            """, (tenant_id, datetime.utcnow()))
+
+            invites = [dict(row) for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            return invites
+
+        except Exception as e:
+            logger.error(f"Error getting pending invites: {e}")
+            return []
+
     def get_invitation_statistics(self):
         """Get invitation and signup statistics from database"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
 
             # Total invitations sent by type
             cursor.execute("""

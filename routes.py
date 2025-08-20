@@ -1909,16 +1909,7 @@ def admin_invitation_stats():
         logger.error(f"Error getting invitation stats: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/admin/stats')
-@super_admin_required
-def admin_stats():
-    """Admin statistics dashboard"""
-    # Track admin access
-    analytics_service.track_user_event(
-        user_id='platform_admin',
-        event_name='Viewed Admin Statistics Dashboard'
-    )
-    return render_template('admin_stats.html')
+
 
 @app.route('/platform-admin')
 @super_admin_required

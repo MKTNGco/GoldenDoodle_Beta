@@ -1673,8 +1673,7 @@ def create_brand_voice():
                 markdown_content=markdown_content,
                 user_id=user_id_for_db)
             logger.info(
-                f"✓ Successfully created brand voice: {brand_voice.brand_voice_id}"
-            )
+                f"✓ Successfully created brand voice: {brand_voice.brand_voice_id}")
 
             # Debugging: Fetch all company voices again to see if the new one is present
             current_company_voices = db_manager.get_company_brand_voices(
@@ -2228,39 +2227,32 @@ def admin_delete_tenant(tenant_id):
 
 
 @app.route('/admin/organization/<tenant_id>')
-@super_admin_required
+@admin_required
 def admin_organization_details(tenant_id):
-    """View organization details and members"""
-    try:
-        logger.info(f"Admin viewing details for tenant ID: {tenant_id}")
-        tenant = db_manager.get_tenant_by_id(tenant_id)
-        if not tenant:
-            flash('Organization not found.', 'error')
-            logger.warning(f"Tenant {tenant_id} not found.")
-            return redirect(url_for('platform_admin'))
-
-        # Get organization members
-        organization_users = db_manager.get_organization_users(tenant_id)
-        logger.info(
-            f"Found {len(organization_users)} members for tenant {tenant_id}.")
-
-        # Track admin viewing organization details
-        analytics_service.track_user_event(
-            user_id='platform_admin',
-            event_name='Viewed Organization Details',
-            properties={
-                'organization_id': tenant_id,
-                'organization_name': tenant.name
-            })
-
-        return render_template('admin_organization_details.html',
-                               tenant=tenant,
-                               organization_users=organization_users)
-    except Exception as e:
-        logger.error(
-            f"Error loading organization details for tenant {tenant_id}: {e}")
-        flash('An error occurred while loading organization details.', 'error')
+    """View detailed organization information"""
+    tenant = db_manager.get_tenant_by_id(tenant_id)
+    if not tenant:
+        flash('Organization not found.', 'error')
+        logger.warning(f"Tenant {tenant_id} not found.")
         return redirect(url_for('platform_admin'))
+
+    # Get organization members
+    organization_users = db_manager.get_organization_users(tenant_id)
+    logger.info(
+        f"Found {len(organization_users)} members for tenant {tenant_id}.")
+
+    # Track admin viewing organization details
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Viewed Organization Details',
+        properties={
+            'organization_id': tenant_id,
+            'organization_name': tenant.name
+        })
+
+    return render_template('admin_organization_details.html',
+                           tenant=tenant,
+                           organization_users=organization_users)
 
 
 @app.route('/admin/update-subscription', methods=['POST'])
@@ -2698,8 +2690,7 @@ def new_session():
         session_id = db_manager.create_chat_session(user.user_id, "New Chat")
         if session_id:
             logger.info(
-                f"Created new chat session {session_id} for user {user.user_id}"
-            )
+                f"Created new chat session {session_id} for user {user.user_id}")
             # Track new session creation via this endpoint
             analytics_service.track_user_event(
                 user_id=str(user.user_id),
@@ -4064,117 +4055,93 @@ def admin_beta_invites():
 
 
 @app.route('/admin/stats')
-@super_admin_required
+@admin_required
 def admin_stats():
-    """Admin statistics dashboard"""
-    # Track admin access to stats
-    analytics_service.track_user_event(
-        user_id='platform_admin',
-        event_name='Viewed Admin Statistics Dashboard')
+    """Admin statistics dashboard - PostgreSQL version"""
     return render_template('admin_stats.html')
 
 
-@app.route('/admin/invitation-data')
-@super_admin_required
-def admin_invitation_data():
-    """Get invitation statistics data"""
+@app.route('/admin/invitation-stats')
+@admin_required
+def admin_invitation_stats():
+    """Get invitation and signup statistics from PostgreSQL"""
     try:
-        from invitation_manager import invitation_manager
-        from user_source_tracker import user_source_tracker
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         # Get all invitations
-        invitations = invitation_manager.get_all_invitations()
+        cursor.execute("""
+            SELECT invite_code, invitee_email, organization_name, invitation_type, 
+                   status, created_at, accepted_at, expired_at
+            FROM invitations 
+            ORDER BY created_at DESC
+        """)
+        invitations = [dict(row) for row in cursor.fetchall()]
 
-        # Get all user signups
-        signups = user_source_tracker.get_all_sources()
+        # Get all user sources (signups)
+        cursor.execute("""
+            SELECT user_email, signup_source, invite_code, signup_date
+            FROM user_sources 
+            ORDER BY signup_date DESC
+        """)
+        signups = [dict(row) for row in cursor.fetchall()]
 
-        # Track accessing invitation stats
-        analytics_service.track_user_event(
-            user_id='platform_admin',
-            event_name='Fetched Invitation Statistics',
-            properties={
-                'total_invitations': len(invitations),
-                'total_signups': len(signups)
-            })
+        cursor.close()
+        conn.close()
 
-        return jsonify({'invitations': invitations, 'signups': signups})
+        # Convert datetime objects to ISO strings for JSON serialization
+        for inv in invitations:
+            if inv['created_at']:
+                inv['created_at'] = inv['created_at'].isoformat()
+            if inv['accepted_at']:
+                inv['accepted_at'] = inv['accepted_at'].isoformat()
+            if inv['expired_at']:
+                inv['expired_at'] = inv['expired_at'].isoformat()
+
+        for signup in signups:
+            if signup['signup_date']:
+                signup['signup_date'] = signup['signup_date'].isoformat()
+
+        return jsonify({
+            'success': True,
+            'invitations': invitations,
+            'signups': signups
+        })
 
     except Exception as e:
         logger.error(f"Error getting invitation stats: {e}")
-        return jsonify({'error': 'Failed to load invitation statistics'}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/admin/beta-trials')
-@super_admin_required
+@admin_required
 def admin_beta_trials():
-    """Admin page for beta trial management"""
-    # Track admin access to beta trials
-    analytics_service.track_user_event(
-        user_id='platform_admin', event_name='Visited Beta Trials Dashboard')
+    """Beta trials management page"""
     return render_template('admin_beta_trials.html')
 
 
 @app.route('/admin/beta-trial-stats')
-@super_admin_required
+@admin_required
 def admin_beta_trial_stats():
-    """Get beta trial statistics data"""
+    """Get beta trial statistics from PostgreSQL"""
     try:
         from beta_trial_manager import beta_trial_manager
-
-        # Get all beta trials
-        beta_trials = beta_trial_manager.get_all_beta_trials()
 
         # Get beta trial statistics
         stats = beta_trial_manager.get_beta_trial_stats()
 
-        # Enhance trial data with user information
-        enhanced_trials = []
-        for trial in beta_trials:
-            # Get user information if available
-            user = db_manager.get_user_by_email(trial['user_email'])
-            trial_data = trial.copy()
+        # Get all beta trials
+        all_trials = beta_trial_manager.get_all_beta_trials()
 
-            if user:
-                trial_data['user_name'] = f"{user.first_name} {user.last_name}"
-                trial_data[
-                    'subscription_level'] = user.subscription_level.value
-                trial_data['user_created_at'] = user.created_at.isoformat(
-                ) if user.created_at else None
-            else:
-                trial_data['user_name'] = 'User not found'
-                trial_data['subscription_level'] = 'unknown'
-                trial_data['user_created_at'] = None
-
-            # Calculate days remaining
-            if trial['status'] == 'active':
-                try:
-                    trial_end = datetime.fromisoformat(trial['trial_end'])
-                    days_remaining = (trial_end - datetime.now()).days
-                    trial_data['days_remaining'] = max(0, days_remaining)
-                    trial_data['is_expired'] = days_remaining <= 0
-                except:
-                    trial_data['days_remaining'] = 0
-                    trial_data['is_expired'] = True
-            else:
-                trial_data['days_remaining'] = 0
-                trial_data['is_expired'] = True
-
-            enhanced_trials.append(trial_data)
-
-        # Track accessing beta trial stats
-        analytics_service.track_user_event(
-            user_id='platform_admin',
-            event_name='Fetched Beta Trial Statistics',
-            properties={
-                'total_beta_trials': len(beta_trials),
-                'active_trials': stats.get('active_trials', 0)
-            })
-
-        return jsonify({'beta_trials': enhanced_trials, 'stats': stats})
+        return jsonify({
+            'success': True,
+            'stats': stats,
+            'trials': all_trials
+        })
 
     except Exception as e:
         logger.error(f"Error getting beta trial stats: {e}")
-        return jsonify({'error': 'Failed to load beta trial statistics'}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/debug-env')

@@ -470,7 +470,7 @@ def register():
                         cancel_url=cancel_url,
                         customer_id=customer['id'] if customer else None,
                         metadata={
-                            'user_id': user_id,
+                            'user_id': str(user_id),  # Ensure it's a string
                             'plan_id': subscription_level,
                             'new_registration': 'true',
                             'trial_days': '0'

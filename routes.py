@@ -475,7 +475,7 @@ def register():
                         cancel_url=cancel_url,
                         customer_id=customer['id'] if customer else None,
                         metadata={
-                            'user_id': str(user.user_id),  # Use the actual user object's ID
+                            'user_id': str(user_id),  # Use the user_id variable, not user object
                             'plan_id': subscription_level,
                             'new_registration': 'true',
                             'trial_days': '0'

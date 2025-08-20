@@ -414,14 +414,14 @@ def register():
                 skip_payment = True
                 logger.info(f"Stripe is disabled globally - skipping payment for {email}")
 
-            # For beta users, skip all payment processing and go directly to email verification
+            # For beta users or when Stripe is disabled, skip ALL payment processing
             if skip_payment:
-                logger.info(f"Skipping payment processing for user: {email}")
-                # Jump directly to the email verification section
+                logger.info(f"Skipping ALL payment processing for user: {email} (beta: {is_beta_user})")
+                # Jump directly to email verification - do not process any Stripe logic
                 pass
-            # For paid plans and non-beta users, process payment
-            elif subscription_level in ['solo', 'team', 'professional']:
-                # Only process Stripe payment for non-beta users
+            # For paid plans and non-beta users ONLY, process payment
+            elif subscription_level in ['solo', 'team', 'professional'] and not skip_payment:
+                # Only process Stripe payment for non-beta users with paid plans
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
                     # Create or get Stripe customer
@@ -475,7 +475,7 @@ def register():
                         cancel_url=cancel_url,
                         customer_id=customer['id'] if customer else None,
                         metadata={
-                            'user_id': str(user_id),  # Ensure it's a string
+                            'user_id': str(user.user_id),  # Use the actual user object's ID
                             'plan_id': subscription_level,
                             'new_registration': 'true',
                             'trial_days': '0'

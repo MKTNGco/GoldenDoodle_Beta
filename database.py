@@ -47,9 +47,25 @@ class DatabaseManager:
 
             cursor.execute("""
                 DO $$ BEGIN
-                    CREATE TYPE subscription_level AS ENUM ('solo', 'pro', 'team', 'enterprise');
+                    CREATE TYPE subscription_level AS ENUM ('free', 'solo', 'pro', 'team', 'enterprise');
                 EXCEPTION
                     WHEN duplicate_object THEN null;
+                END $$;
+            """)
+
+            # Migration: Add 'free' to existing subscription_level enum if not present
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_enum 
+                        WHERE enumlabel = 'free' 
+                        AND enumtypid = (
+                            SELECT oid FROM pg_type WHERE typname = 'subscription_level'
+                        )
+                    ) THEN
+                        ALTER TYPE subscription_level ADD VALUE 'free' BEFORE 'solo';
+                    END IF;
                 END $$;
             """)
 

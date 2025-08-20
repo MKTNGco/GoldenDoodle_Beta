@@ -14,6 +14,7 @@ from typing import List, Dict, Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from database import DatabaseManager
+import psycopg2.extras
 
 # Set up logging
 logging.basicConfig(
@@ -202,8 +203,17 @@ class MigrationManager:
         
         try:
             # Count records in database
-            inv_count = self.db.execute_query("SELECT COUNT(*) as count FROM invitations")[0]['count']
-            src_count = self.db.execute_query("SELECT COUNT(*) as count FROM user_sources")[0]['count']
+            conn = self.db.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            cursor.execute("SELECT COUNT(*) as count FROM invitations")
+            inv_count = cursor.fetchone()['count']
+            
+            cursor.execute("SELECT COUNT(*) as count FROM user_sources")
+            src_count = cursor.fetchone()['count']
+            
+            cursor.close()
+            conn.close()
             
             logger.info(f"Database contains {inv_count} invitations and {src_count} user sources")
             

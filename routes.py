@@ -1863,6 +1863,63 @@ def generate_brand_voice_markdown(data):
 
     return markdown
 
+@app.route('/admin/invitation-stats')
+@super_admin_required
+def admin_invitation_stats():
+    """Get invitation and signup statistics from database"""
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Get all invitations
+        cursor.execute("""
+            SELECT invite_code, invitee_email, organization_name, invitation_type, status, created_at, accepted_at
+            FROM invitations 
+            ORDER BY created_at DESC
+        """)
+        invitations = [dict(row) for row in cursor.fetchall()]
+
+        # Get all user sources/signups
+        cursor.execute("""
+            SELECT user_email, signup_source, invite_code, signup_date
+            FROM user_sources 
+            ORDER BY signup_date DESC
+        """)
+        signups = [dict(row) for row in cursor.fetchall()]
+
+        cursor.close()
+        conn.close()
+
+        # Track admin access
+        analytics_service.track_user_event(
+            user_id='platform_admin',
+            event_name='Fetched Invitation Statistics',
+            properties={
+                'total_invitations': len(invitations),
+                'total_signups': len(signups)
+            }
+        )
+
+        return jsonify({
+            'invitations': invitations,
+            'signups': signups
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting invitation stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/stats')
+@super_admin_required
+def admin_stats():
+    """Admin statistics dashboard"""
+    # Track admin access
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Viewed Admin Statistics Dashboard'
+    )
+    return render_template('admin_stats.html')
+
 @app.route('/platform-admin')
 @super_admin_required
 def platform_admin():

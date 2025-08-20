@@ -12,6 +12,9 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
+# Define RealDictCursor for use in methods
+RealDictCursor = psycopg2.extras.RealDictCursor
+
 class DatabaseManager:
     def __init__(self):
         self.main_db_url = os.environ.get("DATABASE_URL")
@@ -1370,723 +1373,6 @@ class DatabaseManager:
             logger.error(f"Error updating user Stripe info: {e}")
             return False
 
-    def get_user_by_stripe_customer_id(self, customer_id: str):
-        """Get user by Stripe customer ID"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                SELECT * FROM users WHERE stripe_customer_id = %s
-            """, (customer_id,))
-
-            row = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            if row:
-                from models import SubscriptionLevel
-                return User(
-                    user_id=str(row[0]),
-                    tenant_id=str(row[1]),
-                    first_name=row[2],
-                    last_name=row[3],
-                    email=row[4],
-                    password_hash=row[5],
-                    subscription_level=SubscriptionLevel(row[6]),
-                    is_admin=row[7],
-                    email_verified=row[8] if len(row) > 8 else False,
-                    last_login=row[9] if len(row) > 9 else None
-                )
-        except Exception as e:
-            logger.error(f"Error getting user by Stripe customer ID: {e}")
-        return None
-
-    def mark_email_verified(self, user_id: str) -> bool:
-        """Mark user's email as verified"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE users 
-                SET email_verified = TRUE
-                WHERE user_id = %s
-            """, (user_id,))
-
-            success = cursor.rowcount > 0
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return success
-        except Exception as e:
-            logger.error(f"Error marking email as verified: {e}")
-            return False
-
-    def get_user_by_id(self, user_id: str):
-        """Get user by user ID"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                SELECT * FROM users WHERE user_id = %s
-            """, (user_id,))
-
-            row = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            if row:
-                from models import SubscriptionLevel
-                return User(
-                    user_id=str(row[0]),
-                    tenant_id=str(row[1]),
-                    first_name=row[2],
-                    last_name=row[3],
-                    email=row[4],
-                    password_hash=row[5],
-                    subscription_level=SubscriptionLevel(row[6]),
-                    is_admin=row[7],
-                    email_verified=row[8] if len(row) > 8 else False,
-                    last_login=row[9] if len(row) > 9 else None
-                )
-        except Exception as e:
-            logger.error(f"Error getting user by ID: {e}")
-        return None
-
-    def create_organization_invite(self, tenant_id: str, invited_by_user_id: str, email: str, token_hash: str) -> bool:
-        """Create an organization invite token"""
-        try:
-            expires_at = datetime.utcnow() + timedelta(days=7)  # 7 day expiry
-
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            # Check if there's already a pending invite for this email to this organization
-            cursor.execute("""
-                SELECT invite_id FROM organization_invite_tokens 
-                WHERE tenant_id = %s AND email = %s AND used = FALSE AND expires_at > %s
-            """, (tenant_id, email.lower(), datetime.utcnow()))
-
-            existing_invite = cursor.fetchone()
-            if existing_invite:
-                # Delete the existing invite
-                cursor.execute("""
-                    DELETE FROM organization_invite_tokens 
-                    WHERE invite_id = %s
-                """, (existing_invite[0],))
-
-            cursor.execute("""
-                INSERT INTO organization_invite_tokens (tenant_id, invited_by_user_id, email, token_hash, expires_at)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (tenant_id, invited_by_user_id, email.lower(), token_hash, expires_at))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-
-        except Exception as e:
-            logger.error(f"Error creating organization invite: {e}")
-            conn.rollback()
-            cursor.close()
-            conn.close()
-            return False
-
-    def verify_organization_invite_token(self, token_hash: str) -> Optional[tuple]:
-        """Verify organization invite token and return (tenant_id, email) if valid"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                SELECT tenant_id, email FROM organization_invite_tokens 
-                WHERE token_hash = %s AND expires_at > %s AND used = FALSE
-            """, (token_hash, datetime.utcnow()))
-
-            row = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            if row:
-                return (str(row[0]), row[1])
-            return None
-
-        except Exception as e:
-            logger.error(f"Error verifying organization invite token: {e}")
-            return None
-
-    def use_organization_invite_token(self, token_hash: str) -> bool:
-        """Mark organization invite token as used"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE organization_invite_tokens 
-                SET used = TRUE 
-                WHERE token_hash = %s
-            """, (token_hash,))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-
-        except Exception as e:
-            logger.error(f"Error marking organization invite token as used: {e}")
-            return False
-
-    def get_pending_invites(self, tenant_id):
-        """Get pending organization invites"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-            cursor.execute("""
-                SELECT oi.email, 
-                       (u.first_name || ' ' || u.last_name) as invited_by,
-                       oi.created_at
-                FROM organization_invite_tokens oi
-                JOIN users u ON oi.invited_by_user_id = u.user_id
-                WHERE oi.tenant_id = %s AND oi.used = FALSE
-                ORDER BY oi.created_at DESC
-            """, (tenant_id,))
-
-            invites = cursor.fetchall()
-            cursor.close()
-            conn.close()
-
-            # Convert to list of dicts for JSON serialization
-            return [dict(invite) for invite in invites]
-        except Exception as e:
-            logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
-            return []
-
-    def update_user_last_login(self, user_id: str) -> bool:
-        """Update user's last login timestamp"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE users 
-                SET last_login = %s
-                WHERE user_id = %s
-            """, (datetime.utcnow(), user_id))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-        except Exception as e:
-            logger.error(f"Error updating user last login: {e}")
-            return False
-
-    def create_chat_session(self, user_id, title=None):
-        """Create a new chat session"""
-        try:
-            # Ensure chat tables exist
-            self.ensure_chat_tables_exist()
-
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            session_id = str(uuid.uuid4())
-            cursor.execute("""
-                INSERT INTO chat_sessions (session_id, user_id, title, created_at)
-                VALUES (%s, %s, %s, NOW())
-            """, (session_id, user_id, title or "New Chat"))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-
-            logger.info(f"Created chat session {session_id} for user {user_id}")
-            return session_id
-        except Exception as e:
-            logger.error(f"Error creating chat session for user {user_id}: {e}")
-            return None
-
-    def add_chat_message(self, session_id, message_type, content, content_mode=None, brand_voice_id=None):
-        """Add a message to a chat session"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            message_id = str(uuid.uuid4())
-            cursor.execute("""
-                INSERT INTO chat_messages (message_id, session_id, message_type, content, content_mode, brand_voice_id, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            """, (message_id, session_id, message_type, content, content_mode, brand_voice_id))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-
-            return message_id
-        except Exception as e:
-            logger.error(f"Error adding message to session {session_id}: {e}")
-            return None
-
-    def get_user_chat_sessions(self, user_id, limit=20):
-        """Get user's recent chat sessions"""
-        try:
-            # Ensure chat tables exist
-            self.ensure_chat_tables_exist()
-
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-            cursor.execute("""
-                SELECT cs.session_id, cs.title, cs.created_at, cs.updated_at,
-                       COUNT(cm.message_id) as message_count
-                FROM chat_sessions cs
-                LEFT JOIN chat_messages cm ON cs.session_id = cm.session_id
-                WHERE cs.user_id = %s
-                GROUP BY cs.session_id, cs.title, cs.created_at, cs.updated_at
-                ORDER BY cs.updated_at DESC
-                LIMIT %s
-            """, (user_id, limit))
-
-            sessions = cursor.fetchall()
-            cursor.close()
-            conn.close()
-
-            return sessions
-        except Exception as e:
-            logger.error(f"Error getting chat sessions for user {user_id}: {e}")
-            return []
-
-    def get_chat_messages(self, session_id):
-        """Get messages for a chat session"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-            cursor.execute("""
-                SELECT message_id, message_type, content, content_mode, brand_voice_id, created_at
-                FROM chat_messages
-                WHERE session_id = %s
-                ORDER BY created_at ASC
-            """, (session_id,))
-
-            messages = cursor.fetchall()
-            cursor.close()
-            conn.close()
-
-            return messages
-        except Exception as e:
-            logger.error(f"Error getting messages for session {session_id}: {e}")
-            return []
-
-    def update_chat_session_title(self, session_id, title):
-        """Update chat session title and updated_at timestamp"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE chat_sessions 
-                SET title = %s, updated_at = NOW()
-                WHERE session_id = %s
-            """, (title, session_id))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-
-            return True
-        except Exception as e:
-            logger.error(f"Error updating chat session title {session_id}: {e}")
-            return False
-
-    def delete_chat_session(self, session_id, user_id):
-        """Delete a chat session and its messages"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            # First verify the session belongs to the user
-            cursor.execute("""
-                SELECT user_id FROM chat_sessions WHERE session_id = %s
-            """, (session_id,))
-
-            result = cursor.fetchone()
-            if not result or result[0] != user_id:
-                cursor.close()
-                conn.close()
-                return False
-
-            # Delete messages first (foreign key constraint)
-            cursor.execute("DELETE FROM chat_messages WHERE session_id = %s", (session_id,))
-
-            # Delete session
-            cursor.execute("DELETE FROM chat_sessions WHERE session_id = %s", (session_id,))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-
-            logger.info(f"Deleted chat session {session_id} for user {user_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Error deleting chat session {session_id}: {e}")
-            return False
-
-    def get_all_pricing_plans(self):
-        """Get all pricing plans"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-            # First ensure pricing plans are populated
-            self.populate_pricing_plans()
-
-            cursor.execute("""
-                SELECT * FROM pricing_plans ORDER BY 
-                CASE plan_id 
-                    WHEN 'free' THEN 1 
-                    WHEN 'solo' THEN 2 
-                    WHEN 'team' THEN 3 
-                    WHEN 'professional' THEN 4 
-                    ELSE 5 
-                END
-            """)
-
-            plans = cursor.fetchall()
-            cursor.close()
-            conn.close()
-
-            plans_list = [dict(plan) for plan in plans]
-            logger.info(f"Retrieved {len(plans_list)} pricing plans from database")
-            return plans_list
-        except Exception as e:
-            logger.error(f"Error getting pricing plans: {e}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
-            return []
-
-    def populate_pricing_plans(self):
-        """Populate pricing plans table with default data"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            # Ensure the pricing_plans table exists first
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS pricing_plans (
-                    plan_id VARCHAR(50) PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    price_monthly DECIMAL(10,2) NOT NULL,
-                    price_annual DECIMAL(10,2) NULL,
-                    target_user TEXT,
-                    core_value TEXT,
-                    analysis_brainstorm BOOLEAN NOT NULL DEFAULT FALSE,
-                    templates VARCHAR(50) NOT NULL DEFAULT 'basic',
-                    token_limit INTEGER NOT NULL DEFAULT 20000,
-                    brand_voices INTEGER NOT NULL DEFAULT 0,
-                    admin_controls BOOLEAN NOT NULL DEFAULT FALSE,
-                    chat_history_limit INTEGER NOT NULL DEFAULT 10,
-                    user_seats INTEGER NOT NULL DEFAULT 1,
-                    support_level VARCHAR(50) NOT NULL DEFAULT 'none',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-
-            # Check if plans already exist
-            cursor.execute("SELECT COUNT(*) FROM pricing_plans")
-            count = cursor.fetchone()[0]
-            logger.info(f"Found {count} existing pricing plans")
-
-            if count == 0:
-                # Insert default pricing plans
-                plans = [
-                    {
-                        'plan_id': 'free',
-                        'name': 'The Companion',
-                        'price_monthly': 0.00,
-                        'price_annual': None,
-                        'target_user': 'Individuals exploring the tool.',
-                        'core_value': 'Basic access to the core model.',
-                        'analysis_brainstorm': False,
-                        'templates': 'basic',
-                        'token_limit': 20000,
-                        'brand_voices': 0,
-                        'admin_controls': False,
-                        'chat_history_limit': 10,
-                        'user_seats': 1,
-                        'support_level': 'none'
-                    },
-                    {
-                        'plan_id': 'solo',
-                        'name': 'The Practitioner',
-                        'price_monthly': 29.00,
-                        'price_annual': 290.00,
-                        'target_user': 'Solo practitioners working independently.',
-                        'core_value': 'Full power for one person.',
-                        'analysis_brainstorm': True,
-                        'templates': 'full',
-                        'token_limit': 200000,
-                        'brand_voices': 1,
-                        'admin_controls': False,
-                        'chat_history_limit': -1,
-                        'user_seats': 1,
-                        'support_level': 'email'
-                    },
-                    {
-                        'plan_id': 'team',
-                        'name': 'The Organization',
-                        'price_monthly': 39.00,
-                        'price_annual': 32.00,
-                        'target_user': 'Communication departments and teams.',
-                        'core_value': 'Organizational consistency with team collaboration.',
-                        'analysis_brainstorm': True,
-                        'templates': 'full',
-                        'token_limit': 250000,
-                        'brand_voices': 10,
-                        'admin_controls': True,
-                        'chat_history_limit': -1,
-                        'user_seats': 50,
-                        'support_level': 'priority'
-                    },
-                    {
-                        'plan_id': 'professional',
-                        'name': 'The Powerhouse',
-                        'price_monthly': 82.00,
-                        'price_annual': 820.00,
-                        'target_user': 'Professional grant writers and heavy users.',
-                        'core_value': 'Massive individual output with premium features.',
-                        'analysis_brainstorm': True,
-                        'templates': 'full',
-                        'token_limit': 1000000,
-                        'brand_voices': 10,
-                        'admin_controls': False,
-                        'chat_history_limit': -1,
-                        'user_seats': 1,
-                        'support_level': 'top_priority'
-                    }
-                ]
-
-                for plan in plans:
-                    cursor.execute("""
-                        INSERT INTO pricing_plans (
-                            plan_id, name, price_monthly, price_annual, target_user, core_value,
-                            analysis_brainstorm, templates, token_limit, brand_voices, admin_controls,
-                            chat_history_limit, user_seats, support_level
-                        ) VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                        )
-                    """, (
-                        plan['plan_id'], plan['name'], plan['price_monthly'], plan['price_annual'],
-                        plan['target_user'], plan['core_value'], plan['analysis_brainstorm'],
-                        plan['templates'], plan['token_limit'], plan['brand_voices'],
-                        plan['admin_controls'], plan['chat_history_limit'], plan['user_seats'],
-                        plan['support_level']
-                    ))
-
-                conn.commit()
-                logger.info("Pricing plans populated successfully")
-
-            cursor.close()
-            conn.close()
-
-        except Exception as e:
-            logger.error(f"Error populating pricing plans: {e}")
-            raise
-
-    def get_user_plan(self, user_id):
-        """Get user's current plan details"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-            cursor.execute("""
-                SELECT u.plan_id, pp.* 
-                FROM users u
-                LEFT JOIN pricing_plans pp ON u.plan_id = pp.plan_id
-                WHERE u.user_id = %s
-            """, (user_id,))
-
-            result = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            return dict(result) if result else None
-        except Exception as e:
-            logger.error(f"Error getting user plan: {e}")
-            return None
-
-    def get_user_token_usage(self, user_id):
-        """Get user's token usage for the current month"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-            # Ensure usage record exists
-            self.ensure_user_token_usage_record(user_id)
-
-            cursor.execute("""
-                SELECT tokens_used_month, tokens_used_total, current_month, current_year
-                FROM user_token_usage 
-                WHERE user_id = %s
-            """, (user_id,))
-
-            result = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            return dict(result) if result else {'tokens_used_month': 0, 'tokens_used_total': 0}
-        except Exception as e:
-            logger.error(f"Error getting user token usage: {e}")
-            return {'tokens_used_month': 0, 'tokens_used_total': 0}
-
-    def ensure_user_token_usage_record(self, user_id):
-        """Ensure user has a token usage record"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                INSERT INTO user_token_usage (user_id, tokens_used_month, tokens_used_total)
-                VALUES (%s, 0, 0)
-                ON CONFLICT (user_id) DO NOTHING
-            """, (user_id,))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            logger.error(f"Error ensuring user token usage record: {e}")
-
-    def update_user_token_usage(self, user_id, tokens_used):
-        """Update user's token usage"""
-        try:
-            current_month = datetime.now().month
-            current_year = datetime.now().year
-
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            # Check if we need to reset monthly usage
-            cursor.execute("""
-                SELECT current_month, current_year FROM user_token_usage 
-                WHERE user_id = %s
-            """, (user_id,))
-
-            result = cursor.fetchone()
-            if result:
-                stored_month, stored_year = result
-                if stored_month != current_month or stored_year != current_year:
-                    # Reset monthly usage
-                    cursor.execute("""
-                        UPDATE user_token_usage 
-                        SET tokens_used_month = %s, tokens_used_total = tokens_used_total + %s,
-                            current_month = %s, current_year = %s, last_reset = NOW()
-                        WHERE user_id = %s
-                    """, (tokens_used, tokens_used, current_month, current_year, user_id))
-                else:
-                    # Add to existing usage
-                    cursor.execute("""
-                        UPDATE user_token_usage 
-                        SET tokens_used_month = tokens_used_month + %s, 
-                            tokens_used_total = tokens_used_total + %s
-                        WHERE user_id = %s
-                    """, (tokens_used, tokens_used, user_id))
-            else:
-                # Create new record
-                cursor.execute("""
-                    INSERT INTO user_token_usage 
-                    (user_id, tokens_used_month, tokens_used_total, current_month, current_year)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (user_id, tokens_used, tokens_used, current_month, current_year))
-
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-        except Exception as e:
-            logger.error(f"Error updating user token usage: {e}")
-            return False
-
-    def check_user_limits(self, user_id, content_mode, estimated_tokens):
-        """Check if user can perform the requested action based on their plan limits"""
-        try:
-            # Get user's plan
-            user_plan = self.get_user_plan(user_id)
-            if not user_plan:
-                return {'allowed': False, 'error': 'User plan not found'}
-
-            # Check if content mode is allowed for free users
-            if user_plan['plan_id'] == 'free':
-                restricted_modes = ['summarize', 'brainstorm', 'analyze']
-                if content_mode in restricted_modes:
-                    return {'allowed': False, 'error': f'{content_mode.title()} feature requires a paid plan'}
-
-            # Check token limits
-            usage = self.get_user_token_usage(user_id)
-            current_usage = usage.get('tokens_used_month', 0)
-            token_limit = user_plan.get('token_limit', 20000)
-
-            if current_usage + estimated_tokens > token_limit:
-                return {'allowed': False, 'error': f'Monthly token limit exceeded. Upgrade your plan for more tokens.'}
-
-            return {'allowed': True}
-
-        except Exception as e:
-            logger.error(f"Error checking user limits: {e}")
-            return {'allowed': False, 'error': 'Error checking user limits'}
-
-    def update_user_stripe_info(self, user_id: str, stripe_customer_id: str = None, 
-                               stripe_subscription_id: str = None, subscription_status: str = None,
-                               current_period_end = None) -> bool:
-        """Update user's Stripe information"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            # Build update query dynamically based on provided parameters
-            update_fields = []
-            update_params = {'user_id': user_id}
-
-            if stripe_customer_id is not None:
-                update_fields.append("stripe_customer_id = %(stripe_customer_id)s")
-                update_params['stripe_customer_id'] = stripe_customer_id
-
-            if stripe_subscription_id is not None:
-                update_fields.append("stripe_subscription_id = %(stripe_subscription_id)s")
-                update_params['stripe_subscription_id'] = stripe_subscription_id
-
-            if subscription_status is not None:
-                update_fields.append("subscription_status = %(subscription_status)s")
-                update_params['subscription_status'] = subscription_status
-
-            if current_period_end is not None:
-                update_fields.append("current_period_end = %(current_period_end)s")
-                update_params['current_period_end'] = current_period_end
-
-            if not update_fields:
-                return True  # Nothing to update
-
-            query = """
-                UPDATE users 
-                SET """ + ', '.join(update_fields) + """
-                WHERE user_id = %(user_id)s
-            """
-
-            cursor.execute(query, update_params)
-            conn.commit()
-            cursor.close()
-            conn.close()
-
-            logger.info(f"Updated Stripe info for user {user_id}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error updating user Stripe info: {e}")
-            return False
-
     def get_user_by_stripe_customer_id(self, stripe_customer_id: str) -> Optional[User]:
         """Get user by Stripe customer ID"""
         try:
@@ -2112,9 +1398,9 @@ class DatabaseManager:
                     subscription_level=SubscriptionLevel(row['subscription_level']),
                     is_admin=row['is_admin']
                 )
-                user.email_verified = row['email_verified']
-                user.created_at = row['created_at']
-                user.last_login = row['last_login']
+                user.email_verified = row.get('email_verified', False)
+                user.created_at = row.get('created_at')
+                user.last_login = row.get('last_login')
                 user.stripe_customer_id = row.get('stripe_customer_id')
                 user.stripe_subscription_id = row.get('stripe_subscription_id')
                 user.subscription_status = row.get('subscription_status', 'free')
@@ -2170,6 +1456,71 @@ class DatabaseManager:
             return False
         finally:
             conn.close()
+
+    def get_invitation_statistics(self):
+        """Get invitation and signup statistics from database"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            # Total invitations sent by type
+            cursor.execute("""
+                SELECT invitation_type, COUNT(*) AS total_sent
+                FROM invitations
+                GROUP BY invitation_type
+                ORDER BY invitation_type;
+            """)
+            invitations_by_type = [dict(row) for row in cursor.fetchall()]
+
+            # Pending vs accepted invitations
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) FILTER (WHERE status = 'pending') AS pending_invitations,
+                    COUNT(*) FILTER (WHERE status = 'accepted') AS accepted_invitations,
+                    COUNT(*) FILTER (WHERE status = 'declined') AS declined_invitations
+                FROM invitations;
+            """)
+            status_counts = dict(cursor.fetchone() or {})
+
+            # Recent signups with their source
+            cursor.execute("""
+                SELECT user_email, signup_source, signup_date
+                FROM user_sources
+                ORDER BY signup_date DESC
+                LIMIT 10; 
+            """)
+            recent_signups = [dict(row) for row in cursor.fetchall()]
+
+            # List of pending invitations
+            cursor.execute("""
+                SELECT invite_code, invitee_email, invitation_type, created_at
+                FROM invitations
+                WHERE status = 'pending'
+                ORDER BY created_at DESC
+                LIMIT 10;
+            """)
+            pending_invitations_list = [dict(row) for row in cursor.fetchall()]
+
+            cursor.close()
+            conn.close()
+
+            return {
+                'invitations_by_type': invitations_by_type,
+                'status_counts': status_counts,
+                'recent_signups': recent_signups,
+                'pending_invitations_list': pending_invitations_list
+            }
+
+        except Exception as e:
+            logger.error(f"Database error getting invitation statistics: {e}")
+            return {
+                'invitations_by_type': [],
+                'status_counts': {},
+                'recent_signups': [],
+                'pending_invitations_list': [],
+                'error': str(e)
+            }
+
 
 # Global database manager instance
 db_manager = DatabaseManager()

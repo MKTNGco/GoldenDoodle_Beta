@@ -17,7 +17,7 @@ import stripe
 import os
 import logging
 import psycopg2.extras
-import user_source_tracker
+from user_source_tracker import user_source_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ def register():
                 is_admin = False
 
             # Create user
-            user_id = db_manager.create_user(
+            user = db_manager.create_user(
                 tenant_id=tenant.tenant_id,
                 first_name=first_name,
                 last_name=last_name,
@@ -210,6 +210,8 @@ def register():
                 subscription_level=SubscriptionLevel(subscription_level),
                 is_admin=is_admin
             )
+
+            user_id = user.user_id  # Extract the user_id string from the User object
 
             # Track user registration event
             analytics_service.track_user_event(

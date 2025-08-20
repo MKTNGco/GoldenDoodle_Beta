@@ -1461,138 +1461,67 @@ class DatabaseManager:
             conn.close()
 
     def populate_pricing_plans(self):
-        """Populate default pricing plans"""
+        """Populate pricing plans if they don't exist"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
-            
-            # Check if plans already exist
+
+            # Check if pricing plans already exist
             cursor.execute("SELECT COUNT(*) FROM pricing_plans")
             count = cursor.fetchone()[0]
-            
+
             if count > 0:
                 logger.info(f"Found {count} existing pricing plans")
                 cursor.close()
                 conn.close()
                 return
-            
+
             # Insert default pricing plans
-            default_plans = [
-                ('free', 'Free', 0.00, 0.00, 'Individual', 'Get started with basic features', False, 'basic', 20000, 0, False, 10, 1, 'community'),
-                ('solo', 'The Practitioner', 29.00, 290.00, 'Individual', 'Perfect for solo practitioners', True, 'extended', 100000, 1, False, 50, 1, 'email'),
-                ('team', 'The Organization', 99.00, 990.00, 'Team', 'Ideal for small organizations', True, 'full', 500000, 3, True, -1, 10, 'priority'),
-                ('professional', 'The Powerhouse', 199.00, 1990.00, 'Enterprise', 'For large organizations', True, 'premium', 1000000, 10, True, -1, 25, 'dedicated')
+            plans = [
+                ('free', 'Free', 0, 0, 10000, 5, 1, '["Basic chat", "Trauma-informed AI"]'),
+                ('solo', 'Solo', 29, 290, 100000, 50, 3, '["Everything in Free", "Advanced features", "Priority support"]'),
+                ('team', 'Team', 99, 990, 500000, -1, 10, '["Everything in Solo", "Team collaboration", "Admin controls"]'),
+                ('professional', 'Professional', 199, 1990, 1000000, -1, 25, '["Everything in Team", "Advanced analytics", "Custom integrations"]')
             ]
-            
-            for plan in default_plans:
+
+            for plan in plans:
                 cursor.execute("""
                     INSERT INTO pricing_plans 
-                    (plan_id, name, price_monthly, price_annual, target_user, core_value, 
-                     analysis_brainstorm, templates, token_limit, brand_voices, 
-                     admin_controls, chat_history_limit, user_seats, support_level)
+                    (plan_id, name, price_monthly, price_annual, target_user, core_value, analysis_brainstorm, templates, token_limit, brand_voices, admin_controls, chat_history_limit, user_seats, support_level)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, plan)
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info("Default pricing plans populated successfully")
-            
+
+            logger.info(f"Populated {len(plans)} pricing plans")
+
         except Exception as e:
             logger.error(f"Error populating pricing plans: {e}")
+            if 'conn' in locals():
+                conn.rollback()
+                cursor.close()
+                conn.close()
 
-    def get_user_by_id(self, user_id: str) -> Optional[User]:
-        """Get user by ID"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-            cursor.execute("""
-                SELECT * FROM users WHERE user_id = %s
-            """, (user_id,))
-
-            row = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            if row:
-                user = User(
-                    user_id=str(row['user_id']),
-                    tenant_id=str(row['tenant_id']),
-                    first_name=row['first_name'],
-                    last_name=row['last_name'],
-                    email=row['email'],
-                    password_hash=row['password_hash'],
-                    subscription_level=SubscriptionLevel(row['subscription_level']),
-                    is_admin=row['is_admin']
-                )
-                user.email_verified = row.get('email_verified', False)
-                user.created_at = row.get('created_at')
-                user.last_login = row.get('last_login')
-                return user
-            return None
-
-        except Exception as e:
-            logger.error(f"Error getting user by ID: {e}")
-            return None
-
-    def mark_email_verified(self, user_id: str) -> bool:
-        """Mark user email as verified"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE users 
-                SET email_verified = TRUE 
-                WHERE user_id = %s
-            """, (user_id,))
-
-            success = cursor.rowcount > 0
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return success
-
-        except Exception as e:
-            logger.error(f"Error marking email as verified: {e}")
-            return False
-
-    def update_user_last_login(self, user_id: str) -> bool:
-        """Update user's last login timestamp"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE users 
-                SET last_login = CURRENT_TIMESTAMP 
-                WHERE user_id = %s
-            """, (user_id,))
-
-            success = cursor.rowcount > 0
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return success
-
-        except Exception as e:
-            logger.error(f"Error updating last login: {e}")
-            return False
 
     def get_all_pricing_plans(self) -> List[Dict]:
         """Get all pricing plans"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
-                SELECT * FROM pricing_plans ORDER BY price_monthly ASC
+                SELECT plan_id, name, price_monthly, price_annual, 
+                       token_limit, chat_history_limit, brand_voices, support_level
+                FROM pricing_plans 
+                ORDER BY price_monthly ASC
             """)
 
             plans = [dict(row) for row in cursor.fetchall()]
             cursor.close()
             conn.close()
+
             return plans
 
         except Exception as e:
@@ -1600,15 +1529,14 @@ class DatabaseManager:
             return []
 
     def get_user_plan(self, user_id: str) -> Optional[Dict]:
-        """Get user's current plan details"""
+        """Get user's current plan and limits"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
-                SELECT u.subscription_level, u.subscription_status, u.current_period_end,
-                       p.name as plan_name, p.price_monthly, p.token_limit, p.brand_voices,
-                       p.chat_history_limit, p.user_seats, p.support_level
+                SELECT u.subscription_level, p.name as plan_name, p.price_monthly, p.token_limit, 
+                       p.chat_history_limit, p.brand_voices, p.support_level
                 FROM users u
                 LEFT JOIN pricing_plans p ON u.subscription_level = p.plan_id
                 WHERE u.user_id = %s
@@ -1618,9 +1546,7 @@ class DatabaseManager:
             cursor.close()
             conn.close()
 
-            if result:
-                return dict(result)
-            return None
+            return dict(result) if result else None
 
         except Exception as e:
             logger.error(f"Error getting user plan: {e}")
@@ -1630,7 +1556,7 @@ class DatabaseManager:
         """Get user's token usage"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             # Reset monthly usage if new month
             current_month = datetime.now().month
@@ -1716,7 +1642,7 @@ class DatabaseManager:
         try:
             import uuid
             session_id = str(uuid.uuid4())
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1738,7 +1664,7 @@ class DatabaseManager:
         """Get user's chat sessions"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
                 SELECT cs.session_id, cs.title, cs.created_at, cs.updated_at,
@@ -1763,7 +1689,7 @@ class DatabaseManager:
         """Get messages for a chat session"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
                 SELECT * FROM chat_messages 
@@ -1785,7 +1711,7 @@ class DatabaseManager:
         try:
             import uuid
             message_id = str(uuid.uuid4())
-            
+
             conn = self.get_connection()
             cursor = conn.cursor()
 
@@ -1925,7 +1851,7 @@ class DatabaseManager:
         """Get pending organization invites for a tenant"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
                 SELECT email, created_at, expires_at
@@ -1947,7 +1873,7 @@ class DatabaseManager:
         """Get invitation and signup statistics from database"""
         try:
             conn = self.get_connection()
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             # Total invitations sent by type
             cursor.execute("""

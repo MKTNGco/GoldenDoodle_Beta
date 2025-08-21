@@ -428,10 +428,15 @@ def register():
                 # Only process Stripe payment for non-beta users with paid plans
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
-                    # Create or get Stripe customer
-                    customer_metadata = {'user_id': str(user_id)} # Ensure user_id is a string
+                    # Create or get Stripe customer - EXTRA VALIDATION
+                    user_id_str = str(user_id)
+                    if hasattr(user_id, 'user_id'):
+                        logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
+                        user_id_str = str(user_id.user_id)
+
+                    customer_metadata = {'user_id': user_id_str}
                     logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
-                    logger.info(f"STRIPE DEBUG: user_id type: {type(user_id)}, value: {repr(user_id)}")
+                    logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
                     customer = stripe_service.create_customer(
                         email=email,
                         name=f"{first_name} {last_name}",
@@ -475,14 +480,20 @@ def register():
                     logger.info(
                         f"Creating Stripe checkout session for user {user_id}")
 
+                    # EXTRA VALIDATION before creating checkout session
+                    user_id_str = str(user_id)
+                    if hasattr(user_id, 'user_id'):
+                        logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
+                        user_id_str = str(user_id.user_id)
+
                     checkout_metadata = {
-                        'user_id': str(user_id),  # Use the user_id variable, not user object
+                        'user_id': user_id_str,  # Use the user_id variable, not user object
                         'plan_id': subscription_level,
                         'new_registration': 'true',
                         'trial_days': '0'
                     }
                     logger.info(f"STRIPE DEBUG: About to create checkout session with metadata: {checkout_metadata}")
-                    logger.info(f"STRIPE DEBUG: user_id type: {type(user_id)}, value: {repr(user_id)}")
+                    logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
                     logger.info(f"STRIPE DEBUG: str(user_id) type: {type(str(user_id))}, value: {repr(str(user_id))}")
 
                     stripe_session = stripe_service.create_checkout_session(
@@ -2978,10 +2989,8 @@ def create_checkout_session():
                     logger.error(f"❌ Customer metadata '{key}' exceeds 500 characters: {len(str(value))}")
                     return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
 
-            logger.info(f"STRIPE DEBUG: About to create customer for existing user with metadata: {existing_customer_metadata}")
-            logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
-            logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
-
+            logger.info(f"STRIPE DEBUG: About to create customer with metadata: {existing_customer_metadata}")
+            logger.info(f"STRIPE DEBUG: user.user_id original type: {type(user.user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
             customer = stripe_service.create_customer(
                 email=user.email,
                 name=f"{user.first_name} {user.last_name}",
@@ -3013,9 +3022,8 @@ def create_checkout_session():
                 logger.error(f"❌ Metadata '{key}' exceeds 500 characters: {len(str(value))}")
                 return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
 
-        logger.info(f"STRIPE DEBUG: About to create checkout session for existing user with metadata: {existing_checkout_metadata}")
-        logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
-        logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
+        logger.info(f"STRIPE DEBUG: About to create checkout session with metadata: {existing_checkout_metadata}")
+        logger.info(f"STRIPE DEBUG: user.user_id original type: {type(user.user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
 
         session = stripe_service.create_checkout_session(
             customer_email=user.email,

@@ -1,6 +1,15 @@
+
 {% extends "base.html" %}
 
 {% block title %}Sign Up - GoldenDoodleLM{% endblock %}
+
+{% block head %}
+<!-- Cache-busting meta tags -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<meta name="cache-bust" content="{{ range(1000000) | random }}" />
+{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -174,12 +183,9 @@
                             <i class="fas fa-rocket me-2"></i>Create Account
                         </button>
 
-                        <!-- Loading state for payment processing -->
-                        <div id="paymentLoading" style="display: none;" class="text-center py-3">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                <span class="visually-hidden">Processing payment...</span>
-                            </div>
-                            <p class="small text-muted mt-2">Redirecting to secure payment...</p>
+                        <!-- Response Area for Status Messages -->
+                        <div id="responseArea" style="display: none;">
+                            <!-- Success/Error messages will be displayed here -->
                         </div>
                     </form>
 
@@ -205,101 +211,318 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Skip JavaScript setup for organization invites
-    const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
-    const hasInvitation = {{ 'true' if invitation_data else 'false' }};
-    const stripeDisabled = {{ 'true' if config.get('STRIPE_DISABLED', '').lower() == 'true' else 'false' }};
-    const invitationType = "{{ invitation_data.invitation_type if invitation_data else '' }}";
-
-    if (isOrgInvite || invitationType === 'beta') {
-        // If it's an organization invite or a beta invite, force organization account type
-        const orgField = document.getElementById('organizationField');
-        if (orgField) {
-            orgField.style.display = 'block';
-            document.getElementById('organization_name').required = true;
+(function() {
+    'use strict';
+    
+    // Configuration
+    const config = {
+        isOrgInvite: {{ 'true' if is_organization_invite else 'false' }},
+        hasInvitation: {{ 'true' if invitation_data else 'false' }},
+        stripeDisabled: {{ 'true' if config.get('STRIPE_DISABLED', '').lower() == 'true' else 'false' }},
+        invitationType: "{{ invitation_data.invitation_type if invitation_data else '' }}"
+    };
+    
+    // DOM Elements
+    let form, submitBtn, responseArea;
+    let plansData = [];
+    
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Registration page loaded, initializing...');
+        
+        // Get DOM elements
+        form = document.getElementById('registerForm');
+        submitBtn = document.getElementById('submitBtn');
+        responseArea = document.getElementById('responseArea');
+        
+        if (!form || !submitBtn || !responseArea) {
+            console.error('Critical DOM elements not found');
+            return;
         }
-
-        // Hide individual plans and show team plans
-        document.getElementById('individualPlans').style.display = 'none';
-        document.getElementById('teamPlans').style.display = 'block';
-
-        // Check the correct radio buttons
-        if (hasInvitation) {
-            const companyRadio = document.querySelector('input[name="user_type"][value="company"]');
-            if (companyRadio) {
-                companyRadio.checked = true;
-            }
-            const teamCard = document.querySelector('.subscription-card[data-level="team"]');
-            if (teamCard) {
-                teamCard.classList.add('selected');
-                const teamRadio = teamCard.querySelector('input[type="radio"]');
-                if (teamRadio) {
-                    teamRadio.checked = true;
-                }
-            }
-        } else {
-            // If it's not an invitation but we are forcing org type (e.g., beta invite flow)
-            const companyRadio = document.querySelector('input[name="user_type"][value="company"]');
-            if (companyRadio) {
-                companyRadio.checked = true;
-            }
-            // Select the team plan by default for beta users
-            setTimeout(() => {
-                const teamCard = document.querySelector('[data-level="team"]');
-                if (teamCard) {
-                    teamCard.click();
-                }
-            }, 100);
+        
+        // AGGRESSIVE FORM PREVENTION - Multiple layers
+        preventFormSubmission();
+        
+        // Initialize form handlers
+        initializeFormHandlers();
+        
+        // Load plans if needed
+        if (!config.hasInvitation && !config.isOrgInvite) {
+            loadPlans();
         }
+        
+        console.log('Registration form initialized successfully');
+    });
+    
+    function preventFormSubmission() {
+        // Layer 1: onsubmit attribute override
+        form.onsubmit = function(e) {
+            console.log('Form onsubmit triggered - preventing default');
+            e.preventDefault();
+            e.stopPropagation();
+            handleFormSubmission();
+            return false;
+        };
+        
+        // Layer 2: addEventListener with capture
+        form.addEventListener('submit', function(e) {
+            console.log('Form submit event listener triggered - preventing default');
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            handleFormSubmission();
+            return false;
+        }, true);
+        
+        // Layer 3: Submit button click handler
+        submitBtn.addEventListener('click', function(e) {
+            console.log('Submit button clicked - preventing form submission');
+            e.preventDefault();
+            e.stopPropagation();
+            handleFormSubmission();
+            return false;
+        });
+        
+        // Layer 4: Form submission prevention via MutationObserver
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'action') {
+                    console.log('Form action changed - resetting prevention');
+                    preventFormSubmission();
+                }
+            });
+        });
+        observer.observe(form, { attributes: true, attributeFilter: ['action', 'method'] });
+        
+        console.log('Form submission prevention layers activated');
+    }
+    
+    function initializeFormHandlers() {
+        // Password visibility toggle
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        const passwordToggleIcon = document.getElementById('passwordToggleIcon');
 
-        // If it's a beta invite, disable individual plan selection
-        if (invitationType === 'beta') {
-            document.querySelectorAll('.account-type-card').forEach(card => {
-                if (card.getAttribute('data-type') === 'independent') {
-                    card.style.pointerEvents = 'none';
-                    card.style.opacity = '0.6';
+        if (togglePassword && passwordInput && passwordToggleIcon) {
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                if (type === 'password') {
+                    passwordToggleIcon.classList.remove('fa-eye-slash');
+                    passwordToggleIcon.classList.add('fa-eye');
+                } else {
+                    passwordToggleIcon.classList.remove('fa-eye');
+                    passwordToggleIcon.classList.add('fa-eye-slash');
                 }
             });
         }
+        
+        // Account type selection
+        const accountTypeCards = document.querySelectorAll('.account-type-card');
+        const organizationField = document.getElementById('organizationField');
+        const individualPlansDiv = document.getElementById('individualPlans');
+        const teamPlansDiv = document.getElementById('teamPlans');
 
-        // If it's a beta invite, we skip the rest of the plan loading and selection logic
-        if (invitationType === 'beta') {
-            return;
+        accountTypeCards.forEach(card => {
+            card.addEventListener('click', function() {
+                accountTypeCards.forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+
+                const radio = this.querySelector('input[type="radio"]');
+                radio.checked = true;
+
+                if (radio.value === 'company') {
+                    if (organizationField) {
+                        organizationField.style.display = 'block';
+                        document.getElementById('organization_name').required = true;
+                    }
+                    if (individualPlansDiv && teamPlansDiv) {
+                        individualPlansDiv.style.display = 'none';
+                        teamPlansDiv.style.display = 'block';
+                        
+                        setTimeout(() => {
+                            const teamCard = document.querySelector('[data-level="team"]');
+                            if (teamCard) teamCard.click();
+                        }, 100);
+                    }
+                } else {
+                    if (organizationField) {
+                        organizationField.style.display = 'none';
+                        document.getElementById('organization_name').required = false;
+                    }
+                    if (individualPlansDiv && teamPlansDiv) {
+                        individualPlansDiv.style.display = 'block';
+                        teamPlansDiv.style.display = 'none';
+                        
+                        setTimeout(() => {
+                            const freeCard = document.querySelector('[data-level="free"]');
+                            if (freeCard) freeCard.click();
+                        }, 100);
+                    }
+                }
+            });
+        });
+
+        // Plan selection (delegated event handling)
+        document.addEventListener('click', function(e) {
+            const subscriptionCard = e.target.closest('.subscription-card');
+            if (subscriptionCard) {
+                document.querySelectorAll('.subscription-card').forEach(c => c.classList.remove('selected'));
+                subscriptionCard.classList.add('selected');
+
+                const radio = subscriptionCard.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                }
+            }
+        });
+    }
+    
+    async function handleFormSubmission() {
+        console.log('handleFormSubmission called');
+        
+        // Show loading state immediately
+        showLoadingState();
+        
+        try {
+            // Collect form data
+            const formData = new FormData(form);
+            
+            console.log('Submitting registration form via AJAX...');
+            
+            // Make AJAX request
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+            
+            console.log('Response status:', response.status);
+            console.log('Response content-type:', response.headers.get('content-type'));
+            
+            // Parse response
+            let data;
+            try {
+                const responseText = await response.text();
+                console.log('Raw response:', responseText.substring(0, 200) + '...');
+                data = JSON.parse(responseText);
+                console.log('Parsed JSON response:', data);
+            } catch (parseError) {
+                console.error('Failed to parse response as JSON:', parseError);
+                showErrorState('Invalid response from server. Please try again.');
+                return;
+            }
+            
+            // Handle response
+            if (data.success) {
+                console.log('✓ Registration successful');
+                
+                // Check if this is a Stripe checkout redirect
+                if (data.redirect_to_stripe && data.checkout_url) {
+                    console.log('✓ Redirecting to Stripe checkout:', data.checkout_url);
+                    if (data.checkout_url && data.checkout_url.startsWith('https://checkout.stripe.com/')) {
+                        window.location.href = data.checkout_url;
+                    } else {
+                        showErrorState('Invalid checkout URL received. Please try again.');
+                    }
+                    return;
+                }
+                
+                // Handle regular success
+                const redirectUrl = data.redirect || '/login';
+                const message = data.message || 'Account created successfully!';
+                
+                showSuccessState(message, redirectUrl);
+                
+            } else if (data.error) {
+                console.error('Registration error:', data.error);
+                showErrorState(data.error);
+            } else {
+                console.error('Unexpected response format');
+                showErrorState('Unexpected response from server. Please try again.');
+            }
+            
+        } catch (error) {
+            console.error('Registration request failed:', error);
+            showErrorState('Network error occurred. Please check your connection and try again.');
         }
     }
-
-
-    let plansData = [];
-
-    // Helper function to display errors
-    function showError(message) {
-        const paymentLoadingDiv = document.getElementById('paymentLoading');
-        paymentLoadingDiv.innerHTML = `
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Error:</strong> ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    
+    function showLoadingState() {
+        console.log('Showing loading state');
+        
+        submitBtn.style.display = 'none';
+        responseArea.style.display = 'block';
+        
+        const isBeta = config.invitationType === 'beta';
+        const isOrg = config.isOrgInvite;
+        
+        let message = 'Creating your account...';
+        if (isBeta || isOrg) {
+            message = 'Setting up your organization account...';
+        }
+        
+        responseArea.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="small text-muted mt-2">${message}</p>
             </div>
         `;
-        paymentLoadingDiv.style.display = 'block';
-        document.getElementById('submitBtn').style.display = 'block'; // Show submit button again
     }
-
-    // Helper function to enable form and hide loading spinner
-    function enableForm() {
-        document.getElementById('paymentLoading').style.display = 'none';
-        document.getElementById('submitBtn').style.display = 'block';
+    
+    function showSuccessState(message, redirectUrl) {
+        console.log('Showing success state, will redirect to:', redirectUrl);
+        
+        responseArea.innerHTML = `
+            <div class="alert alert-success text-center" role="alert">
+                <div class="mb-3">
+                    <i class="fas fa-check-circle" style="font-size: 3rem; color: #28a745;"></i>
+                </div>
+                <h5 class="alert-heading">Account Created Successfully!</h5>
+                <p class="mb-3">${message}</p>
+                <div class="spinner-border spinner-border-sm text-success" role="status">
+                    <span class="visually-hidden">Redirecting...</span>
+                </div>
+                <p class="small text-muted mt-2">Redirecting to login page in 3 seconds...</p>
+            </div>
+        `;
+        
+        // Redirect after 3 seconds
+        setTimeout(() => {
+            console.log('Redirecting to:', redirectUrl);
+            window.location.href = redirectUrl;
+        }, 3000);
     }
-
-    // Helper function to hide error messages and show loading spinner
-    function hideError() {
-        document.getElementById('paymentLoading').style.display = 'none';
+    
+    function showErrorState(errorMessage) {
+        console.log('Showing error state:', errorMessage);
+        
+        responseArea.innerHTML = `
+            <div class="alert alert-danger text-center" role="alert">
+                <div class="mb-3">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #dc3545;"></i>
+                </div>
+                <h5 class="alert-heading">Registration Error</h5>
+                <p class="mb-0">${errorMessage}</p>
+            </div>
+        `;
+        
+        // Show submit button again after 3 seconds
+        setTimeout(() => {
+            submitBtn.style.display = 'block';
+            responseArea.style.display = 'none';
+        }, 5000);
     }
-
-    // Load pricing plans
+    
+    // Load pricing plans (simplified version)
     async function loadPlans() {
         try {
+            console.log('Loading pricing plans...');
             const response = await fetch('/api/get-plans');
             if (!response.ok) {
                 throw new Error('Failed to load plans');
@@ -308,43 +531,50 @@ document.addEventListener('DOMContentLoaded', function() {
             plansData = await response.json();
             renderPlans();
             document.getElementById('plansLoadingIndicator').style.display = 'none';
+            console.log('Plans loaded successfully');
         } catch (error) {
             console.error('Error loading plans:', error);
-            document.getElementById('plansLoadingIndicator').innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Failed to load pricing plans. Please refresh the page.
-                </div>
-            `;
+            const indicator = document.getElementById('plansLoadingIndicator');
+            if (indicator) {
+                indicator.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load pricing plans. Please refresh the page.
+                    </div>
+                `;
+            }
         }
     }
-
+    
     function renderPlans() {
         const individualContainer = document.getElementById('individualPlansContainer');
         const teamContainer = document.getElementById('teamPlansContainer');
+        
+        if (!individualContainer || !teamContainer || !plansData.length) {
+            return;
+        }
 
         // Clear containers
         individualContainer.innerHTML = '';
         teamContainer.innerHTML = '';
 
-        // Individual plans: free, solo, professional
+        // Individual plans
         const individualPlans = plansData.filter(plan => ['free', 'solo', 'professional'].includes(plan.plan_id));
         individualPlans.forEach(plan => {
             individualContainer.appendChild(createPlanCard(plan));
         });
 
-        // Team plans: team only
+        // Team plans
         const teamPlans = plansData.filter(plan => ['team'].includes(plan.plan_id));
         teamPlans.forEach(plan => {
             teamContainer.appendChild(createPlanCard(plan));
         });
     }
-
+    
     function createPlanCard(plan) {
         const col = document.createElement('div');
         col.className = 'col-md-6';
 
-        // Determine pricing display
         let priceDisplay, badgeClass, trialText;
         if (plan.plan_id === 'free') {
             priceDisplay = 'Free';
@@ -360,7 +590,6 @@ document.addEventListener('DOMContentLoaded', function() {
             trialText = '7-Day Free Trial';
         }
 
-        // Get features
         const features = getPlanFeatures(plan);
 
         col.innerHTML = `
@@ -393,320 +622,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
         return col;
     }
-
+    
     function getPlanFeatures(plan) {
         const features = [];
-
-        // User seats
+        
         if (plan.plan_id === 'team') {
             features.push({ text: 'Minimum 3 User Seats', available: true });
         } else {
             features.push({ text: '1 User Seat', available: true });
         }
-
-        // Brand voices
+        
         if (plan.brand_voices > 0) {
             const voiceText = plan.brand_voices === 1 ? '1 Brand Voice' : `Up to ${plan.brand_voices} Brand Voices`;
             features.push({ text: voiceText, available: true });
         }
-
-        // Templates
+        
         if (plan.templates === 'full') {
             features.push({ text: 'Full Template Library', available: true });
         } else if (plan.templates === 'basic') {
             features.push({ text: 'Basic Templates', available: true });
         }
-
-        // Analysis & brainstorming
+        
         if (plan.analysis_brainstorm) {
             features.push({ text: 'Analysis & Brainstorm Tools', available: true });
         }
-
-        // Admin controls for team plans
+        
         if (plan.admin_controls) {
             features.push({ text: 'Admin Controls & User Management', available: true });
         }
-
-        // Support
+        
         const supportLevels = {
             'none': 'Community Support',
-            'email': 'Email Support',
+            'email': 'Email Support', 
             'priority': 'Priority Support'
         };
-
+        
         features.push({
             text: supportLevels[plan.support_level] || 'Support',
             available: plan.support_level !== 'none'
         });
-
+        
         return features;
     }
-
-    // Account type selection
-    const accountTypeCards = document.querySelectorAll('.account-type-card');
-    const organizationField = document.getElementById('organizationField');
-    const individualPlansDiv = document.getElementById('individualPlans');
-    const teamPlansDiv = document.getElementById('teamPlans');
-
-    accountTypeCards.forEach(card => {
-        card.addEventListener('click', function() {
-            accountTypeCards.forEach(c => c.classList.remove('selected'));
-            this.classList.add('selected');
-
-            const radio = this.querySelector('input[type="radio"]');
-            radio.checked = true;
-
-            if (radio.value === 'company') {
-                organizationField.style.display = 'block';
-                document.getElementById('organization_name').required = true;
-                individualPlansDiv.style.display = 'none';
-                teamPlansDiv.style.display = 'block';
-
-                // Select team plan by default for organizations
-                setTimeout(() => {
-                    const teamCard = document.querySelector('[data-level="team"]');
-                    if (teamCard) {
-                        teamCard.click();
-                    }
-                }, 100);
-            } else {
-                organizationField.style.display = 'none';
-                document.getElementById('organization_name').required = false;
-                individualPlansDiv.style.display = 'block';
-                teamPlansDiv.style.display = 'none';
-
-                // Select free plan by default for individuals
-                setTimeout(() => {
-                    const freeCard = document.querySelector('[data-level="free"]');
-                    if (freeCard) {
-                        freeCard.click();
-                    }
-                }, 100);
-            }
-        });
-    });
-
-    // Subscription level selection (delegated event handling)
-    document.addEventListener('click', function(e) {
-        const subscriptionCard = e.target.closest('.subscription-card');
-        if (subscriptionCard) {
-            document.querySelectorAll('.subscription-card').forEach(c => c.classList.remove('selected'));
-            subscriptionCard.classList.add('selected');
-
-            const radio = subscriptionCard.querySelector('input[type="radio"]');
-            if (radio) {
-                radio.checked = true;
-            }
-        }
-    });
-
-    // Form submission handling
-    const registerForm = document.getElementById('registerForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const paymentLoading = document.getElementById('paymentLoading');
-
-    registerForm.addEventListener('submit', async function(e) {
-        // ALWAYS prevent default form submission for JavaScript handling
-        e.preventDefault();
-        
-        console.log('Form submission intercepted by JavaScript');
-        
-        const selectedPlan = document.querySelector('input[name="subscription_level"]:checked');
-        
-        // Check if this is a beta invitation or organization invite
-        const isBetaInvite = invitationType === 'beta';
-        const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
-        
-        console.log('Beta invite:', isBetaInvite, 'Org invite:', isOrgInvite);
-        
-        // Show loading state
-        submitBtn.style.display = 'none';
-        paymentLoading.style.display = 'block';
-        
-        if (isBetaInvite || isOrgInvite) {
-            paymentLoading.innerHTML = `
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Creating your account...</span>
-                </div>
-                <p class="small text-muted mt-2">Setting up your organization account...</p>
-            `;
-        } else if (selectedPlan && ['solo', 'team', 'professional'].includes(selectedPlan.value) && !stripeDisabled) {
-            paymentLoading.innerHTML = `
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Processing payment...</span>
-                </div>
-                <p class="small text-muted mt-2">Redirecting to secure payment...</p>
-            `;
-        } else {
-            paymentLoading.innerHTML = `
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Creating your account...</span>
-                </div>
-                <p class="small text-muted mt-2">Setting up your account...</p>
-            `;
-        }
-        
-        await handleFormSubmission();
-    });
     
-    // Centralized form submission handler
-    async function handleFormSubmission() {
-        try {
-            const formData = new FormData(registerForm);
-            console.log('Submitting registration form via AJAX...');
-
-            const response = await fetch('/register', {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            });
-
-            console.log('Response status:', response.status);
-            console.log('Response content-type:', response.headers.get('content-type'));
-
-            let data;
-            try {
-                // Always try to parse as JSON first
-                const responseText = await response.text();
-                console.log('Raw response:', responseText.substring(0, 500));
-                
-                data = JSON.parse(responseText);
-                console.log('Parsed JSON response:', data);
-            } catch (parseError) {
-                console.error('Failed to parse response as JSON:', parseError);
-                showError('Invalid response from server. Please try again.');
-                enableForm();
-                return;
-            }
-
-            // Handle successful responses
-            if (data.success) {
-                console.log('✓ Registration successful');
-                
-                // Check if this is a Stripe checkout redirect
-                if (data.redirect_to_stripe && data.checkout_url) {
-                    console.log('✓ Redirecting to Stripe checkout:', data.checkout_url);
-                    if (data.checkout_url && data.checkout_url.startsWith('https://checkout.stripe.com/')) {
-                        window.location.href = data.checkout_url;
-                    } else {
-                        showError('Invalid checkout URL received. Please try again.');
-                        enableForm();
-                    }
-                    return;
-                }
-                
-                // Handle regular success (beta, free, etc.)
-                const redirectUrl = data.redirect || '/login';
-                console.log('✓ Will redirect to:', redirectUrl);
-                
-                if (data.message) {
-                    // Show success message in a proper success alert
-                    const successDiv = document.getElementById('paymentLoading');
-                    successDiv.innerHTML = `
-                        <div class="alert alert-success text-center" role="alert">
-                            <div class="mb-3">
-                                <i class="fas fa-check-circle" style="font-size: 3rem; color: #28a745;"></i>
-                            </div>
-                            <h5 class="alert-heading">Account Created Successfully!</h5>
-                            <p class="mb-3">${data.message}</p>
-                            <div class="spinner-border spinner-border-sm text-success" role="status">
-                                <span class="visually-hidden">Redirecting...</span>
-                            </div>
-                            <p class="small text-muted mt-2">Redirecting to login page in 3 seconds...</p>
-                        </div>
-                    `;
-                    successDiv.style.display = 'block';
-                    
-                    // Redirect after 3 seconds
-                    setTimeout(() => {
-                        window.location.href = redirectUrl;
-                    }, 3000);
-                } else {
-                    // No message, redirect immediately
-                    window.location.href = redirectUrl;
-                }
-                return;
-            }
-
-            // Handle errors
-            if (data.error) {
-                console.error('Registration error:', data.error);
-                showError(data.error);
-                enableForm();
-                return;
-            }
-
-            // If we get here, something unexpected happened
-            showError('Unexpected response from server. Please try again.');
-            enableForm();
-
-        } catch (error) {
-            console.error('Registration error:', error);
-            showError('An error occurred during registration. Please try again.');
-            enableForm();
-        }
-    }
-
-    // Ensure form never submits normally - backup prevention
-    registerForm.onsubmit = function(e) {
-        e.preventDefault();
-        console.log('Backup form prevention triggered');
-        return false;
-    };
-    
-    // Initialize
-    loadPlans();
-
-    // Password visibility toggle
-    const togglePasswordButton = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('password');
-    const passwordToggleIcon = document.getElementById('passwordToggleIcon');
-
-    if (togglePasswordButton && passwordInput && passwordToggleIcon) {
-        togglePasswordButton.addEventListener('click', function() {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-
-            // Toggle the icon
-            if (type === 'password') {
-                passwordToggleIcon.classList.remove('fa-eye-slash');
-                passwordToggleIcon.classList.add('fa-eye');
-            } else {
-                passwordToggleIcon.classList.remove('fa-eye');
-                passwordToggleIcon.classList.add('fa-eye-slash');
-            }
-        });
-    }
-
-    // Initialize form state based on invitation
-    if (hasInvitation) {
-        // For invitations, select company type and show team plans
-        const companyCard = document.querySelector('.account-type-card[data-type="company"]');
-        if (companyCard) {
-            accountTypeCards.forEach(c => c.classList.remove('selected'));
-            companyCard.classList.add('selected');
-            organizationField.style.display = 'block';
-            document.getElementById('organization_name').required = true;
-            individualPlansDiv.style.display = 'none';
-            teamPlansDiv.style.display = 'block';
-
-            // Select team plan by default for invitations
-            setTimeout(() => {
-                const teamCard = document.querySelector('[data-level="team"]');
-                if (teamCard) {
-                    teamCard.click();
-                }
-            }, 100);
-        }
-    } else {
-        // Initialize first options as selected (only for non-invite users)
-        if (document.querySelector('.account-type-card')) {
-            document.querySelector('.account-type-card').classList.add('selected');
-        }
-    }
-});
+})();
 </script>
 {% endblock %}

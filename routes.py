@@ -108,10 +108,9 @@ def register():
     if request.method == 'POST':
         # Check if this is an AJAX request expecting JSON
         expects_json = (request.is_json
-                        or 'application/json' in request.headers.get(
-                            'Accept', '')
-                        or request.headers.get('Content-Type')
-                        == 'application/x-www-form-urlencoded')
+                        or 'application/json' in request.headers.get('Accept', '')
+                        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                        or request.headers.get('Content-Type') == 'application/x-www-form-urlencoded')
 
         try:
             first_name = request.form.get('first_name', '').strip()

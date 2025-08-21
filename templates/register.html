@@ -509,11 +509,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // ALWAYS prevent default form submission for JavaScript handling
         e.preventDefault();
         
+        console.log('Form submission intercepted by JavaScript');
+        
         const selectedPlan = document.querySelector('input[name="subscription_level"]:checked');
         
         // Check if this is a beta invitation or organization invite
         const isBetaInvite = invitationType === 'beta';
         const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
+        
+        console.log('Beta invite:', isBetaInvite, 'Org invite:', isOrgInvite);
         
         // Show loading state
         submitBtn.style.display = 'none';
@@ -549,13 +553,13 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleFormSubmission() {
         try {
             const formData = new FormData(registerForm);
-            console.log('Submitting registration form...');
+            console.log('Submitting registration form via AJAX...');
 
             const response = await fetch('/register', {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: formData
             });
@@ -646,6 +650,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Ensure form never submits normally - backup prevention
+    registerForm.onsubmit = function(e) {
+        e.preventDefault();
+        console.log('Backup form prevention triggered');
+        return false;
+    };
+    
     // Initialize
     loadPlans();
 

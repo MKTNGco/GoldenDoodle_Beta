@@ -624,9 +624,9 @@ class DatabaseManager:
                     subscription_level=SubscriptionLevel(row['subscription_level']),
                     is_admin=row['is_admin']
                 )
-                user.email_verified = row['email_verified']  # Add email_verified
-                user.created_at = row['created_at']
-                user.last_login = row['last_login']
+                user.email_verified = row.get('email_verified', False)
+                user.created_at = row.get('created_at')
+                user.last_login = row.get('last_login')
                 return user
             return None
 

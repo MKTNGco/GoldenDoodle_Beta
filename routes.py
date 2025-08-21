@@ -2980,14 +2980,14 @@ def create_checkout_session():
         cancel_url = f"{base_url}/pricing"
 
         existing_checkout_metadata = {
-                'user_id': str(user.user_id),
-                'plan_id': plan_id
-            }
-            logger.info(f"STRIPE DEBUG: About to create checkout session for existing user with metadata: {existing_checkout_metadata}")
-            logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
-            logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
-            
-            session = stripe_service.create_checkout_session(
+            'user_id': str(user.user_id),
+            'plan_id': plan_id
+        }
+        logger.info(f"STRIPE DEBUG: About to create checkout session for existing user with metadata: {existing_checkout_metadata}")
+        logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
+        logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
+        
+        session = stripe_service.create_checkout_session(
             customer_email=user.email,
             price_id=price_id,
             success_url=success_url,

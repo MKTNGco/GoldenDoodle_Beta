@@ -595,9 +595,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     return;
 
-                } else if (data.success && data.redirect) {
-                    // Handle successful registration (beta or free users)
-                    console.log('✓ Registration successful, redirecting to:', data.redirect);
+                } else if (data.success) {
+                    // Handle ANY successful registration (beta, free users, or with redirect)
+                    console.log('✓ Registration successful');
+                    
+                    // Determine redirect URL - use provided redirect or default to login
+                    const redirectUrl = data.redirect || '/login';
+                    console.log('✓ Will redirect to:', redirectUrl);
+                    
                     if (data.message) {
                         // Show success message briefly before redirect
                         const successDiv = document.getElementById('paymentLoading');
@@ -610,12 +615,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         `;
                         successDiv.style.display = 'block';
                         
-                        // Redirect after 2 seconds
+                        // Redirect after 3 seconds to give time to read the message
                         setTimeout(() => {
-                            window.location.href = data.redirect;
-                        }, 2000);
+                            window.location.href = redirectUrl;
+                        }, 3000);
                     } else {
-                        window.location.href = data.redirect;
+                        // No message, redirect immediately
+                        window.location.href = redirectUrl;
                     }
                     return;
 

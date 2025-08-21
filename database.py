@@ -553,17 +553,44 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
+            # Create user
             cursor.execute("""
-                INSERT INTO users (user_id, tenant_id, first_name, last_name, email, password_hash, subscription_level, is_admin, email_verified)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (user.user_id, user.tenant_id, user.first_name, user.last_name, user.email, user.password_hash, 
-                  user.subscription_level.value, user.is_admin, False)) # Set email_verified to False initially
+                INSERT INTO users (user_id, tenant_id, first_name, last_name, email, password_hash, 
+                                 subscription_level, is_admin, email_verified, created_at, plan_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING *
+            """, (user_id, tenant_id, first_name, last_name, email, password_hash, 
+                  subscription_level.value, is_admin, False, datetime.now(), subscription_level.value))
 
+            user_row = cursor.fetchone()
             conn.commit()
             cursor.close()
             conn.close()
 
-            return user
+            logger.error(f"🔍 DB DEBUG: user_row from database: {dict(user_row) if user_row else None}")
+            logger.error(f"🔍 DB DEBUG: user_row['user_id'] type: {type(user_row['user_id']) if user_row else 'None'}")
+            logger.error(f"🔍 DB DEBUG: user_row['user_id'] value: {repr(user_row['user_id']) if user_row else 'None'}")
+
+            # Return User object
+            user_obj = User(
+                user_id=user_row['user_id'],
+                tenant_id=user_row['tenant_id'],
+                first_name=user_row['first_name'],
+                last_name=user_row['last_name'],
+                email=user_row['email'],
+                password_hash=user_row['password_hash'],
+                subscription_level=SubscriptionLevel(user_row['subscription_level']),
+                is_admin=user_row['is_admin'],
+                email_verified=user_row['email_verified'],
+                created_at=user_row['created_at'].isoformat() if user_row['created_at'] else None,
+                plan_id=user_row.get('plan_id', 'free')
+            )
+
+            logger.error(f"🔍 DB DEBUG: Created User object type: {type(user_obj)}")
+            logger.error(f"🔍 DB DEBUG: Created User object user_id: {repr(user_obj.user_id)}")
+            logger.error(f"🔍 DB DEBUG: Created User object user_id type: {type(user_obj.user_id)}")
+
+            return user_obj
 
         except Exception as e:
             logger.error(f"Error creating user: {e}")

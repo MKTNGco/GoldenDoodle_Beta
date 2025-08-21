@@ -312,7 +312,17 @@ def register():
                 subscription_level=SubscriptionLevel(subscription_level),
                 is_admin=is_admin)
 
+            # CRITICAL DEBUG: Check what create_user returns
+            logger.error(f"🔍 DEBUG: create_user returned type: {type(user_obj)}")
+            logger.error(f"🔍 DEBUG: create_user returned value: {repr(user_obj)}")
+            if hasattr(user_obj, 'user_id'):
+                logger.error(f"🔍 DEBUG: user_obj.user_id type: {type(user_obj.user_id)}")
+                logger.error(f"🔍 DEBUG: user_obj.user_id value: {repr(user_obj.user_id)}")
+
             user_id = str(user_obj.user_id)  # Ensure user_id is a string, not the User object
+            logger.error(f"🔍 DEBUG: Final user_id type: {type(user_id)}")
+            logger.error(f"🔍 DEBUG: Final user_id value: {repr(user_id)}")
+            logger.error(f"🔍 DEBUG: Final user_id length: {len(user_id)}")
 
             # Track user registration event
             analytics_service.track_user_event(user_id=str(user_id),
@@ -429,12 +439,21 @@ def register():
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
                     # Create or get Stripe customer - EXTRA VALIDATION
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable type: {type(user_id)}")
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable value: {repr(user_id)}")
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable length: {len(str(user_id))}")
+                    
                     user_id_str = str(user_id)
                     if hasattr(user_id, 'user_id'):
                         logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
+                        logger.error(f"❌ CRITICAL: User object content: {repr(user_id)}")
                         user_id_str = str(user_id.user_id)
 
                     customer_metadata = {'user_id': user_id_str}
+                    logger.error(f"🚨 STRIPE CUSTOMER DEBUG: metadata being sent: {customer_metadata}")
+                    for k, v in customer_metadata.items():
+                        logger.error(f"🚨 STRIPE CUSTOMER DEBUG: {k} = {repr(v)} (type: {type(v)}, len: {len(str(v))})")
+                    
                     logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
                     logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
                     customer = stripe_service.create_customer(
@@ -481,9 +500,14 @@ def register():
                         f"Creating Stripe checkout session for user {user_id}")
 
                     # EXTRA VALIDATION before creating checkout session
+                    logger.error(f"🚨 PRE-CHECKOUT DEBUG: user_id variable type: {type(user_id)}")
+                    logger.error(f"🚨 PRE-CHECKOUT DEBUG: user_id variable value: {repr(user_id)}")
+                    logger.error(f"🚨 PRE-CHECKOUT DEBUG: user_id variable length: {len(str(user_id))}")
+                    
                     user_id_str = str(user_id)
                     if hasattr(user_id, 'user_id'):
                         logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
+                        logger.error(f"❌ CRITICAL: User object content: {repr(user_id)}")
                         user_id_str = str(user_id.user_id)
 
                     checkout_metadata = {
@@ -492,6 +516,11 @@ def register():
                         'new_registration': 'true',
                         'trial_days': '0'
                     }
+                    
+                    logger.error(f"🚨 CHECKOUT METADATA DEBUG: metadata being sent: {checkout_metadata}")
+                    for k, v in checkout_metadata.items():
+                        logger.error(f"🚨 CHECKOUT METADATA DEBUG: {k} = {repr(v)} (type: {type(v)}, len: {len(str(v))})")
+                    
                     logger.info(f"STRIPE DEBUG: About to create checkout session with metadata: {checkout_metadata}")
                     logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
                     logger.info(f"STRIPE DEBUG: str(user_id) type: {type(str(user_id))}, value: {repr(str(user_id))}")

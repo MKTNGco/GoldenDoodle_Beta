@@ -438,29 +438,43 @@ def register():
                 # Only process Stripe payment for non-beta users with paid plans
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
-                    # Ensure user_id is string and validate it thoroughly
+                    # Ensure user_id is a string and validate it thoroughly
                     logger.error(f"🚨 FINAL DEBUG: user_id variable type: {type(user_id)}")
                     logger.error(f"🚨 FINAL DEBUG: user_id variable value: {repr(user_id)}")
-                    
+
                     # Critical: Ensure we have a string user_id, not a User object
                     if hasattr(user_id, 'user_id'):
                         logger.error(f"❌ CRITICAL: user_id is a User object! Converting to string...")
                         user_id = str(user_id.user_id)
                     else:
                         user_id = str(user_id)
-                    
+
                     logger.error(f"✓ VALIDATED: user_id final type: {type(user_id)}")
                     logger.error(f"✓ VALIDATED: user_id final value: {repr(user_id)}")
                     logger.error(f"✓ VALIDATED: user_id final length: {len(user_id)}")
 
                     # Create Stripe customer with validated user_id
                     customer_metadata = {'user_id': user_id}
-                    
+
                     logger.info(f"STRIPE DEBUG: Creating customer with validated metadata: {customer_metadata}")
+                    # Create Stripe customer
+                    print(f"🔥 DEBUG USER ID TYPE: {type(user_id)}")
+                    print(f"🔥 DEBUG USER ID VALUE: {repr(user_id)}")
+                    print(f"🔥 DEBUG USER OBJECT TYPE: {type(user)}")
+                    print(f"🔥 DEBUG USER OBJECT: {repr(user)}")
+                    print(f"🔥 DEBUG METADATA BEFORE STRIPE: {customer_metadata}")
+
+                    # Double check all values being passed to Stripe
+                    for key, value in customer_metadata.items():
+                        print(f"🔥 STRIPE METADATA CHECK: {key} = {value} (type: {type(value)})")
+                        if hasattr(value, '__dict__'):
+                            print(f"🔥 ALERT: Found object in metadata: {key} = {value.__dict__}")
+
                     customer = stripe_service.create_customer(
                         email=email,
                         name=f"{first_name} {last_name}",
                         metadata=customer_metadata)
+
 
                     if customer:
                         db_manager.update_user_stripe_info(
@@ -4179,7 +4193,7 @@ def admin_beta_invites():
 @app.route('/admin/stats')
 @admin_required
 def admin_stats():
-    """Admin statistics dashboard"""
+    """Admin statisticsdashboard"""
     user = get_current_user()
     if not user:
         return redirect(url_for('login'))
@@ -4350,7 +4364,8 @@ def debug_env():
         'STRIPE_SECRET_KEY_TEST':
         'Set' if os.environ.get("STRIPE_SECRET_KEY_TEST") else 'Not Set',
         'STRIPE_PUBLISHABLE_KEY_TEST':
-        'Set' if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
+        'Set'
+        if os.environ.get("STRIPE_PUBLISHABLE_KEY_TEST") else 'Not Set',
         'STRIPE_WEBHOOK_SECRET':
         'Set' if os.environ.get("STRIPE_WEBHOOK_SECRET") else 'Not Set',
         'SENDGRID_API_KEY':

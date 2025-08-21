@@ -31,6 +31,7 @@ class StripeService:
 
     def get_publishable_key(self) -> str:
         """Get the publishable key for frontend"""
+        logger.info("STRIPE SERVICE DEBUG: get_publishable_key called")
         return self.publishable_key or ""
 
     def create_customer(self, email: str, name: str, metadata: Dict[str, str] = None) -> Optional[Dict[str, Any]]:
@@ -229,10 +230,56 @@ class StripeService:
             logger.error(f"Unexpected error creating checkout session: {e}")
             raise
 
+    def create_subscription(self, customer_id: str, price_id: str, metadata: Dict[str, str] = None) -> Optional[Dict]:
+        """Create a Stripe subscription"""
+        try:
+            print(f"🔍 STRIPE SERVICE DEBUG: Creating subscription for customer: {customer_id}, price: {price_id}")
+            print(f"🔍 STRIPE SERVICE DEBUG: Subscription metadata type: {type(metadata)}")
+            print(f"🔍 STRIPE SERVICE DEBUG: Subscription metadata contents: {metadata}")
+
+            # Validate metadata before sending to Stripe
+            if metadata:
+                for key, value in metadata.items():
+                    print(f"🔍 STRIPE SERVICE DEBUG: Subscription metadata key '{key}': value '{value}' (type: {type(value)})")
+                    if hasattr(value, '__dict__'):
+                        print(f"❌ FOUND ISSUE: Subscription metadata key '{key}' contains object: {value}")
+                        print(f"❌ FOUND ISSUE: Object attributes: {value.__dict__}")
+                        # Convert User object to string
+                        metadata[key] = str(value) if hasattr(value, 'user_id') else str(value)
+                        print(f"✅ FIXED: Converted to string: {metadata[key]}")
+
+            subscription_data = {
+                'customer': customer_id,
+                'items': [{'price': price_id}],
+                'payment_behavior': 'default_incomplete',
+                'payment_settings': {'save_default_payment_method': 'on_subscription'},
+                'expand': ['latest_invoice.payment_intent']
+            }
+
+            if metadata:
+                subscription_data['metadata'] = metadata
+
+            print(f"🔍 STRIPE SERVICE DEBUG: Final subscription_data: {subscription_data}")
+
+            subscription = stripe.Subscription.create(**subscription_data)
+
+            return {
+                'subscription_id': subscription.id,
+                'client_secret': subscription.latest_invoice.payment_intent.client_secret,
+                'status': subscription.status
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error creating Stripe subscription: {e}")
+            print(f"❌ STRIPE SERVICE DEBUG: Subscription creation failed: {e}")
+            return None
+
     def get_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:
         """Get subscription details"""
         try:
+            logger.info(f"STRIPE SERVICE DEBUG: Getting subscription with ID: {subscription_id}")
             subscription = stripe.Subscription.retrieve(subscription_id)
+            logger.info(f"✓ Successfully retrieved subscription: {subscription.id}")
             return {
                 'id': subscription.id,
                 'status': subscription.status,
@@ -242,12 +289,16 @@ class StripeService:
                 'cancel_at_period_end': subscription.cancel_at_period_end
             }
         except stripe.error.StripeError as e:
-            logger.error(f"Error getting subscription: {e}")
+            logger.error(f"❌ Error getting subscription {subscription_id}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Unexpected error getting subscription {subscription_id}: {e}")
             return None
 
     def cancel_subscription(self, subscription_id: str, at_period_end: bool = True) -> bool:
         """Cancel a subscription"""
         try:
+            logger.info(f"STRIPE SERVICE DEBUG: Cancelling subscription: {subscription_id}, at_period_end: {at_period_end}")
             if at_period_end:
                 stripe.Subscription.modify(
                     subscription_id,
@@ -256,36 +307,53 @@ class StripeService:
             else:
                 stripe.Subscription.delete(subscription_id)
 
-            logger.info(f"Cancelled subscription: {subscription_id}")
+            logger.info(f"✓ Cancelled subscription: {subscription_id}")
             return True
         except stripe.error.StripeError as e:
-            logger.error(f"Error cancelling subscription: {e}")
+            logger.error(f"❌ Error cancelling subscription {subscription_id}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"❌ Unexpected error cancelling subscription {subscription_id}: {e}")
             return False
 
     def create_billing_portal_session(self, customer_id: str, return_url: str) -> Optional[str]:
         """Create a billing portal session for customer self-service"""
         try:
+            logger.info(f"STRIPE SERVICE DEBUG: Creating billing portal session for customer: {customer_id}, return_url: {return_url}")
             session = stripe.billing_portal.Session.create(
                 customer=customer_id,
                 return_url=return_url,
             )
+            logger.info(f"✓ Successfully created billing portal session: {session.id}")
             return session.url
         except stripe.error.StripeError as e:
-            logger.error(f"Error creating billing portal session: {e}")
+            logger.error(f"❌ Error creating billing portal session for customer {customer_id}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Unexpected error creating billing portal session for customer {customer_id}: {e}")
             return None
 
     def verify_webhook_signature(self, payload: bytes, signature: str) -> Optional[Dict[str, Any]]:
         """Verify webhook signature and return event"""
         try:
+            logger.info("STRIPE SERVICE DEBUG: Verifying webhook signature")
+            if not self.webhook_secret:
+                logger.error("Stripe webhook secret not configured")
+                raise Exception("Webhook secret missing")
+            
             event = stripe.Webhook.construct_event(
                 payload, signature, self.webhook_secret
             )
+            logger.info(f"✓ Webhook signature verified. Event type: {event['type']}")
             return event
         except ValueError as e:
-            logger.error(f"Invalid payload: {e}")
+            logger.error(f"❌ Invalid payload: {e}")
             return None
         except stripe.error.SignatureVerificationError as e:
-            logger.error(f"Invalid signature: {e}")
+            logger.error(f"❌ Invalid signature: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Unexpected error during webhook verification: {e}")
             return None
 
 # Global Stripe service instance

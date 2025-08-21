@@ -2955,7 +2955,7 @@ def create_checkout_session():
             customer = stripe_service.create_customer(
                 email=user.email,
                 name=f"{user.first_name} {user.last_name}",
-                metadata={'user_id': user.user_id})
+                metadata={'user_id': str(user.user_id)})
             if customer:
                 stripe_customer_id = customer['id']
                 db_manager.update_user_stripe_info(
@@ -2973,7 +2973,7 @@ def create_checkout_session():
             cancel_url=cancel_url,
             customer_id=stripe_customer_id,
             metadata={
-                'user_id': user.user_id,
+                'user_id': str(user.user_id),
                 'plan_id': plan_id
             })
 

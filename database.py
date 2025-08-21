@@ -571,10 +571,10 @@ class DatabaseManager:
             logger.error(f"🔍 DB DEBUG: user_row['user_id'] type: {type(user_row['user_id']) if user_row else 'None'}")
             logger.error(f"🔍 DB DEBUG: user_row['user_id'] value: {repr(user_row['user_id']) if user_row else 'None'}")
 
-            # Return User object
+            # Return User object with proper string conversion
             user_obj = User(
-                user_id=user_row['user_id'],
-                tenant_id=user_row['tenant_id'],
+                user_id=str(user_row['user_id']),  # Ensure user_id is always a string
+                tenant_id=str(user_row['tenant_id']),
                 first_name=user_row['first_name'],
                 last_name=user_row['last_name'],
                 email=user_row['email'],

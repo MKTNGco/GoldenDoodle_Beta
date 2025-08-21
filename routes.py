@@ -438,127 +438,25 @@ def register():
                 # Only process Stripe payment for non-beta users with paid plans
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
-                    # Create Stripe customer with validated user_id
-                    customer_metadata = {'user_id': user_id}  # user_id is already a validated string
-
-                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
-                    customer = stripe_service.create_customer(
-                        email=email,
-                        name=f"{first_name} {last_name}",
-                        metadata=customer_metadata)
-
-                    if customer:
-                        db_manager.update_user_stripe_info(
-                            user_id, stripe_customer_id=customer['id'])
-
-                    # Map subscription level to Stripe price ID
-                    price_mapping = {
-                        'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
-                        'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
-                        'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
-                    }
-
-                    price_id = price_mapping.get(subscription_level)
-                    if not price_id:
-                        # Clean up user and tenant
-                        try:
-                            db_manager.delete_user(user_id)
-                            db_manager.delete_tenant(tenant.tenant_id)
-                        except:
-                            pass
-                        return jsonify({
-                            'error': 'Invalid subscription plan selected.',
-                            'retry': True
-                        }), 400
-
-                    # Create checkout session with improved URLs for Replit
-                    base_url = request.url_root.rstrip('/')
-
-                    # Ensure we're using the correct host for Replit
-                    if 'replit.dev' in base_url and not base_url.startswith(
-                            'https://'):
-                        base_url = base_url.replace('http://', 'https://')
-
-                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
-                    cancel_url = f"{base_url}/register?payment_cancelled=true"
-
-                    logger.info(
-                        f"Creating Stripe checkout session for user {user_id}")
-
-                    # Create Stripe customer with validated user_id
-                    customer_metadata = {'user_id': user_id}  # user_id is already a validated string
-
-                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
-                    customer = stripe_service.create_customer(
-                        email=email,
-                        name=f"{first_name} {last_name}",
-                        metadata=customer_metadata)
-
-                    if customer:
-                        db_manager.update_user_stripe_info(
-                            user_id, stripe_customer_id=customer['id'])
-
-                    # Map subscription level to Stripe price ID
-                    price_mapping = {
-                        'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
-                        'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
-                        'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
-                    }
-
-                    price_id = price_mapping.get(subscription_level)
-                    if not price_id:
-                        # Clean up user and tenant
-                        try:
-                            db_manager.delete_user(user_id)
-                            db_manager.delete_tenant(tenant.tenant_id)
-                        except:
-                            pass
-                        return jsonify({
-                            'error': 'Invalid subscription plan selected.',
-                            'retry': True
-                        }), 400
-
-                    # Create checkout session with improved URLs for Replit
-                    base_url = request.url_root.rstrip('/')
-
-                    # Ensure we're using the correct host for Replit
-                    if 'replit.dev' in base_url and not base_url.startswith(
-                            'https://'):
-                        base_url = base_url.replace('http://', 'https://')
-
-                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
-                    cancel_url = f"{base_url}/register?payment_cancelled=true"
-
-                    logger.info(
-                        f"Creating Stripe checkout session for user {user_id}")
-
-                    # EXTRA VALIDATION before creating checkout session
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable type: {type(user_id)}")
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable value: {repr(user_id)}")
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable length: {len(str(user_id))}")
-
-                    user_id_str = str(user_id)
+                    # Ensure user_id is string and validate it thoroughly
+                    logger.error(f"🚨 FINAL DEBUG: user_id variable type: {type(user_id)}")
+                    logger.error(f"🚨 FINAL DEBUG: user_id variable value: {repr(user_id)}")
+                    
+                    # Critical: Ensure we have a string user_id, not a User object
                     if hasattr(user_id, 'user_id'):
-                        logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
-                        logger.error(f"❌ CRITICAL: User object content: {repr(user_id)}")
-                        user_id_str = str(user_id.user_id)
-
-                    customer_metadata = {'user_id': user_id_str}  # Use the user_id variable, not user object
-                    logger.error(f"🚨 STRIPE CUSTOMER DEBUG: metadata being sent: {customer_metadata}")
-                    for k, v in customer_metadata.items():
-                        logger.error(f"🚨 STRIPE CUSTOMER DEBUG: {k} = {repr(v)} (type: {type(v)}, len: {len(str(v))})")
-
-                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
-                    logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
-                    customer = stripe_service.create_customer(
-                        email=email,
-                        name=f"{first_name} {last_name}",
-                        metadata=customer_metadata)
+                        logger.error(f"❌ CRITICAL: user_id is a User object! Converting to string...")
+                        user_id = str(user_id.user_id)
+                    else:
+                        user_id = str(user_id)
+                    
+                    logger.error(f"✓ VALIDATED: user_id final type: {type(user_id)}")
+                    logger.error(f"✓ VALIDATED: user_id final value: {repr(user_id)}")
+                    logger.error(f"✓ VALIDATED: user_id final length: {len(user_id)}")
 
                     # Create Stripe customer with validated user_id
-                    customer_metadata = {'user_id': user_id}  # user_id is already a validated string
-
-                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
+                    customer_metadata = {'user_id': user_id}
+                    
+                    logger.info(f"STRIPE DEBUG: Creating customer with validated metadata: {customer_metadata}")
                     customer = stripe_service.create_customer(
                         email=email,
                         name=f"{first_name} {last_name}",
@@ -599,34 +497,25 @@ def register():
                     success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
                     cancel_url = f"{base_url}/register?payment_cancelled=true"
 
-                    logger.info(
-                        f"Creating Stripe checkout session for user {user_id}")
+                    logger.info(f"Creating Stripe checkout session for user {user_id}")
 
-                    # EXTRA VALIDATION before creating checkout session
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable type: {type(user_id)}")
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable value: {repr(user_id)}")
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable length: {len(str(user_id))}")
-
-                    user_id_str = str(user_id)
-                    if hasattr(user_id, 'user_id'):
-                        logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
-                        logger.error(f"❌ CRITICAL: User object content: {repr(user_id)}")
-                        user_id_str = str(user_id.user_id)
-
+                    # Create checkout session metadata
                     checkout_metadata = {
-                        'user_id': user_id_str,  # Use the user_id variable, not user object
+                        'user_id': user_id,  # Already validated as string above
                         'plan_id': subscription_level,
                         'new_registration': 'true',
                         'trial_days': '0'
                     }
 
-                    logger.error(f"🚨 CHECKOUT METADATA DEBUG: metadata being sent: {checkout_metadata}")
-                    for k, v in checkout_metadata.items():
-                        logger.error(f"🚨 CHECKOUT METADATA DEBUG: {k} = {repr(v)} (type: {type(v)}, len: {len(str(v))})")
+                    logger.info(f"STRIPE DEBUG: Creating checkout session with metadata: {checkout_metadata}")
 
-                    logger.info(f"STRIPE DEBUG: About to create checkout session with metadata: {checkout_metadata}")
-                    logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
-                    logger.info(f"STRIPE DEBUG: str(user_id) type: {type(str(user_id))}, value: {repr(str(user_id))}")
+                    stripe_session = stripe_service.create_checkout_session(
+                        customer_email=email,
+                        price_id=price_id,
+                        success_url=success_url,
+                        cancel_url=cancel_url,
+                        customer_id=customer['id'] if customer else None,
+                        metadata=checkout_metadata)
 
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,

@@ -4029,7 +4029,7 @@ def get_my_invitations():
         return jsonify({'error': 'An error occurred'}), 500
 
 
-@app.route('/admin/beta-invites')
+@app.route('/admin/beta-invites', methods=['GET', 'POST'])
 def admin_beta_invites():
     """Admin page for sending beta invitations"""
     if request.method == 'POST':

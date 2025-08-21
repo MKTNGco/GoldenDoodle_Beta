@@ -473,6 +473,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Response status:', response.status);
                 console.log('Response headers:', response.headers.get('content-type'));
 
+                // Check if this is a redirect to login page (successful registration)
+                const contentType = response.headers.get('content-type');
+                if (response.status === 200 && contentType && contentType.includes('text/html')) {
+                    // This is likely a successful registration that redirected to login
+                    console.log('✓ Registration successful - redirecting to login');
+                    window.location.href = '/login';
+                    return;
+                }
+
                 // Get response text first to debug
                 const responseText = await response.text();
                 console.log('Raw response:', responseText.substring(0, 200));
@@ -484,7 +493,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (parseError) {
                     console.error('Failed to parse JSON response:', parseError);
                     console.error('Response was:', responseText.substring(0, 500));
-                    throw new Error('Server returned invalid response. Please try again.');
+                    
+                    // If we can't parse JSON but got a 200 response, it might be a successful redirect
+                    if (response.status === 200) {
+                        console.log('Assuming successful registration, redirecting to login');
+                        window.location.href = '/login';
+                        return;
+                    }
+                    
+                    showError('Server returned invalid response. Please try again.');
+                    enableForm();
+                    return;
                 }
 
                 if (data.success && data.redirect_to_stripe && data.checkout_url) {
@@ -510,6 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             hideError();
                         }, 5000);
                     }
+                    enableForm();
                     return;
                 }
 

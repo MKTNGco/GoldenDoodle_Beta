@@ -634,6 +634,50 @@ class DatabaseManager:
             logger.error(f"Error getting user by email: {e}")
             return None
 
+    def update_user_last_login(self, user_id: str) -> bool:
+        """Update user's last login timestamp"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET last_login = CURRENT_TIMESTAMP 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating user last login: {e}")
+            return False
+
+    def mark_email_verified(self, user_id: str) -> bool:
+        """Mark user's email as verified"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET email_verified = TRUE 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error marking email as verified: {e}")
+            return False
+
     def get_tenant_by_id(self, tenant_id: str) -> Optional[Tenant]:
         """Get tenant by ID"""
         try:

@@ -29,15 +29,15 @@ def is_beta_organization(tenant_id):
     try:
         from user_source_tracker import user_source_tracker
         from beta_trial_manager import beta_trial_manager
-        
+
         # Get organization users
         org_users = db_manager.get_organization_users(tenant_id)
-        
+
         # Check if any users have beta trials
         for user in org_users:
             if beta_trial_manager.is_beta_user(user.email):
                 return True
-                
+
         # Also check user sources for beta signups
         for user in org_users:
             try:
@@ -47,12 +47,12 @@ def is_beta_organization(tenant_id):
                 result = cursor.fetchone()
                 cursor.close()
                 conn.close()
-                
+
                 if result and result[0] == 'invitation_beta':
                     return True
             except:
                 continue
-                
+
         return False
     except Exception as e:
         logger.error(f"Error checking if organization is beta: {e}")
@@ -171,10 +171,10 @@ def register():
 
                 # Check if this is a beta organization
                 tenant = db_manager.get_tenant_by_id(organization_invite['tenant_id'])
-                
+
                 # For beta organizations, members also get team level access
                 member_subscription_level = SubscriptionLevel.TEAM
-                
+
                 # Create user as organization member with predetermined settings
                 user_id = db_manager.create_user(
                     tenant_id=organization_invite['tenant_id'],
@@ -260,8 +260,12 @@ def register():
                 subscription_enum = SubscriptionLevel(subscription_level)
 
             # Beta users are always treated as company accounts with team benefits
+            is_beta_user = False # Default to false
+            if invitation_data and invitation_data.get('invitation_type') == 'beta':
+                is_beta_user = True
+
             if is_beta_user:
-                # Force beta users to be company type with team plan benefits
+                # Force beta users to be company accounts with team plan benefits
                 max_brand_voices = 10  # Give beta users generous brand voice limit
                 tenant = db_manager.create_tenant(
                     name=organization_name if organization_name else f"{first_name} {last_name}'s Beta Organization",
@@ -299,7 +303,7 @@ def register():
                 is_admin = False
 
             # Create user
-            user = db_manager.create_user(
+            user_obj = db_manager.create_user(
                 tenant_id=tenant.tenant_id,
                 first_name=first_name,
                 last_name=last_name,
@@ -308,7 +312,7 @@ def register():
                 subscription_level=SubscriptionLevel(subscription_level),
                 is_admin=is_admin)
 
-            user_id = str(user.user_id)  # Ensure user_id is a string, not the User object
+            user_id = str(user_obj.user_id)  # Ensure user_id is a string, not the User object
 
             # Track user registration event
             analytics_service.track_user_event(user_id=str(user_id),
@@ -399,12 +403,12 @@ def register():
 
             # Check if this is a beta user or if we should skip payment processing
             skip_payment = False
-            is_beta_user = False
+            is_beta_user_for_payment_check = False # Renamed to avoid conflict with earlier variable
 
             # Check if user is beta (from invitation) - this takes priority
             if invitation_data and invitation_data.get('invitation_type') == 'beta':
                 skip_payment = True
-                is_beta_user = True
+                is_beta_user_for_payment_check = True
                 # Force beta users to team subscription level for "The Organization" plan
                 subscription_level = 'team'
                 subscription_enum = SubscriptionLevel.TEAM
@@ -416,7 +420,7 @@ def register():
 
             # For beta users or when Stripe is disabled, skip ALL payment processing
             if skip_payment:
-                logger.info(f"Skipping ALL payment processing for user: {email} (beta: {is_beta_user})")
+                logger.info(f"Skipping ALL payment processing for user: {email} (beta: {is_beta_user_for_payment_check})")
                 # Jump directly to email verification - do not process any Stripe logic
                 pass
             # For paid plans and non-beta users ONLY, process payment
@@ -425,7 +429,7 @@ def register():
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
                     # Create or get Stripe customer
-                    customer_metadata = {'user_id': user_id}
+                    customer_metadata = {'user_id': str(user_id)} # Ensure user_id is a string
                     logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
                     logger.info(f"STRIPE DEBUG: user_id type: {type(user_id)}, value: {repr(user_id)}")
                     customer = stripe_service.create_customer(
@@ -480,7 +484,7 @@ def register():
                     logger.info(f"STRIPE DEBUG: About to create checkout session with metadata: {checkout_metadata}")
                     logger.info(f"STRIPE DEBUG: user_id type: {type(user_id)}, value: {repr(user_id)}")
                     logger.info(f"STRIPE DEBUG: str(user_id) type: {type(str(user_id))}, value: {repr(str(user_id))}")
-                    
+
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
@@ -2965,19 +2969,19 @@ def create_checkout_session():
             if len(user_id_str) > 500:
                 logger.error(f"❌ User ID string too long for customer: {len(user_id_str)} characters")
                 return jsonify({'error': 'User ID validation failed'}), 400
-            
+
             existing_customer_metadata = {'user_id': user_id_str}
-            
+
             # Validate metadata values
             for key, value in existing_customer_metadata.items():
                 if len(str(value)) > 500:
                     logger.error(f"❌ Customer metadata '{key}' exceeds 500 characters: {len(str(value))}")
                     return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
-            
+
             logger.info(f"STRIPE DEBUG: About to create customer for existing user with metadata: {existing_customer_metadata}")
             logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
             logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
-            
+
             customer = stripe_service.create_customer(
                 email=user.email,
                 name=f"{user.first_name} {user.last_name}",
@@ -2997,22 +3001,22 @@ def create_checkout_session():
         if len(user_id_str) > 500:
             logger.error(f"❌ User ID string too long: {len(user_id_str)} characters")
             return jsonify({'error': 'User ID validation failed'}), 400
-        
+
         existing_checkout_metadata = {
             'user_id': user_id_str,
             'plan_id': plan_id
         }
-        
+
         # Validate all metadata values
         for key, value in existing_checkout_metadata.items():
             if len(str(value)) > 500:
                 logger.error(f"❌ Metadata '{key}' exceeds 500 characters: {len(str(value))}")
                 return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
-        
+
         logger.info(f"STRIPE DEBUG: About to create checkout session for existing user with metadata: {existing_checkout_metadata}")
         logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
         logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
-        
+
         session = stripe_service.create_checkout_session(
             customer_email=user.email,
             price_id=price_id,
@@ -3385,8 +3389,7 @@ def handle_subscription_created(subscription):
                         'id')  # Extract plan ID if available
                 })
             logger.info(
-                f"Updated subscription for user {user.user_id}: {subscription_id}"
-            )
+                f"Updated subscription for user {user.user_id}: {subscription_id}")
 
     except Exception as e:
         logger.error(f"Error handling subscription created: {e}")
@@ -3416,8 +3419,7 @@ def handle_subscription_updated(subscription):
                     'status': status
                 })
             logger.info(
-                f"Updated subscription status for user {user.user_id}: {status}"
-            )
+                f"Updated subscription status for user {user.user_id}: {status}")
 
     except Exception as e:
         logger.error(f"Error handling subscription updated: {e}")

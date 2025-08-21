@@ -41,14 +41,21 @@ class StripeService:
             logger.info(f"  email: {email}")
             logger.info(f"  name: {name}")
             logger.info(f"  metadata: {final_metadata}")
-            
+
             # Log each metadata value and its type/length
             for key, value in final_metadata.items():
                 logger.info(f"  metadata['{key}'] type: {type(value)}, length: {len(str(value))}, value: {repr(value)}")
+
+                # Check if it's a User object being passed
+                if hasattr(value, 'user_id'):
+                    logger.error(f"  ❌ FOUND ISSUE: metadata['{key}'] is a User object! Use str(user.user_id) instead.")
+                    raise Exception(f"Invalid metadata: {key} contains a User object instead of user_id string")
+
                 if len(str(value)) > 500:
                     logger.error(f"  ❌ FOUND ISSUE: metadata['{key}'] exceeds 500 characters!")
                     logger.error(f"  ❌ Value preview: {str(value)[:100]}...")
-            
+                    raise Exception(f"Metadata value '{key}' exceeds 500 characters: {len(str(value))}")
+
             logger.info(f"STRIPE SERVICE DEBUG: About to call stripe.Customer.create...")
             customer = stripe.Customer.create(
                 email=email,
@@ -114,13 +121,20 @@ class StripeService:
             logger.info(f"  price_id: {price_id}")
             logger.info(f"  customer_id: {customer_id}")
             logger.info(f"  metadata: {final_metadata}")
-            
+
             # Log each metadata value and its type/length
             for key, value in final_metadata.items():
                 logger.info(f"  metadata['{key}'] type: {type(value)}, length: {len(str(value))}, value: {repr(value)}")
+
+                # Check if it's a User object being passed
+                if hasattr(value, 'user_id'):
+                    logger.error(f"  ❌ FOUND ISSUE: metadata['{key}'] is a User object! Use str(user.user_id) instead.")
+                    raise Exception(f"Invalid metadata: {key} contains a User object instead of user_id string")
+
                 if len(str(value)) > 500:
                     logger.error(f"  ❌ FOUND ISSUE: metadata['{key}'] exceeds 500 characters!")
                     logger.error(f"  ❌ Value preview: {str(value)[:100]}...")
+                    raise Exception(f"Metadata value '{key}' exceeds 500 characters: {len(str(value))}")
 
             session_params = {
                 'payment_method_types': ['card'],
@@ -157,7 +171,7 @@ class StripeService:
             logger.info(f"STRIPE SERVICE DEBUG: About to call stripe.checkout.Session.create with params:")
             logger.info(f"  session_params keys: {list(session_params.keys())}")
             logger.info(f"  session_params metadata: {session_params.get('metadata', {})}")
-            
+
             try:
                 session = stripe.checkout.Session.create(**session_params)
                 logger.info(f"✓ Stripe API call completed. Session ID: {session.id}")

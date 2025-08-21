@@ -438,24 +438,57 @@ def register():
                 # Only process Stripe payment for non-beta users with paid plans
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
-                    # Create or get Stripe customer - EXTRA VALIDATION
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable type: {type(user_id)}")
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable value: {repr(user_id)}")
-                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable length: {len(str(user_id))}")
-                    
-                    user_id_str = str(user_id)
-                    if hasattr(user_id, 'user_id'):
-                        logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
-                        logger.error(f"❌ CRITICAL: User object content: {repr(user_id)}")
-                        user_id_str = str(user_id.user_id)
+                    # Create Stripe customer with validated user_id
+                    customer_metadata = {'user_id': user_id}  # user_id is already a validated string
 
-                    customer_metadata = {'user_id': user_id_str}
-                    logger.error(f"🚨 STRIPE CUSTOMER DEBUG: metadata being sent: {customer_metadata}")
-                    for k, v in customer_metadata.items():
-                        logger.error(f"🚨 STRIPE CUSTOMER DEBUG: {k} = {repr(v)} (type: {type(v)}, len: {len(str(v))})")
-                    
                     logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
-                    logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
+                    customer = stripe_service.create_customer(
+                        email=email,
+                        name=f"{first_name} {last_name}",
+                        metadata=customer_metadata)
+
+                    if customer:
+                        db_manager.update_user_stripe_info(
+                            user_id, stripe_customer_id=customer['id'])
+
+                    # Map subscription level to Stripe price ID
+                    price_mapping = {
+                        'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
+                        'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
+                        'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
+                    }
+
+                    price_id = price_mapping.get(subscription_level)
+                    if not price_id:
+                        # Clean up user and tenant
+                        try:
+                            db_manager.delete_user(user_id)
+                            db_manager.delete_tenant(tenant.tenant_id)
+                        except:
+                            pass
+                        return jsonify({
+                            'error': 'Invalid subscription plan selected.',
+                            'retry': True
+                        }), 400
+
+                    # Create checkout session with improved URLs for Replit
+                    base_url = request.url_root.rstrip('/')
+
+                    # Ensure we're using the correct host for Replit
+                    if 'replit.dev' in base_url and not base_url.startswith(
+                            'https://'):
+                        base_url = base_url.replace('http://', 'https://')
+
+                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
+                    cancel_url = f"{base_url}/register?payment_cancelled=true"
+
+                    logger.info(
+                        f"Creating Stripe checkout session for user {user_id}")
+
+                    # Create Stripe customer with validated user_id
+                    customer_metadata = {'user_id': user_id}  # user_id is already a validated string
+
+                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
                     customer = stripe_service.create_customer(
                         email=email,
                         name=f"{first_name} {last_name}",
@@ -500,10 +533,80 @@ def register():
                         f"Creating Stripe checkout session for user {user_id}")
 
                     # EXTRA VALIDATION before creating checkout session
-                    logger.error(f"🚨 PRE-CHECKOUT DEBUG: user_id variable type: {type(user_id)}")
-                    logger.error(f"🚨 PRE-CHECKOUT DEBUG: user_id variable value: {repr(user_id)}")
-                    logger.error(f"🚨 PRE-CHECKOUT DEBUG: user_id variable length: {len(str(user_id))}")
-                    
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable type: {type(user_id)}")
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable value: {repr(user_id)}")
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable length: {len(str(user_id))}")
+
+                    user_id_str = str(user_id)
+                    if hasattr(user_id, 'user_id'):
+                        logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
+                        logger.error(f"❌ CRITICAL: User object content: {repr(user_id)}")
+                        user_id_str = str(user_id.user_id)
+
+                    customer_metadata = {'user_id': user_id_str}  # Use the user_id variable, not user object
+                    logger.error(f"🚨 STRIPE CUSTOMER DEBUG: metadata being sent: {customer_metadata}")
+                    for k, v in customer_metadata.items():
+                        logger.error(f"🚨 STRIPE CUSTOMER DEBUG: {k} = {repr(v)} (type: {type(v)}, len: {len(str(v))})")
+
+                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
+                    logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
+                    customer = stripe_service.create_customer(
+                        email=email,
+                        name=f"{first_name} {last_name}",
+                        metadata=customer_metadata)
+
+                    # Create Stripe customer with validated user_id
+                    customer_metadata = {'user_id': user_id}  # user_id is already a validated string
+
+                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
+                    customer = stripe_service.create_customer(
+                        email=email,
+                        name=f"{first_name} {last_name}",
+                        metadata=customer_metadata)
+
+                    if customer:
+                        db_manager.update_user_stripe_info(
+                            user_id, stripe_customer_id=customer['id'])
+
+                    # Map subscription level to Stripe price ID
+                    price_mapping = {
+                        'solo': 'price_1RvL44Hynku0jyEH12IrEJuI',
+                        'team': 'price_1RvL4sHynku0jyEH4go1pRLM',
+                        'professional': 'price_1RvL79Hynku0jyEHm7b89IPr'
+                    }
+
+                    price_id = price_mapping.get(subscription_level)
+                    if not price_id:
+                        # Clean up user and tenant
+                        try:
+                            db_manager.delete_user(user_id)
+                            db_manager.delete_tenant(tenant.tenant_id)
+                        except:
+                            pass
+                        return jsonify({
+                            'error': 'Invalid subscription plan selected.',
+                            'retry': True
+                        }), 400
+
+                    # Create checkout session with improved URLs for Replit
+                    base_url = request.url_root.rstrip('/')
+
+                    # Ensure we're using the correct host for Replit
+                    if 'replit.dev' in base_url and not base_url.startswith(
+                            'https://'):
+                        base_url = base_url.replace('http://', 'https://')
+
+                    success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
+                    cancel_url = f"{base_url}/register?payment_cancelled=true"
+
+                    logger.info(
+                        f"Creating Stripe checkout session for user {user_id}")
+
+                    # EXTRA VALIDATION before creating checkout session
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable type: {type(user_id)}")
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable value: {repr(user_id)}")
+                    logger.error(f"🚨 PRE-STRIPE DEBUG: user_id variable length: {len(str(user_id))}")
+
                     user_id_str = str(user_id)
                     if hasattr(user_id, 'user_id'):
                         logger.error(f"❌ CRITICAL: user_id is still a User object: {type(user_id)}")
@@ -516,11 +619,11 @@ def register():
                         'new_registration': 'true',
                         'trial_days': '0'
                     }
-                    
+
                     logger.error(f"🚨 CHECKOUT METADATA DEBUG: metadata being sent: {checkout_metadata}")
                     for k, v in checkout_metadata.items():
                         logger.error(f"🚨 CHECKOUT METADATA DEBUG: {k} = {repr(v)} (type: {type(v)}, len: {len(str(v))})")
-                    
+
                     logger.info(f"STRIPE DEBUG: About to create checkout session with metadata: {checkout_metadata}")
                     logger.info(f"STRIPE DEBUG: user_id original type: {type(user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
                     logger.info(f"STRIPE DEBUG: str(user_id) type: {type(str(user_id))}, value: {repr(str(user_id))}")
@@ -902,7 +1005,7 @@ def reset_password():
 
             cursor.execute(
                 """
-                UPDATE users 
+                UPDATE users
                 SET password_hash = %s
                 WHERE user_id = %s
             """, (new_password_hash, user_id))
@@ -1282,7 +1385,7 @@ def update_profile():
 
         cursor.execute(
             """
-            UPDATE users 
+            UPDATE users
             SET first_name = %s, last_name = %s, email = %s
             WHERE user_id = %s
         """, (first_name, last_name, email, user.user_id))
@@ -1341,7 +1444,7 @@ def change_password():
 
         cursor.execute(
             """
-            UPDATE users 
+            UPDATE users
             SET password_hash = %s
             WHERE user_id = %s
         """, (new_password_hash, user.user_id))
@@ -1840,8 +1943,7 @@ def get_brand_voice(brand_voice_id):
 
         if not selected_brand_voice:
             logger.warning(
-                f"Brand voice {brand_voice_id} not found for user {user.user_id}"
-            )
+                f"Brand voice {brand_voice_id} not found for user {user.user_id}")
             return jsonify({'error': 'Brand voice not found'}), 404
 
         # Check permissions
@@ -2890,7 +2992,7 @@ def get_chat(session_id):
 
     except Exception as e:
         logger.error(f"Error getting chat {session_id}: {e}")
-        return jsonify({'error': 'An error occurred'}), 500
+        return jsonify({'error': 'An occurred'}), 500
 
 
 @app.route('/api/get-plans', methods=['GET'])
@@ -3218,7 +3320,7 @@ def analytics_users():
 
         # User registration trends
         cursor.execute("""
-            SELECT 
+            SELECT
                 DATE(created_at) as date,
                 COUNT(*) as new_users,
                 subscription_level,
@@ -3233,7 +3335,7 @@ def analytics_users():
 
         # Active users (based on last_login)
         cursor.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) FILTER (WHERE last_login >= NOW() - INTERVAL '1 day') as daily_active,
                 COUNT(*) FILTER (WHERE last_login >= NOW() - INTERVAL '7 days') as weekly_active,
                 COUNT(*) FILTER (WHERE last_login >= NOW() - INTERVAL '30 days') as monthly_active,
@@ -3252,7 +3354,7 @@ def analytics_users():
 
         # Token usage patterns
         cursor.execute("""
-            SELECT 
+            SELECT
                 AVG(tokens_used_month) as avg_monthly_tokens,
                 MAX(tokens_used_month) as max_monthly_tokens,
                 COUNT(*) FILTER (WHERE tokens_used_month > 0) as active_token_users
@@ -3292,7 +3394,7 @@ def analytics_usage():
 
         # Chat session statistics
         cursor.execute("""
-            SELECT 
+            SELECT
                 DATE(cs.created_at) as date,
                 COUNT(DISTINCT cs.session_id) as sessions_created,
                 COUNT(DISTINCT cs.user_id) as unique_users,
@@ -3311,7 +3413,7 @@ def analytics_usage():
 
         # Brand voice usage
         cursor.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) as total_brand_voices,
                 COUNT(DISTINCT tenant_id) as tenants_with_voices
             FROM brand_voices
@@ -4213,7 +4315,7 @@ def admin_invitation_stats():
 
         # Get invitation statistics
         cursor.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) as total_invitations,
                 COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_invitations,
                 COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_invitations,
@@ -4233,7 +4335,7 @@ def admin_invitation_stats():
 
         # Get invitation breakdown by type and status
         cursor.execute("""
-            SELECT 
+            SELECT
                 invitation_type,
                 status,
                 COUNT(*) as count
@@ -4247,9 +4349,9 @@ def admin_invitation_stats():
         # Get recent invitations (last 10 pending)
         cursor.execute("""
             SELECT invite_code, invitee_email as email, invitation_type, status, created_at
-            FROM invitations 
+            FROM invitations
             WHERE status = 'pending'
-            ORDER BY created_at DESC 
+            ORDER BY created_at DESC
             LIMIT 10
         """)
 
@@ -4257,7 +4359,7 @@ def admin_invitation_stats():
 
         # Get user source statistics
         cursor.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) as total_signups,
                 COUNT(CASE WHEN signup_source = 'invitation_beta' THEN 1 END) as beta_signups,
                 COUNT(CASE WHEN signup_source = 'user_referral' THEN 1 END) as referral_signups,
@@ -4270,8 +4372,8 @@ def admin_invitation_stats():
         # Get recent signups
         cursor.execute("""
             SELECT user_email, signup_source, signup_date, invite_code
-            FROM user_sources 
-            ORDER BY signup_date DESC 
+            FROM user_sources
+            ORDER BY signup_date DESC
             LIMIT 10
         """)
 
@@ -4279,7 +4381,7 @@ def admin_invitation_stats():
 
         # Get beta trial statistics
         cursor.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) as total_trials,
                 COUNT(CASE WHEN status = 'active' AND trial_end > NOW() THEN 1 END) as active_trials,
                 COUNT(CASE WHEN status = 'expired' OR trial_end <= NOW() THEN 1 END) as expired_trials,

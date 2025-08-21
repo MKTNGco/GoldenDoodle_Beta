@@ -70,7 +70,12 @@ class PricingPage {
 
             const response = await fetch('/api/get-plans');
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                // Try to get the error message from the response
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }).catch(() => {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                });
             }
 
             const data = await response.json();
@@ -313,7 +318,7 @@ class PricingPage {
 // Initialize pricing page
 document.addEventListener('DOMContentLoaded', function() {
     const pricingPage = new PricingPage(); // Initialize the class
-    
+
     // Dummy function to mimic the fetch and displayPlans logic from the original snippet
     // In a real scenario, this would be part of the loadPlans method or similar.
     function displayPlans(data) {

@@ -2960,7 +2960,20 @@ def create_checkout_session():
             user, 'stripe_customer_id') else None
 
         if not stripe_customer_id:
-            existing_customer_metadata = {'user_id': str(user.user_id)}
+            # Ensure user_id is a string and validate length
+            user_id_str = str(user.user_id)
+            if len(user_id_str) > 500:
+                logger.error(f"❌ User ID string too long for customer: {len(user_id_str)} characters")
+                return jsonify({'error': 'User ID validation failed'}), 400
+            
+            existing_customer_metadata = {'user_id': user_id_str}
+            
+            # Validate metadata values
+            for key, value in existing_customer_metadata.items():
+                if len(str(value)) > 500:
+                    logger.error(f"❌ Customer metadata '{key}' exceeds 500 characters: {len(str(value))}")
+                    return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
+            
             logger.info(f"STRIPE DEBUG: About to create customer for existing user with metadata: {existing_customer_metadata}")
             logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
             logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
@@ -2979,10 +2992,23 @@ def create_checkout_session():
         success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}"
         cancel_url = f"{base_url}/pricing"
 
+        # Ensure user_id is a string and validate length
+        user_id_str = str(user.user_id)
+        if len(user_id_str) > 500:
+            logger.error(f"❌ User ID string too long: {len(user_id_str)} characters")
+            return jsonify({'error': 'User ID validation failed'}), 400
+        
         existing_checkout_metadata = {
-            'user_id': str(user.user_id),
+            'user_id': user_id_str,
             'plan_id': plan_id
         }
+        
+        # Validate all metadata values
+        for key, value in existing_checkout_metadata.items():
+            if len(str(value)) > 500:
+                logger.error(f"❌ Metadata '{key}' exceeds 500 characters: {len(str(value))}")
+                return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
+        
         logger.info(f"STRIPE DEBUG: About to create checkout session for existing user with metadata: {existing_checkout_metadata}")
         logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
         logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")

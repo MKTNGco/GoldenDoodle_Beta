@@ -36,20 +36,43 @@ class StripeService:
     def create_customer(self, email: str, name: str, metadata: Dict[str, str] = None) -> Optional[Dict[str, Any]]:
         """Create a new Stripe customer"""
         try:
+            final_metadata = metadata or {}
+            logger.info(f"STRIPE SERVICE DEBUG: create_customer called with:")
+            logger.info(f"  email: {email}")
+            logger.info(f"  name: {name}")
+            logger.info(f"  metadata: {final_metadata}")
+            
+            # Log each metadata value and its type/length
+            for key, value in final_metadata.items():
+                logger.info(f"  metadata['{key}'] type: {type(value)}, length: {len(str(value))}, value: {repr(value)}")
+                if len(str(value)) > 500:
+                    logger.error(f"  ❌ FOUND ISSUE: metadata['{key}'] exceeds 500 characters!")
+                    logger.error(f"  ❌ Value preview: {str(value)[:100]}...")
+            
+            logger.info(f"STRIPE SERVICE DEBUG: About to call stripe.Customer.create...")
             customer = stripe.Customer.create(
                 email=email,
                 name=name,
-                metadata=metadata or {}
+                metadata=final_metadata
             )
-            logger.info(f"Created Stripe customer: {customer.id} for {email}")
+            logger.info(f"✓ Created Stripe customer: {customer.id} for {email}")
             return {
                 'id': customer.id,
                 'email': customer.email,
                 'name': customer.name
             }
+        except stripe.error.InvalidRequestError as e:
+            logger.error(f"❌ STRIPE CUSTOMER CREATION - InvalidRequestError: {e}")
+            logger.error(f"❌ Error occurred with metadata: {metadata}")
+            raise Exception(f"Payment configuration error: {str(e)}")
         except stripe.error.StripeError as e:
-            logger.error(f"Error creating Stripe customer: {e}")
+            logger.error(f"❌ STRIPE CUSTOMER CREATION - StripeError: {e}")
+            logger.error(f"❌ Error occurred with metadata: {metadata}")
             return None
+        except Exception as e:
+            logger.error(f"❌ STRIPE CUSTOMER CREATION - Unexpected error: {e}")
+            logger.error(f"❌ Error occurred with metadata: {metadata}")
+            raise
 
     def create_checkout_session(self, 
                               customer_email: str,
@@ -85,6 +108,20 @@ class StripeService:
                 logger.error(f"Available price IDs: {list(self.plan_price_mapping.values())}")
                 raise Exception(f"Invalid pricing plan: {price_id}")
 
+            final_metadata = metadata or {}
+            logger.info(f"STRIPE SERVICE DEBUG: create_checkout_session called with:")
+            logger.info(f"  customer_email: {customer_email}")
+            logger.info(f"  price_id: {price_id}")
+            logger.info(f"  customer_id: {customer_id}")
+            logger.info(f"  metadata: {final_metadata}")
+            
+            # Log each metadata value and its type/length
+            for key, value in final_metadata.items():
+                logger.info(f"  metadata['{key}'] type: {type(value)}, length: {len(str(value))}, value: {repr(value)}")
+                if len(str(value)) > 500:
+                    logger.error(f"  ❌ FOUND ISSUE: metadata['{key}'] exceeds 500 characters!")
+                    logger.error(f"  ❌ Value preview: {str(value)[:100]}...")
+
             session_params = {
                 'payment_method_types': ['card'],
                 'mode': 'subscription',
@@ -94,7 +131,7 @@ class StripeService:
                 }],
                 'success_url': success_url,
                 'cancel_url': cancel_url,
-                'metadata': metadata or {},
+                'metadata': final_metadata,
                 'billing_address_collection': 'auto',
                 'allow_promotion_codes': True,
                 'automatic_tax': {'enabled': False}
@@ -117,9 +154,23 @@ class StripeService:
             logger.info(f"Making Stripe API call to create checkout session...")
             logger.info(f"Session params: {session_params}")
 
-            logger.info("About to call stripe.checkout.Session.create...")
-            session = stripe.checkout.Session.create(**session_params)
-            logger.info(f"✓ Stripe API call completed. Session ID: {session.id}")
+            logger.info(f"STRIPE SERVICE DEBUG: About to call stripe.checkout.Session.create with params:")
+            logger.info(f"  session_params keys: {list(session_params.keys())}")
+            logger.info(f"  session_params metadata: {session_params.get('metadata', {})}")
+            
+            try:
+                session = stripe.checkout.Session.create(**session_params)
+                logger.info(f"✓ Stripe API call completed. Session ID: {session.id}")
+            except stripe.error.InvalidRequestError as e:
+                logger.error(f"❌ STRIPE CHECKOUT SESSION - InvalidRequestError: {e}")
+                logger.error(f"❌ Error occurred with session_params: {session_params}")
+                logger.error(f"❌ Metadata that caused error: {session_params.get('metadata', {})}")
+                raise Exception(f"Payment configuration error: {str(e)}")
+            except Exception as stripe_err:
+                logger.error(f"❌ STRIPE CHECKOUT SESSION - Unexpected error: {stripe_err}")
+                logger.error(f"❌ Error occurred with session_params: {session_params}")
+                logger.error(f"❌ Metadata that caused error: {session_params.get('metadata', {})}")
+                raise
 
             if session and session.url:
                 logger.info(f"✓ Successfully created checkout session: {session.id}")

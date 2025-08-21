@@ -425,10 +425,13 @@ def register():
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
                     # Create or get Stripe customer
+                    customer_metadata = {'user_id': user_id}
+                    logger.info(f"STRIPE DEBUG: About to create customer with metadata: {customer_metadata}")
+                    logger.info(f"STRIPE DEBUG: user_id type: {type(user_id)}, value: {repr(user_id)}")
                     customer = stripe_service.create_customer(
                         email=email,
                         name=f"{first_name} {last_name}",
-                        metadata={'user_id': user_id})
+                        metadata=customer_metadata)
 
                     if customer:
                         db_manager.update_user_stripe_info(
@@ -468,18 +471,23 @@ def register():
                     logger.info(
                         f"Creating Stripe checkout session for user {user_id}")
 
+                    checkout_metadata = {
+                        'user_id': str(user_id),  # Use the user_id variable, not user object
+                        'plan_id': subscription_level,
+                        'new_registration': 'true',
+                        'trial_days': '0'
+                    }
+                    logger.info(f"STRIPE DEBUG: About to create checkout session with metadata: {checkout_metadata}")
+                    logger.info(f"STRIPE DEBUG: user_id type: {type(user_id)}, value: {repr(user_id)}")
+                    logger.info(f"STRIPE DEBUG: str(user_id) type: {type(str(user_id))}, value: {repr(str(user_id))}")
+                    
                     stripe_session = stripe_service.create_checkout_session(
                         customer_email=email,
                         price_id=price_id,
                         success_url=success_url,
                         cancel_url=cancel_url,
                         customer_id=customer['id'] if customer else None,
-                        metadata={
-                            'user_id': str(user_id),  # Use the user_id variable, not user object
-                            'plan_id': subscription_level,
-                            'new_registration': 'true',
-                            'trial_days': '0'
-                        })
+                        metadata=checkout_metadata)
 
                     if stripe_session and stripe_session.get('url'):
                         # Store pending registration in session for post-payment verification
@@ -2952,10 +2960,15 @@ def create_checkout_session():
             user, 'stripe_customer_id') else None
 
         if not stripe_customer_id:
+            existing_customer_metadata = {'user_id': str(user.user_id)}
+            logger.info(f"STRIPE DEBUG: About to create customer for existing user with metadata: {existing_customer_metadata}")
+            logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
+            logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
+            
             customer = stripe_service.create_customer(
                 email=user.email,
                 name=f"{user.first_name} {user.last_name}",
-                metadata={'user_id': str(user.user_id)})
+                metadata=existing_customer_metadata)
             if customer:
                 stripe_customer_id = customer['id']
                 db_manager.update_user_stripe_info(
@@ -2966,16 +2979,21 @@ def create_checkout_session():
         success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}"
         cancel_url = f"{base_url}/pricing"
 
-        session = stripe_service.create_checkout_session(
+        existing_checkout_metadata = {
+                'user_id': str(user.user_id),
+                'plan_id': plan_id
+            }
+            logger.info(f"STRIPE DEBUG: About to create checkout session for existing user with metadata: {existing_checkout_metadata}")
+            logger.info(f"STRIPE DEBUG: user.user_id type: {type(user.user_id)}, value: {repr(user.user_id)}")
+            logger.info(f"STRIPE DEBUG: str(user.user_id) type: {type(str(user.user_id))}, value: {repr(str(user.user_id))}")
+            
+            session = stripe_service.create_checkout_session(
             customer_email=user.email,
             price_id=price_id,
             success_url=success_url,
             cancel_url=cancel_url,
             customer_id=stripe_customer_id,
-            metadata={
-                'user_id': str(user.user_id),
-                'plan_id': plan_id
-            })
+            metadata=existing_checkout_metadata)
 
         if session:
             # Track checkout session creation

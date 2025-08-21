@@ -621,7 +621,7 @@ def register():
                     if invitation_data:
                         if invitation_data.get('invitation_type') == 'beta':
                             flash(
-                                'Welcome to the GoldenDoodleLM Beta! Your organization account has been created with a 90-day trial on "The Organization" plan. You can invite team members who will also bypass payment. Please check your email to verify your account.',
+                                '🎉 Welcome to the GoldenDoodleLM Beta! Your organization account has been created successfully with a 90-day free trial of "The Organization" plan. No payment required! Please check your email to verify your account, then sign in to start creating.',
                                 'success')
                         else:
                             flash(

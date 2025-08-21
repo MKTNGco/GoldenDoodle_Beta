@@ -111,6 +111,24 @@
                                 Your account will be automatically configured with the appropriate access level.
                             </div>
                         </div>
+                        {% elif invitation_data and invitation_data.invitation_type == 'beta' %}
+                        <div class="mb-4">
+                            <div class="alert alert-primary">
+                                <h6 class="alert-heading"><i class="fas fa-crown me-2"></i>Beta Invitation - Organization Account</h6>
+                                <p class="mb-2">You're signing up for an <strong>Organization account</strong> with these beta benefits:</p>
+                                <ul class="mb-2">
+                                    <li>✅ 90-day free trial of "The Organization" plan</li>
+                                    <li>✅ Full access to all premium features</li>
+                                    <li>✅ Ability to invite team members (they get free access too!)</li>
+                                    <li>✅ Up to 10 brand voices</li>
+                                    <li>✅ No payment required during beta</li>
+                                </ul>
+                                <small class="text-muted">
+                                    <strong>Organization:</strong> {{ invitation_data.organization_name }}<br>
+                                    <strong>Invited Email:</strong> {{ invitation_data.invitee_email }}
+                                </small>
+                            </div>
+                        </div>
                         {% elif invitation_data %}
                         <div class="mb-4">
                             <div class="alert alert-info">
@@ -192,9 +210,65 @@ document.addEventListener('DOMContentLoaded', function() {
     const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
     const hasInvitation = {{ 'true' if invitation_data else 'false' }};
     const stripeDisabled = {{ 'true' if config.get('STRIPE_DISABLED', '').lower() == 'true' else 'false' }};
-    if (isOrgInvite) {
-        return;
+    const invitationType = "{{ invitation_data.invitation_type if invitation_data else '' }}";
+
+    if (isOrgInvite || invitationType === 'beta') {
+        // If it's an organization invite or a beta invite, force organization account type
+        const orgField = document.getElementById('organizationField');
+        if (orgField) {
+            orgField.style.display = 'block';
+            document.getElementById('organization_name').required = true;
+        }
+
+        // Hide individual plans and show team plans
+        document.getElementById('individualPlans').style.display = 'none';
+        document.getElementById('teamPlans').style.display = 'block';
+
+        // Check the correct radio buttons
+        if (hasInvitation) {
+            const companyRadio = document.querySelector('input[name="user_type"][value="company"]');
+            if (companyRadio) {
+                companyRadio.checked = true;
+            }
+            const teamCard = document.querySelector('.subscription-card[data-level="team"]');
+            if (teamCard) {
+                teamCard.classList.add('selected');
+                const teamRadio = teamCard.querySelector('input[type="radio"]');
+                if (teamRadio) {
+                    teamRadio.checked = true;
+                }
+            }
+        } else {
+            // If it's not an invitation but we are forcing org type (e.g., beta invite flow)
+            const companyRadio = document.querySelector('input[name="user_type"][value="company"]');
+            if (companyRadio) {
+                companyRadio.checked = true;
+            }
+            // Select the team plan by default for beta users
+            setTimeout(() => {
+                const teamCard = document.querySelector('[data-level="team"]');
+                if (teamCard) {
+                    teamCard.click();
+                }
+            }, 100);
+        }
+
+        // If it's a beta invite, disable individual plan selection
+        if (invitationType === 'beta') {
+            document.querySelectorAll('.account-type-card').forEach(card => {
+                if (card.getAttribute('data-type') === 'independent') {
+                    card.style.pointerEvents = 'none';
+                    card.style.opacity = '0.6';
+                }
+            });
+        }
+
+        // If it's a beta invite, we skip the rest of the plan loading and selection logic
+        if (invitationType === 'beta') {
+            return;
+        }
     }
+
 
     let plansData = [];
 
@@ -493,14 +567,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (parseError) {
                     console.error('Failed to parse JSON response:', parseError);
                     console.error('Response was:', responseText.substring(0, 500));
-                    
+
                     // If we can't parse JSON but got a 200 response, it might be a successful redirect
                     if (response.status === 200) {
                         console.log('Assuming successful registration, redirecting to login');
                         window.location.href = '/login';
                         return;
                     }
-                    
+
                     showError('Server returned invalid response. Please try again.');
                     enableForm();
                     return;

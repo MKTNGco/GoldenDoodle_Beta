@@ -73,7 +73,7 @@ The GoldenDoodleLM Team
         </div>
         <div class="content">
             <h2>Hello {first_name},</h2>
-            <p>Thank you for joining GoldenDoodleLM! We're excited to help you create trauma-informed, compassionate content.</p>
+            <p>Thank you for joining GoldenDoodleLM! We're excited to help you create trauma-informed content that prioritizes safety, trust, and empowerment in all communications.</p>
             <p>Please verify your email address by clicking the button below:</p>
             <a href="{verification_link}" class="button">Verify Email Address</a>
             <p>This verification link will expire in 24 hours.</p>
@@ -308,25 +308,25 @@ Questions? Reply to this email or visit our support page.
         <h1>You're Invited to GoldenDoodleLM Beta!</h1>
         <p>Compassionate Content for {organization_name}</p>
     </div>
-    
+
     <div class="content">
         <p>Hello from the GoldenDoodleLM team!</p>
-        
+
         <p>We're excited to invite <strong>{organization_name}</strong> to try GoldenDoodleLM Beta - your compassionate content companion for principled communications.</p>
-        
+
         <div style="text-align: center;">
             <a href="{invite_link}" class="button">Join the Beta Now</a>
         </div>
-        
+
         <div class="invite-code">
             Your invitation code: <span style="color: #32808c;">{invite_code}</span>
         </div>
-        
+
         <div class="highlight-box">
             <h3 style="margin-top: 0; color: #32808c;">About GoldenDoodleLM</h3>
             <p>GoldenDoodleLM helps organizations create content that prioritizes safety, trust, and empowerment in all communications. Whether you're crafting emails, social media posts, or internal announcements, our AI ensures your message resonates with warmth and clarity.</p>
         </div>
-        
+
         <h3 style="color: #32808c;">What makes us different:</h3>
         <div class="features">
             <div class="feature">Principled communications approach</div>
@@ -334,12 +334,12 @@ Questions? Reply to this email or visit our support page.
             <div class="feature">Safe and supportive content generation</div>
             <div class="feature">Built for organizations that care about their impact</div>
         </div>
-        
+
         <p>Ready to get started? Click the button above or visit our registration page and enter your invitation code.</p>
-        
+
         <p>We can't wait to see what <strong>{organization_name}</strong> creates with GoldenDoodleLM!</p>
     </div>
-    
+
     <div class="footer">
         <p><strong>Best regards,</strong><br>The GoldenDoodleLM Team</p>
         <p style="font-size: 12px; margin-top: 15px;">Questions? Reply to this email or visit our support page.</p>
@@ -445,27 +445,27 @@ The GoldenDoodleLM Team
         <h1>You're Invited to GoldenDoodleLM!</h1>
         <p>A personal invitation from {inviter_name}</p>
     </div>
-    
+
     <div class="content">
         <p>Hello!</p>
-        
+
         <p><strong>{inviter_name}</strong> thinks you'd be interested in GoldenDoodleLM and has invited you to try our platform.</p>
-        
+
         {personal_section}
-        
+
         <div style="text-align: center;">
             <a href="{invite_link}" class="button">Accept Invitation</a>
         </div>
-        
+
         <div class="invite-code">
             Your invitation code: <span style="color: #32808c;">{invite_code}</span>
         </div>
-        
+
         <div class="highlight-box">
             <h3 style="margin-top: 0; color: #32808c;">About GoldenDoodleLM</h3>
             <p>GoldenDoodleLM helps organizations create content that prioritizes safety, trust, and empowerment in all communications. Whether you're crafting emails, social media posts, or internal announcements, our AI ensures your message resonates with warmth and clarity.</p>
         </div>
-        
+
         <h3 style="color: #32808c;">What makes us different:</h3>
         <div class="features">
             <div class="feature">Principled communications approach</div>
@@ -473,10 +473,10 @@ The GoldenDoodleLM Team
             <div class="feature">Safe and supportive content generation</div>
             <div class="feature">Built for organizations that care about their impact</div>
         </div>
-        
+
         <p>Ready to get started? Click the button above or visit our registration page and enter your invitation code.</p>
     </div>
-    
+
     <div class="footer">
         <p><strong>Best regards,</strong><br>The GoldenDoodleLM Team</p>
         <p style="font-size: 12px; margin-top: 15px;">You received this invitation because {inviter_name} thought you'd be interested in GoldenDoodleLM.</p>
@@ -502,37 +502,41 @@ The GoldenDoodleLM Team
             return False
 
     def send_beta_welcome_email(self, to_email: str, verification_token: str, first_name: str) -> bool:
-        """Send welcome email for beta users"""
-        if not self.client:
-            logger.error("SendGrid client not configured")
-            return False
-
+        """Send a welcome email to beta users with verification link"""
         try:
-            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
-            verification_link = f"{base_url}/verify-email?token={verification_token}"
+            # Create verification URL
+            verification_url = f"{self.base_url}/verify-email?token={verification_token}"
 
-            subject = "Welcome to GoldenDoodleLM Beta - 90 Days Free!"
+            # Email content
+            subject = "🎉 Welcome to GoldenDoodleLM Beta - Verify Your Account"
 
-            plain_content = f"""
+            text_content = f"""
 Hello {first_name},
 
-Welcome to the GoldenDoodleLM Beta! 🎉
+🎉 Welcome to the GoldenDoodleLM Beta Program!
 
-Your account has been created with a special 90-day beta trial, giving you full access to all premium features.
+Your ORGANIZATION account has been created successfully with a 90-day free trial of "The Organization" plan - no payment required!
 
-Please verify your email address by clicking the link below:
+✅ WHAT YOU GET (FREE FOR 90 DAYS):
+• Full access to all premium features
+• Up to 10 brand voices for your organization
+• Ability to invite unlimited team members (they get free access too!)
+• All content creation tools and templates
+• Priority support during beta
 
-{verification_link}
+🚀 NEXT STEPS:
+1. Click the verification link below
+2. Sign in to your new organization account
+3. Start creating trauma-informed content immediately
+4. Invite your team members using the invite feature (they'll bypass payment too!)
 
-During your beta trial, you'll have access to:
-• Unlimited AI content generation
-• Custom brand voice creation
-• Advanced content analysis tools
-• Priority support
+VERIFY YOUR ACCOUNT: {verification_url}
 
 This verification link will expire in 24 hours.
 
-Thank you for being an early adopter of GoldenDoodleLM!
+After verification, you can sign in and start using all features immediately - no payment or trial setup required!
+
+Questions? Reply to this email and we'll help you get started.
 
 Best regards,
 The GoldenDoodleLM Team
@@ -546,40 +550,62 @@ The GoldenDoodleLM Team
     <style>
         body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #32808c 0%, #2a6b75 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .header {{ background: #32808c; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
         .content {{ background: #f9f9f9; padding: 30px; }}
-        .beta-badge {{ background: #ffc107; color: #212529; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-block; margin: 10px 0; }}
-        .feature {{ margin: 10px 0; padding-left: 20px; position: relative; }}
-        .feature:before {{ content: "✓"; position: absolute; left: 0; color: #32808c; font-weight: bold; }}
-        .button {{ display: inline-block; background: #32808c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .beta-benefits {{ background: #e8f5e8; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #28a745; }}
+        .button {{ display: inline-block; background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }}
         .footer {{ background: #32808c; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
+        .steps {{ background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }}
+        .highlight {{ background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to GoldenDoodleLM Beta!</h1>
-            <div class="beta-badge">90-Day Free Trial</div>
-            <p>Your Compassionate Content Companion</p>
+            <h1>🎉 Welcome to GoldenDoodleLM Beta!</h1>
+            <p>Your Organization Account is Ready</p>
         </div>
         <div class="content">
             <h2>Hello {first_name},</h2>
-            <p>Welcome to the GoldenDoodleLM Beta! 🎉</p>
-            <p>Your account has been created with a special <strong>90-day beta trial</strong>, giving you full access to all premium features.</p>
-            <p>Please verify your email address by clicking the button below:</p>
-            <a href="{verification_link}" class="button">Verify Email Address</a>
-            
-            <h3 style="color: #32808c; margin-top: 30px;">During your beta trial, you'll have access to:</h3>
-            <div class="feature">Unlimited AI content generation</div>
-            <div class="feature">Custom brand voice creation</div>
-            <div class="feature">Advanced content analysis tools</div>
-            <div class="feature">Priority support</div>
-            
-            <p style="margin-top: 25px;">This verification link will expire in 24 hours.</p>
-            <p>Thank you for being an early adopter of GoldenDoodleLM!</p>
+            <p><strong>Congratulations!</strong> Your <em>Organization account</em> has been created successfully.</p>
+
+            <div class="highlight">
+                <p><strong>🎁 You're getting "The Organization" plan FREE for 90 days!</strong><br>
+                <em>No payment required - just verify your email and start creating.</em></p>
+            </div>
+
+            <div class="beta-benefits">
+                <h3>✅ What You Get (FREE for 90 Days):</h3>
+                <ul>
+                    <li><strong>Full premium features</strong> - All content tools and templates</li>
+                    <li><strong>Up to 10 brand voices</strong> - Create distinct voices for different purposes</li>
+                    <li><strong>Team collaboration</strong> - Invite unlimited team members (they get free access too!)</li>
+                    <li><strong>Priority support</strong> - Direct access to our team during beta</li>
+                    <li><strong>No payment walls</strong> - Everything unlocked immediately</li>
+                </ul>
+            </div>
+
+            <div class="steps">
+                <h3>🚀 Get Started in 2 Minutes:</h3>
+                <ol>
+                    <li><strong>Click the button below</strong> to verify your email</li>
+                    <li><strong>Sign in</strong> to your organization account</li>
+                    <li><strong>Start creating</strong> trauma-informed content immediately</li>
+                    <li><strong>Invite your team</strong> (they'll bypass payment too!)</li>
+                </ol>
+            </div>
+
+            <p style="text-align: center;">
+                <a href="{verification_url}" class="button">🚀 Verify Email & Start Creating</a>
+            </p>
+
+            <p style="text-align: center; font-size: 14px; color: #666;">
+                <em>This verification link expires in 24 hours</em>
+            </p>
         </div>
         <div class="footer">
-            <p>Best regards,<br>The GoldenDoodleLM Team</p>
+            <p><strong>Ready to transform your content creation?</strong><br>
+            Questions? Reply to this email for immediate help.<br><br>Best regards,<br>The GoldenDoodleLM Team</p>
         </div>
     </div>
 </body>
@@ -590,7 +616,7 @@ The GoldenDoodleLM Team
                 from_email=From(self.from_email, self.from_name),
                 to_emails=To(to_email),
                 subject=Subject(subject),
-                plain_text_content=PlainTextContent(plain_content),
+                plain_text_content=PlainTextContent(text_content),
                 html_content=HtmlContent(html_content)
             )
 
@@ -666,13 +692,13 @@ The GoldenDoodleLM Team
             <p>Welcome to GoldenDoodleLM! Thanks for joining us through a friend's recommendation.</p>
             <p>Please verify your email address by clicking the button below:</p>
             <a href="{verification_link}" class="button">Verify Email Address</a>
-            
+
             <h3 style="color: #32808c; margin-top: 30px;">As a new member, you'll get a 7-day premium trial to explore all our features:</h3>
             <div class="feature">AI-powered content generation</div>
             <div class="feature">Trauma-informed communication principles</div>
             <div class="feature">Custom brand voice tools</div>
             <div class="feature">Safe and supportive content creation</div>
-            
+
             <p style="margin-top: 25px;">This verification link will expire in 24 hours.</p>
             <p>We're excited to help you create compassionate, impactful content!</p>
         </div>
@@ -879,7 +905,7 @@ Subject: {feedback_data.get('subject', 'N/A')}
 def detect_email_system():
     """Detect which email system is configured"""
     sendgrid_key = os.environ.get('SENDGRID_API_KEY')
-    
+
     systems = {
         'sendgrid': {
             'configured': bool(sendgrid_key),
@@ -888,12 +914,12 @@ def detect_email_system():
             'base_url': os.environ.get('BASE_URL')
         }
     }
-    
+
     # Determine which system is active
     active_system = None
     if systems['sendgrid']['configured']:
         active_system = 'sendgrid'
-    
+
     return {
         'active_system': active_system,
         'systems': systems,

@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Skip JavaScript setup for organization invites
     const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
     const hasInvitation = {{ 'true' if invitation_data else 'false' }};
-    const stripeDisabled = {{ config.get('STRIPE_DISABLED', 'false').lower() == 'true' }};
+    const stripeDisabled = {{ 'true' if config.get('STRIPE_DISABLED', '').lower() == 'true' else 'false' }};
     if (isOrgInvite) {
         return;
     }

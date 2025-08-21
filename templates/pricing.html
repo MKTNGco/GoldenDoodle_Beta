@@ -145,5 +145,8 @@
     <p class="mt-3 text-muted">Loading pricing information...</p>
 </div>
 
+<script>
+    window.STRIPE_DISABLED = {{ 'true' if config.get('STRIPE_DISABLED', '').lower() == 'true' else 'false' }};
+</script>
 <script src="{{ url_for('static', filename='js/pricing.js') }}"></script>
 {% endblock %}

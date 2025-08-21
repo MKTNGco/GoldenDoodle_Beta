@@ -567,23 +567,26 @@ class DatabaseManager:
             cursor.close()
             conn.close()
 
-            logger.error(f"🔍 DB DEBUG: user_row from database: {dict(user_row) if user_row else None}")
-            logger.error(f"🔍 DB DEBUG: user_row['user_id'] type: {type(user_row['user_id']) if user_row else 'None'}")
-            logger.error(f"🔍 DB DEBUG: user_row['user_id'] value: {repr(user_row['user_id']) if user_row else 'None'}")
+            if not user_row:
+                raise Exception("Failed to create user - no data returned")
 
-            # Return User object with proper string conversion
+            logger.error(f"🔍 DB DEBUG: user_row from database: {user_row}")
+            logger.error(f"🔍 DB DEBUG: user_row[0] (user_id) type: {type(user_row[0])}")
+            logger.error(f"🔍 DB DEBUG: user_row[0] (user_id) value: {repr(user_row[0])}")
+
+            # Return User object with proper string conversion - user_row is a tuple
             user_obj = User(
-                user_id=str(user_row['user_id']),  # Ensure user_id is always a string
-                tenant_id=str(user_row['tenant_id']),
-                first_name=user_row['first_name'],
-                last_name=user_row['last_name'],
-                email=user_row['email'],
-                password_hash=user_row['password_hash'],
-                subscription_level=SubscriptionLevel(user_row['subscription_level']),
-                is_admin=user_row['is_admin'],
-                email_verified=user_row['email_verified'],
-                created_at=user_row['created_at'].isoformat() if user_row['created_at'] else None,
-                plan_id=user_row.get('plan_id', 'free')
+                user_id=str(user_row[0]),  # user_id
+                tenant_id=str(user_row[1]),  # tenant_id
+                first_name=user_row[2],  # first_name
+                last_name=user_row[3],  # last_name
+                email=user_row[4],  # email
+                password_hash=user_row[5],  # password_hash
+                subscription_level=SubscriptionLevel(user_row[6]),  # subscription_level
+                is_admin=user_row[7],  # is_admin
+                email_verified=user_row[8],  # email_verified
+                created_at=user_row[9].isoformat() if user_row[9] else None,  # created_at
+                plan_id=user_row[10] if len(user_row) > 10 else 'free'  # plan_id
             )
 
             logger.error(f"🔍 DB DEBUG: Created User object type: {type(user_obj)}")

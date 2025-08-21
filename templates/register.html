@@ -163,7 +163,7 @@
                                 • Organization: {{ invitation_data.organization_name }}<br>
                                 • Type: {{ invitation_data.invitation_type.title() }} invitation<br>
                                 • Email: {{ invitation_data.invitee_email }}<br>
-                                • Created: {{ invitation_data.created_at[:10] }}
+                                • Created: {{ invitation_data.created_at.strftime('%Y-%m-%d') if invitation_data.created_at else 'Unknown' }}
                             </div>
                         </div>
                         {% else %}

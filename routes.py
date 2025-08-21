@@ -432,9 +432,10 @@ def register():
             if skip_payment:
                 logger.info(f"Skipping ALL payment processing for user: {email} (beta: {is_beta_user_for_payment_check})")
                 # Jump directly to email verification - do not process any Stripe logic
+                # Beta users get team level benefits without payment
                 pass
             # For paid plans and non-beta users ONLY, process payment
-            elif subscription_level in ['solo', 'team', 'professional'] and not skip_payment:
+            elif subscription_level in ['solo', 'team', 'professional'] and not skip_payment and not is_beta_user_for_payment_check:
                 # Only process Stripe payment for non-beta users with paid plans
                 logger.info(f"Processing payment for regular user: {email}")
                 try:
@@ -597,51 +598,75 @@ def register():
                 logger.info(f"Free plan selected for user: {email}")
 
             # For free plans, beta users, or when payment is skipped, send verification email
+            logger.info(f"Preparing verification email for {email}, skip_payment: {skip_payment}, is_beta: {is_beta_user_for_payment_check}")
+            
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
 
             if db_manager.create_verification_token(user_id, token_hash):
                 # Send appropriate welcome email based on signup source
                 email_sent = False
-                if invitation_data:
-                    if invitation_data.get('invitation_type') == 'beta':
-                        email_sent = email_service.send_beta_welcome_email(
-                            email, verification_token, first_name)
-                    elif invitation_data.get('invitation_type') == 'user_referral':
-                        email_sent = email_service.send_referral_welcome_email(
-                            email, verification_token, first_name)
-                    else:
-                        email_sent = email_service.send_verification_email(
-                            email, verification_token, first_name)
+                if invitation_data and invitation_data.get('invitation_type') == 'beta':
+                    logger.info(f"Sending beta welcome email to {email}")
+                    email_sent = email_service.send_beta_welcome_email(
+                        email, verification_token, first_name)
+                elif invitation_data and invitation_data.get('invitation_type') == 'user_referral':
+                    logger.info(f"Sending referral welcome email to {email}")
+                    email_sent = email_service.send_referral_welcome_email(
+                        email, verification_token, first_name)
                 else:
+                    logger.info(f"Sending standard verification email to {email}")
                     email_sent = email_service.send_verification_email(
                         email, verification_token, first_name)
 
                 if email_sent:
-                    if invitation_data:
-                        if invitation_data.get('invitation_type') == 'beta':
+                    if invitation_data and invitation_data.get('invitation_type') == 'beta':
+                        logger.info(f"Beta registration completed successfully for {email}")
+                        if expects_json:
+                            return jsonify({
+                                'success': True,
+                                'message': '🎉 Welcome to the GoldenDoodleLM Beta! Your organization account has been created successfully with a 90-day free trial of "The Organization" plan. No payment required! Please check your email to verify your account.',
+                                'redirect': '/login'
+                            })
+                        else:
                             flash(
                                 '🎉 Welcome to the GoldenDoodleLM Beta! Your organization account has been created successfully with a 90-day free trial of "The Organization" plan. No payment required! Please check your email to verify your account, then sign in to start creating.',
                                 'success')
+                            return redirect(url_for('login'))
+                    else:
+                        if expects_json:
+                            return jsonify({
+                                'success': True,
+                                'message': 'Account created successfully! Please check your email to verify your account.',
+                                'redirect': '/login'
+                            })
                         else:
                             flash(
                                 'Welcome! Your account has been created successfully. Please check your email to verify your account before signing in.',
                                 'success')
+                            return redirect(url_for('login'))
+                else:
+                    if expects_json:
+                        return jsonify({
+                            'error': 'Account created, but we couldn\'t send the verification email. Please contact support.',
+                            'retry': False
+                        }), 500
                     else:
                         flash(
-                            'Account created successfully! Please check your email to verify your account before signing in.',
-                            'success')
-                    return redirect(url_for('login'))
+                            'Account created, but we couldn\'t send the verification email. Please contact support.',
+                            'warning')
+                        return redirect(url_for('login'))
+            else:
+                if expects_json:
+                    return jsonify({
+                        'error': 'Account created, but there was an issue with email verification. Please contact support.',
+                        'retry': False
+                    }), 500
                 else:
                     flash(
-                        'Account created, but we couldn\'t send the verification email. Please contact support.',
+                        'Account created, but there was an issue with email verification. Please contact support.',
                         'warning')
                     return redirect(url_for('login'))
-            else:
-                flash(
-                    'Account created, but there was an issue with email verification. Please contact support.',
-                    'warning')
-                return redirect(url_for('login'))
 
         except Exception as e:
             logger.error(f"Registration error: {e}")

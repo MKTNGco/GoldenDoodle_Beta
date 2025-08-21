@@ -629,38 +629,32 @@ The GoldenDoodleLM Team
             return False
 
     def send_referral_welcome_email(self, to_email: str, verification_token: str, first_name: str) -> bool:
-        """Send welcome email for referral users"""
+        """Send referral welcome email with verification link"""
         if not self.client:
             logger.error("SendGrid client not configured")
             return False
 
         try:
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
-            verification_link = f"{base_url}/verify-email?token={verification_token}"
+            verify_link = f"{base_url}/verify-email?token={verification_token}"
 
-            subject = "Welcome to GoldenDoodleLM - Thanks for the Referral!"
+            subject = f"Welcome to GoldenDoodleLM, {first_name}!"
 
             plain_content = f"""
 Hello {first_name},
 
-Welcome to GoldenDoodleLM! Thanks for joining us through a friend's recommendation.
+Welcome to GoldenDoodleLM! Thanks for joining through a friend's referral.
 
-Please verify your email address by clicking the link below:
+Your account has been created successfully. Please verify your email address to complete your registration:
+{verify_link}
 
-{verification_link}
-
-As a new member, you'll get a 7-day premium trial to explore all our features:
-• AI-powered content generation
-• Trauma-informed communication principles
-• Custom brand voice tools
-• Safe and supportive content creation
-
-This verification link will expire in 24 hours.
-
-We're excited to help you create compassionate, impactful content!
+Once you verify your email, you can sign in and start creating compassionate content with GoldenDoodleLM.
 
 Best regards,
 The GoldenDoodleLM Team
+
+---
+Questions? Reply to this email or contact our support team.
             """
 
             html_content = f"""
@@ -669,42 +663,37 @@ The GoldenDoodleLM Team
 <head>
     <meta charset="utf-8">
     <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }}
         .header {{ background: linear-gradient(135deg, #32808c 0%, #2a6b75 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
         .content {{ background: #f9f9f9; padding: 30px; }}
-        .referral-badge {{ background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-block; margin: 10px 0; }}
-        .feature {{ margin: 10px 0; padding-left: 20px; position: relative; }}
-        .feature:before {{ content: "✓"; position: absolute; left: 0; color: #32808c; font-weight: bold; }}
-        .button {{ display: inline-block; background: #32808c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .button {{ display: inline-block; background: #32808c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }}
+        .button:hover {{ background: #2a6b75; }}
         .footer {{ background: #32808c; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Welcome to GoldenDoodleLM!</h1>
-            <div class="referral-badge">Referred by a Friend</div>
-            <p>Your Compassionate Content Companion</p>
-        </div>
-        <div class="content">
-            <h2>Hello {first_name},</h2>
-            <p>Welcome to GoldenDoodleLM! Thanks for joining us through a friend's recommendation.</p>
-            <p>Please verify your email address by clicking the button below:</p>
-            <a href="{verification_link}" class="button">Verify Email Address</a>
+    <div class="header">
+        <h1>Welcome to GoldenDoodleLM!</h1>
+        <p>Thanks for joining, {first_name}!</p>
+    </div>
 
-            <h3 style="color: #32808c; margin-top: 30px;">As a new member, you'll get a 7-day premium trial to explore all our features:</h3>
-            <div class="feature">AI-powered content generation</div>
-            <div class="feature">Trauma-informed communication principles</div>
-            <div class="feature">Custom brand voice tools</div>
-            <div class="feature">Safe and supportive content creation</div>
+    <div class="content">
+        <p>Hello {first_name},</p>
 
-            <p style="margin-top: 25px;">This verification link will expire in 24 hours.</p>
-            <p>We're excited to help you create compassionate, impactful content!</p>
+        <p>Welcome to GoldenDoodleLM! Thanks for joining through a friend's referral.</p>
+
+        <p>Your account has been created successfully. Please verify your email address to complete your registration:</p>
+
+        <div style="text-align: center;">
+            <a href="{verify_link}" class="button">Verify Email & Get Started</a>
         </div>
-        <div class="footer">
-            <p>Best regards,<br>The GoldenDoodleLM Team</p>
-        </div>
+
+        <p>Once you verify your email, you can sign in and start creating compassionate content with GoldenDoodleLM.</p>
+    </div>
+
+    <div class="footer">
+        <p><strong>Best regards,</strong><br>The GoldenDoodleLM Team</p>
+        <p style="font-size: 12px; margin-top: 15px;">Questions? Reply to this email or contact our support team.</p>
     </div>
 </body>
 </html>

@@ -57,6 +57,7 @@ class StripeService:
                     raise Exception(f"Metadata value '{key}' exceeds 500 characters: {len(str(value))}")
 
             logger.info(f"STRIPE SERVICE DEBUG: About to call stripe.Customer.create...")
+            print(f"DEBUG: About to call Stripe Customer.create with metadata: {final_metadata}")
             customer = stripe.Customer.create(
                 email=email,
                 name=name,
@@ -172,6 +173,7 @@ class StripeService:
             logger.info(f"  session_params keys: {list(session_params.keys())}")
             logger.info(f"  session_params metadata: {session_params.get('metadata', {})}")
 
+            print(f"DEBUG: About to call Stripe checkout.Session.create with metadata: {session_params.get('metadata', {})}")
             try:
                 session = stripe.checkout.Session.create(**session_params)
                 logger.info(f"✓ Stripe API call completed. Session ID: {session.id}")

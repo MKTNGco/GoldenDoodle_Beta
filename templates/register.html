@@ -507,18 +507,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
     registerForm.addEventListener('submit', async function(e) {
         const selectedPlan = document.querySelector('input[name="subscription_level"]:checked');
-
-        // If Stripe is disabled, or the selected plan is free, submit directly.
-        if (stripeDisabled || (selectedPlan && selectedPlan.value === 'free')) {
-            // If Stripe is disabled, we don't need to prevent default for paid plans either
-            // because they will be handled differently or not offered.
-            // The form will submit normally.
+        
+        // Check if this is a beta invitation or organization invite (these should always use AJAX)
+        const isBetaInvite = invitationType === 'beta';
+        const isOrgInvite = {{ 'true' if is_organization_invite else 'false' }};
+        
+        // For beta invites and org invites, always prevent default and use AJAX
+        if (isBetaInvite || isOrgInvite) {
+            e.preventDefault();
+            
+            // Show loading state
+            submitBtn.style.display = 'none';
+            paymentLoading.style.display = 'block';
+            paymentLoading.innerHTML = `
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Creating your account...</span>
+                </div>
+                <p class="small text-muted mt-2">Setting up your organization account...</p>
+            `;
+            
+            await handleFormSubmission();
             return;
         }
 
-        // If Stripe is enabled and a paid plan is selected, proceed with Stripe checkout.
+        // If Stripe is disabled, or the selected plan is free, submit directly.
+        if (stripeDisabled || (selectedPlan && selectedPlan.value === 'free')) {
+            // Allow normal form submission for free plans when not beta/org invite
+            return;
+        }
+
+        // If Stripe is enabled and a paid plan is selected, prevent default and use AJAX
         if (selectedPlan && ['solo', 'team', 'professional'].includes(selectedPlan.value)) {
-            e.preventDefault(); // Prevent default form submission for paid plans
+            e.preventDefault();
 
             // Show loading state for paid plans
             submitBtn.style.display = 'none';
@@ -530,125 +550,112 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="small text-muted mt-2">Redirecting to secure payment...</p>
             `;
 
+            await handleFormSubmission();
+        }
+    });
+    
+    // Centralized form submission handler
+    async function handleFormSubmission() {
+        try {
+            const formData = new FormData(registerForm);
+            console.log('Submitting registration form...');
+
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response content-type:', response.headers.get('content-type'));
+
+            // Always try to parse as JSON first for AJAX requests
+            const responseText = await response.text();
+            console.log('Raw response (first 200 chars):', responseText.substring(0, 200));
+
+            let data;
             try {
-                // Submit form data via fetch
-                const formData = new FormData(registerForm);
-
-                console.log('Submitting registration form...');
-
-                const response = await fetch('/register', {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json'
-                    },
-                    body: formData
-                });
-
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers.get('content-type'));
-
-                // Check if this is a redirect to login page (successful registration)
-                const contentType = response.headers.get('content-type');
-                if (response.status === 200 && contentType && contentType.includes('text/html')) {
-                    // This is likely a successful registration that redirected to login
-                    console.log('✓ Registration successful - redirecting to login');
+                data = JSON.parse(responseText);
+                console.log('Parsed JSON response:', data);
+            } catch (parseError) {
+                console.error('Failed to parse JSON response:', parseError);
+                
+                // If we can't parse JSON but got a 200 response, assume success
+                if (response.status === 200) {
+                    console.log('Assuming successful registration, redirecting to login');
                     window.location.href = '/login';
                     return;
                 }
+                
+                showError('Server returned invalid response. Please try again.');
+                enableForm();
+                return;
+            }
 
-                // Get response text first to debug
-                const responseText = await response.text();
-                console.log('Raw response:', responseText.substring(0, 200));
-
-                // Try to parse as JSON
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('Failed to parse JSON response:', parseError);
-                    console.error('Response was:', responseText.substring(0, 500));
-
-                    // If we can't parse JSON but got a 200 response, it might be a successful redirect
-                    if (response.status === 200) {
-                        console.log('Assuming successful registration, redirecting to login');
-                        window.location.href = '/login';
-                        return;
-                    }
-
-                    showError('Server returned invalid response. Please try again.');
-                    enableForm();
-                    return;
-                }
-
-                if (data.success && data.redirect_to_stripe && data.checkout_url) {
-                    console.log('✓ Checkout session created successfully');
-                    console.log('✓ Redirecting to:', data.checkout_url);
-
-                    // Validate checkout URL before redirecting
+            // Handle successful responses
+            if (data.success) {
+                console.log('✓ Registration successful');
+                
+                // Check if this is a Stripe checkout redirect
+                if (data.redirect_to_stripe && data.checkout_url) {
+                    console.log('✓ Redirecting to Stripe checkout:', data.checkout_url);
                     if (data.checkout_url && data.checkout_url.startsWith('https://checkout.stripe.com/')) {
-                        console.log('✓ Valid Stripe checkout URL, redirecting...');
                         window.location.href = data.checkout_url;
                     } else {
-                        console.error('❌ Invalid checkout URL received:', data.checkout_url);
                         showError('Invalid checkout URL received. Please try again.');
                         enableForm();
                     }
                     return;
-
-                } else if (data.success) {
-                    // Handle ANY successful registration (beta, free users, or with redirect)
-                    console.log('✓ Registration successful');
+                }
+                
+                // Handle regular success (beta, free, etc.)
+                const redirectUrl = data.redirect || '/login';
+                console.log('✓ Will redirect to:', redirectUrl);
+                
+                if (data.message) {
+                    // Show success message briefly before redirect
+                    const successDiv = document.getElementById('paymentLoading');
+                    successDiv.innerHTML = `
+                        <div class="alert alert-success" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            ${data.message}
+                            <br><small class="text-muted mt-2">Redirecting to login...</small>
+                        </div>
+                    `;
+                    successDiv.style.display = 'block';
                     
-                    // Determine redirect URL - use provided redirect or default to login
-                    const redirectUrl = data.redirect || '/login';
-                    console.log('✓ Will redirect to:', redirectUrl);
-                    
-                    if (data.message) {
-                        // Show success message briefly before redirect
-                        const successDiv = document.getElementById('paymentLoading');
-                        successDiv.innerHTML = `
-                            <div class="alert alert-success" role="alert">
-                                <i class="fas fa-check-circle me-2"></i>
-                                ${data.message}
-                                <br><small class="text-muted mt-2">Redirecting to login...</small>
-                            </div>
-                        `;
-                        successDiv.style.display = 'block';
-                        
-                        // Redirect after 3 seconds to give time to read the message
-                        setTimeout(() => {
-                            window.location.href = redirectUrl;
-                        }, 3000);
-                    } else {
-                        // No message, redirect immediately
+                    // Redirect after 3 seconds
+                    setTimeout(() => {
                         window.location.href = redirectUrl;
-                    }
-                    return;
-
-                } else if (data.error) {
-                    console.error('Registration error:', data.error);
-                    showError(data.error);
-                    if (data.retry) {
-                        setTimeout(() => {
-                            hideError();
-                        }, 5000);
-                    }
-                    enableForm();
-                    return;
-                }
-
-            } catch (error) {
-                console.error('Registration error:', error);
-
-                // Check if response is HTML (500 error page)
-                if (typeof error === 'object' && error.message && error.message.includes('<!DOCTYPE html>')) {
-                    showError('Server error occurred. Please try again or contact support if the problem persists.');
+                    }, 3000);
                 } else {
-                    showError('An unexpected error occurred. Please try again.');
+                    // No message, redirect immediately
+                    window.location.href = redirectUrl;
                 }
+                return;
             }
+
+            // Handle errors
+            if (data.error) {
+                console.error('Registration error:', data.error);
+                showError(data.error);
+                enableForm();
+                return;
+            }
+
+            // Unexpected response
+            console.error('Unexpected response:', data);
+            showError('Unexpected response from server. Please try again.');
+            enableForm();
+
+        } catch (error) {
+            console.error('Registration error:', error);
+            showError('An error occurred during registration. Please try again.');
+            enableForm();
         }
-    });
+    }
 
     // Initialize
     loadPlans();

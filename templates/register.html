@@ -595,6 +595,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     return;
 
+                } else if (data.success && data.redirect) {
+                    // Handle successful registration (beta or free users)
+                    console.log('✓ Registration successful, redirecting to:', data.redirect);
+                    if (data.message) {
+                        // Show success message briefly before redirect
+                        const successDiv = document.getElementById('paymentLoading');
+                        successDiv.innerHTML = `
+                            <div class="alert alert-success" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                ${data.message}
+                                <br><small class="text-muted mt-2">Redirecting to login...</small>
+                            </div>
+                        `;
+                        successDiv.style.display = 'block';
+                        
+                        // Redirect after 2 seconds
+                        setTimeout(() => {
+                            window.location.href = data.redirect;
+                        }, 2000);
+                    } else {
+                        window.location.href = data.redirect;
+                    }
+                    return;
+
                 } else if (data.error) {
                     console.error('Registration error:', data.error);
                     showError(data.error);

@@ -2976,6 +2976,8 @@ def create_checkout_session():
 
         if not stripe_customer_id:
             # Ensure user_id is a string and validate length
+            logger.info(f"DEBUG: user object type: {type(user)}, user.user_id type: {type(user.user_id)}")
+
             user_id_str = str(user.user_id)
             if len(user_id_str) > 500:
                 logger.error(f"❌ User ID string too long for customer: {len(user_id_str)} characters")
@@ -2990,7 +2992,7 @@ def create_checkout_session():
                     return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
 
             logger.info(f"STRIPE DEBUG: About to create customer with metadata: {existing_customer_metadata}")
-            logger.info(f"STRIPE DEBUG: user.user_id original type: {type(user.user_id)}, final user_id_str: {user_id_str}, type: {type(user_id_str)}")
+            logger.info(f"STRIPE DEBUG: user_id_str final: {user_id_str} (type: {type(user_id_str)}, length: {len(user_id_str)})")
             customer = stripe_service.create_customer(
                 email=user.email,
                 name=f"{user.first_name} {user.last_name}",

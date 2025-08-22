@@ -634,6 +634,41 @@ class DatabaseManager:
             logger.error(f"Error getting user by email: {e}")
             return None
 
+    def get_user_by_id(self, user_id: str) -> Optional[User]:
+        """Get user by ID"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cursor.execute("""
+                SELECT * FROM users WHERE user_id = %s
+            """, (user_id,))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                user = User(
+                    user_id=str(row['user_id']),
+                    tenant_id=str(row['tenant_id']),
+                    first_name=row['first_name'],
+                    last_name=row['last_name'],
+                    email=row['email'],
+                    password_hash=row['password_hash'],
+                    subscription_level=SubscriptionLevel(row['subscription_level']),
+                    is_admin=row['is_admin']
+                )
+                user.email_verified = row.get('email_verified', False)
+                user.created_at = row.get('created_at')
+                user.last_login = row.get('last_login')
+                return user
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting user by ID: {e}")
+            return None
+
     def update_user_last_login(self, user_id: str) -> bool:
         """Update user's last login timestamp"""
         try:

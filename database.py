@@ -1647,7 +1647,7 @@ class DatabaseManager:
                 SELECT u.subscription_level, p.name as plan_name, p.price_monthly, p.token_limit, 
                        p.chat_history_limit, p.brand_voices, p.support_level
                 FROM users u
-                LEFT JOIN pricing_plans p ON u.subscription_level = p.plan_id
+                LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
                 WHERE u.user_id = %s
             """, (user_id,))
 

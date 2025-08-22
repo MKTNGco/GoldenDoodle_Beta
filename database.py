@@ -1589,15 +1589,15 @@ class DatabaseManager:
             plans = [
                 ('free', 'Free', 0, 0, 10000, 5, 1, '["Basic chat", "Trauma-informed AI"]'),
                 ('solo', 'Solo', 29, 290, 100000, 50, 3, '["Everything in Free", "Advanced features", "Priority support"]'),
-                ('team', 'Team', 99, 990, 500000, -1, 10, '["Everything in Solo", "Team collaboration", "Admin controls"]'),
-                ('professional', 'Professional', 199, 1990, 1000000, -1, 25, '["Everything in Team", "Advanced analytics", "Custom integrations"]')
+                ('team', 'Team', 99, 990, 500000, 50, 3, '["Everything in Solo", "Team collaboration", "Admin controls"]'),
+                ('professional', 'Professional', 199, 1990, 1500000, -1, 10, '["Everything in Team", "Advanced analytics", "Custom integrations"]')
             ]
 
             for plan in plans:
                 cursor.execute("""
                     INSERT INTO pricing_plans 
-                    (plan_id, name, price_monthly, price_annual, target_user, core_value, analysis_brainstorm, templates, token_limit, brand_voices, admin_controls, chat_history_limit, user_seats, support_level)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (plan_id, name, price_monthly, price_annual, token_limit, chat_history_limit, brand_voices, admin_controls, features, user_seats, support_level)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, plan)
 
             conn.commit()

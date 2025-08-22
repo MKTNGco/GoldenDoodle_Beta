@@ -28,7 +28,7 @@ class GeminiService:
                 contents=[types.Content(role="user", parts=[types.Part(text="Test")])],
                 config=types.GenerateContentConfig(
                     temperature=0.7,
-                    max_output_tokens=100
+                    max_output_tokens=30000
                 )
             )
             logger.info(f"✓ Gemini API connection successful! Test response: {test_response.text[:50] if test_response.text else 'No text'}")
@@ -61,7 +61,7 @@ class GeminiService:
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     temperature=temperature,
-                    max_output_tokens=4096
+                    max_output_tokens=30000
                 )
             )
 
@@ -110,7 +110,7 @@ class GeminiService:
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     temperature=temperature,
-                    max_output_tokens=4096
+                    max_output_tokens=30000
                 )
             )
 

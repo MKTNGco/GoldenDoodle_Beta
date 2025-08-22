@@ -122,7 +122,7 @@ class GeminiService:
             if hasattr(response, 'candidates') and response.candidates:
                 for i, candidate in enumerate(response.candidates):
                     logger.info(f"Candidate {i}: finish_reason = {getattr(candidate, 'finish_reason', 'unknown')}")
-                    if hasattr(candidate, 'safety_ratings'):
+                    if hasattr(candidate, 'safety_ratings') and candidate.safety_ratings:
                         for rating in candidate.safety_ratings:
                             logger.info(f"Safety rating: {rating.category} = {rating.probability}")
             

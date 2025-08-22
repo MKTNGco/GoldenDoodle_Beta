@@ -117,15 +117,43 @@ class GeminiService:
             # Debug the response object
             logger.info(f"Response object type: {type(response)}")
             logger.info(f"Response has text attr: {hasattr(response, 'text')}")
+            
+            # Check for safety ratings or other issues
+            if hasattr(response, 'candidates') and response.candidates:
+                for i, candidate in enumerate(response.candidates):
+                    logger.info(f"Candidate {i}: finish_reason = {getattr(candidate, 'finish_reason', 'unknown')}")
+                    if hasattr(candidate, 'safety_ratings'):
+                        for rating in candidate.safety_ratings:
+                            logger.info(f"Safety rating: {rating.category} = {rating.probability}")
+            
             if hasattr(response, 'text'):
                 logger.info(f"Response.text type: {type(response.text)}")
                 logger.info(f"Response.text value: {response.text[:100] if response.text else 'None'}")
             
-            # Use identical response handling as the working generate_content method
+            # Try to extract text from candidates if main text is None
             if response.text:
                 return response.text
+            elif hasattr(response, 'candidates') and response.candidates:
+                # Try to get text from the first candidate
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                logger.info(f"Extracted text from candidate: {len(part.text)} characters")
+                                return part.text
+                
+                # If no text found, check why
+                finish_reason = getattr(candidate, 'finish_reason', 'unknown')
+                if finish_reason == 'SAFETY':
+                    return "I apologize, but I cannot generate content for this request due to safety guidelines. Please try rephrasing your request or contact support if you believe this is in error."
+                elif finish_reason == 'MAX_TOKENS':
+                    return "The response was cut off due to length limits. Please try asking for a shorter response or break your request into smaller parts."
+                else:
+                    logger.warning(f"No text found in candidate, finish_reason: {finish_reason}")
+                    return f"I apologize, but I wasn't able to generate a complete response (reason: {finish_reason}). Please try again."
             else:
-                logger.warning("No response.text found, returning fallback message")
+                logger.warning("No response.text and no candidates found")
                 return "I apologize, but I wasn't able to generate a response. Please try again."
 
         except Exception as e:

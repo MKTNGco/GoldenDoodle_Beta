@@ -1707,8 +1707,14 @@ class DatabaseManager:
             plan = self.get_user_plan(user_id)
             usage = self.get_user_token_usage(user_id)
 
-            if not plan or not usage:
-                return {'allowed': False, 'error': 'Unable to verify user limits'}
+            # If we can't get plan/usage data, allow the request to proceed (fail open for better UX)
+            if not plan:
+                logger.warning(f"Could not get plan for user {user_id}, allowing request")
+                return {'allowed': True}
+            
+            if not usage:
+                logger.warning(f"Could not get usage for user {user_id}, allowing request")
+                return {'allowed': True}
 
             # Check token limits
             token_limit = plan.get('token_limit', 20000)
@@ -1720,8 +1726,10 @@ class DatabaseManager:
             return {'allowed': True}
 
         except Exception as e:
-            logger.error(f"Error checking user limits: {e}")
-            return {'allowed': False, 'error': 'Error checking limits'}
+            logger.error(f"Error checking user limits for user {user_id}: {e}")
+            # Fail open - allow the request to proceed rather than blocking users
+            logger.warning(f"Allowing request for user {user_id} due to limits check error")
+            return {'allowed': True}
 
     def update_user_token_usage(self, user_id: str, tokens_used: int) -> bool:
         """Update user's token usage"""

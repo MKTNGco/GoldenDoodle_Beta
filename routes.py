@@ -4504,6 +4504,36 @@ def submit_feedback():
             {'error': 'An error occurred while processing your feedback'}), 500
 
 
+@app.route('/test-posthog')
+def test_posthog():
+    """Test PostHog analytics integration"""
+    try:
+        # Test event tracking
+        test_result = analytics_service.track_user_event(
+            user_id='test_user_' + str(datetime.now().timestamp()),
+            event_name='PostHog Test Event',
+            properties={
+                'test': True,
+                'timestamp': datetime.now().isoformat(),
+                'source': 'test_endpoint'
+            }
+        )
+        
+        return jsonify({
+            'posthog_configured': bool(analytics_service.posthog_key),
+            'posthog_client_available': analytics_service.posthog_client is not None,
+            'test_event_sent': test_result,
+            'api_key_present': bool(analytics_service.posthog_key),
+            'posthog_host': analytics_service.posthog_host
+        })
+    except Exception as e:
+        logger.error(f"PostHog test failed: {e}")
+        return jsonify({
+            'error': str(e),
+            'posthog_configured': bool(analytics_service.posthog_key),
+            'posthog_client_available': analytics_service.posthog_client is not None
+        }), 500
+
 @app.route('/health')
 def health_check():
     """System health check endpoint"""

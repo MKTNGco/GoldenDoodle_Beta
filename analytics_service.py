@@ -1,6 +1,5 @@
 
 import os
-import requests
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -9,89 +8,85 @@ logger = logging.getLogger(__name__)
 
 class AnalyticsService:
     def __init__(self):
-        # You can use services like Mixpanel, Segment, or PostHog
-        self.mixpanel_token = os.environ.get("MIXPANEL_TOKEN")
         self.posthog_key = os.environ.get("POSTHOG_API_KEY")
+        self.posthog_host = os.environ.get("POSTHOG_HOST", "https://app.posthog.com")
+        self.posthog_client = None
         
+        # Initialize PostHog client if API key is available
+        if self.posthog_key:
+            try:
+                import posthog
+                posthog.api_key = self.posthog_key
+                posthog.host = self.posthog_host
+                self.posthog_client = posthog
+                logger.info("✅ PostHog analytics initialized successfully")
+            except ImportError:
+                logger.warning("❌ PostHog library not installed. Install with: pip install posthog")
+                self.posthog_client = None
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize PostHog: {e}")
+                self.posthog_client = None
+        else:
+            logger.warning("❌ POSTHOG_API_KEY not found in environment variables")
+            
     def track_user_event(self, user_id: str, event_name: str, properties: Dict[str, Any] = None):
         """Track user events for analytics"""
         if not properties:
             properties = {}
             
+        # Add default properties
         properties.update({
-            'user_id': user_id,
             'timestamp': datetime.utcnow().isoformat(),
-            'environment': 'replit'
+            'environment': 'replit',
+            'source': 'goldendoodlelm'
         })
         
-        # Send to PostHog (free tier available)
-        if self.posthog_key:
-            self._send_to_posthog(user_id, event_name, properties)
-            
-        # Send to Mixpanel (free tier available)
-        if self.mixpanel_token:
-            self._send_to_mixpanel(user_id, event_name, properties)
+        # Send to PostHog if available
+        if self.posthog_client and self.posthog_key:
+            try:
+                self.posthog_client.capture(
+                    distinct_id=user_id,
+                    event=event_name,
+                    properties=properties
+                )
+                logger.info(f"✅ Event '{event_name}' sent to PostHog for user {user_id}")
+                logger.debug(f"PostHog event payload: {{'distinct_id': '{user_id}', 'event': '{event_name}', 'properties': {properties}}}")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Error sending event to PostHog: {e}")
+                return False
+        else:
+            logger.warning(f"⚠️ PostHog not configured - would track: {event_name} for user {user_id}")
+            return False
     
-    def _send_to_posthog(self, user_id: str, event: str, properties: Dict):
-        """Send event to PostHog"""
-        try:
-            payload = {
-                'api_key': self.posthog_key,
-                'event': event,
-                'properties': {
-                    'distinct_id': user_id,
-                    **properties
-                },
-                'timestamp': datetime.utcnow().isoformat()
-            }
+    def identify_user(self, user_id: str, user_properties: Dict[str, Any] = None):
+        """Identify a user with their properties"""
+        if not user_properties:
+            user_properties = {}
             
-            response = requests.post(
-                'https://app.posthog.com/capture/',
-                json=payload,
-                headers={'Content-Type': 'application/json'},
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                logger.info(f"✅ Event '{event}' sent to PostHog for user {user_id}")
-                logger.debug(f"PostHog payload: {payload}")
-            else:
-                logger.warning(f"❌ Failed to send event to PostHog: {response.status_code} - {response.text}")
-                
-        except Exception as e:
-            logger.error(f"❌ Error sending to PostHog: {e}")
-            logger.error(f"PostHog API Key present: {bool(self.posthog_key)}")
+        if self.posthog_client and self.posthog_key:
+            try:
+                self.posthog_client.identify(
+                    distinct_id=user_id,
+                    properties=user_properties
+                )
+                logger.info(f"✅ User {user_id} identified in PostHog")
+                return True
+            except Exception as e:
+                logger.error(f"❌ Error identifying user in PostHog: {e}")
+                return False
+        else:
+            logger.warning(f"⚠️ PostHog not configured - would identify user {user_id}")
+            return False
     
-    def _send_to_mixpanel(self, user_id: str, event: str, properties: Dict):
-        """Send event to Mixpanel"""
-        try:
-            import base64
-            import json
-            
-            data = {
-                'event': event,
-                'properties': {
-                    'distinct_id': user_id,
-                    'token': self.mixpanel_token,
-                    **properties
-                }
-            }
-            
-            encoded_data = base64.b64encode(json.dumps(data).encode()).decode()
-            
-            response = requests.post(
-                'https://api.mixpanel.com/track/',
-                data={'data': encoded_data},
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                logger.info(f"Event '{event}' sent to Mixpanel for user {user_id}")
-            else:
-                logger.warning(f"Failed to send event to Mixpanel: {response.status_code}")
-                
-        except Exception as e:
-            logger.error(f"Error sending to Mixpanel: {e}")
+    def flush(self):
+        """Flush any pending events"""
+        if self.posthog_client:
+            try:
+                self.posthog_client.flush()
+                logger.debug("✅ PostHog events flushed")
+            except Exception as e:
+                logger.error(f"❌ Error flushing PostHog events: {e}")
 
 # Global analytics service instance
 analytics_service = AnalyticsService()

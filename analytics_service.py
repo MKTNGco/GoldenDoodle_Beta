@@ -11,6 +11,11 @@ class AnalyticsService:
         self.posthog_key = os.environ.get("POSTHOG_API_KEY")
         self.posthog_host = os.environ.get("POSTHOG_HOST", "https://app.posthog.com")
         self.posthog_client = None
+        self.debug_mode = os.environ.get("DEBUG", "False").lower() == "true"
+        
+        if self.debug_mode:
+            logger.debug(f"🔍 PostHog API Key present: {bool(self.posthog_key)}")
+            logger.debug(f"🔍 PostHog Host: {self.posthog_host}")
         
         # Initialize PostHog client if API key is available
         if self.posthog_key:
@@ -18,16 +23,32 @@ class AnalyticsService:
                 import posthog
                 posthog.api_key = self.posthog_key
                 posthog.host = self.posthog_host
+                posthog.debug = self.debug_mode
                 self.posthog_client = posthog
                 logger.info("✅ PostHog analytics initialized successfully")
+                
+                # Test connection
+                if self.debug_mode:
+                    self._test_connection()
+                    
             except ImportError:
                 logger.warning("❌ PostHog library not installed. Install with: pip install posthog")
                 self.posthog_client = None
             except Exception as e:
                 logger.error(f"❌ Failed to initialize PostHog: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 self.posthog_client = None
         else:
             logger.warning("❌ POSTHOG_API_KEY not found in environment variables")
+            
+    def _test_connection(self):
+        """Test PostHog connection in debug mode"""
+        try:
+            self.track_user_event("debug_test", "PostHog Connection Test", {"debug": True})
+            logger.debug("🔍 PostHog connection test sent")
+        except Exception as e:
+            logger.error(f"❌ PostHog connection test failed: {e}")
             
     def track_user_event(self, user_id: str, event_name: str, properties: Dict[str, Any] = None):
         """Track user events for analytics"""

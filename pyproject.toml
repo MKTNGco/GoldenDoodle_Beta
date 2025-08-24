@@ -16,4 +16,5 @@ dependencies = [
     "sift-stack-py>=0.8.2",
     "sendgrid>=6.12.4",
     "stripe>=12.4.0",
+    "posthog>=6.6.1",
 ]

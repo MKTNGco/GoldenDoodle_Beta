@@ -87,7 +87,9 @@ class AnalyticsService:
             
         if self.posthog_client and self.posthog_key:
             try:
-                self.posthog_client.identify(
+                # PostHog uses identify as a module-level function, not a method
+                import posthog
+                posthog.identify(
                     distinct_id=user_id,
                     properties=user_properties
                 )

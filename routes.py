@@ -4578,6 +4578,12 @@ def health_check():
 def crisp_callback():
     """Handle Crisp plugin installation callback"""
     try:
+        # Verify webhook signature
+        signature = request.headers.get('X-Crisp-Signature')
+        if not crisp_marketplace.verify_webhook_signature(request.data, signature):
+            logger.error("Invalid webhook signature in Crisp callback")
+            return jsonify({'error': 'Invalid signature'}), 401
+            
         data = request.get_json()
         if not data:
             logger.error("No JSON data received in Crisp callback")
@@ -4642,6 +4648,12 @@ def crisp_settings():
 def crisp_action():
     """Handle action triggered from Crisp inbox (e.g., custom button click)"""
     try:
+        # Verify webhook signature
+        signature = request.headers.get('X-Crisp-Signature')
+        if not crisp_marketplace.verify_webhook_signature(request.data, signature):
+            logger.error("Invalid webhook signature in Crisp action")
+            return jsonify({'error': 'Invalid signature'}), 401
+            
         data = request.get_json()
         if not data:
             logger.error("No JSON data received in Crisp action")

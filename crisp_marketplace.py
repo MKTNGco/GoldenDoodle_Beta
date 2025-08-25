@@ -3,6 +3,8 @@ import os
 import json
 import sqlite3
 import logging
+import hmac
+import hashlib
 from datetime import datetime
 from typing import Dict, Optional
 from flask import request, jsonify, render_template
@@ -14,6 +16,7 @@ class CrispMarketplace:
     def __init__(self):
         self.marketplace_id = os.environ.get('CRISP_MARKETPLACE_ID')
         self.marketplace_key = os.environ.get('CRISP_MARKETPLACE_KEY')
+        self.webhook_secret = os.environ.get('CRISP_WEBHOOK_SIGNING_SECRET')
         self.base_url = "https://api.crisp.chat/v1"
         
         # Initialize SQLite database for storing plugin installations
@@ -21,6 +24,8 @@ class CrispMarketplace:
         
         if not self.marketplace_id or not self.marketplace_key:
             logger.warning("Crisp Marketplace credentials not configured")
+        if not self.webhook_secret:
+            logger.warning("Crisp webhook signing secret not configured")
     
     def init_database(self):
         """Initialize SQLite database for plugin installations"""
@@ -151,6 +156,26 @@ class CrispMarketplace:
         # 4. Update the user profile in Crisp with enriched data
         
         return enriched_data
+    
+    def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
+        """Verify webhook signature from Crisp"""
+        if not self.webhook_secret:
+            logger.warning("No webhook secret configured - skipping signature verification")
+            return True
+            
+        if not signature:
+            logger.error("No signature provided in webhook request")
+            return False
+            
+        # Crisp uses HMAC-SHA256
+        expected_signature = hmac.new(
+            self.webhook_secret.encode('utf-8'),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        
+        # Compare signatures safely
+        return hmac.compare_digest(f"sha256={expected_signature}", signature)
 
 # Global instance
 crisp_marketplace = CrispMarketplace()

@@ -19,6 +19,10 @@ app.config['SENDGRID_FROM_EMAIL'] = os.environ.get('SENDGRID_FROM_EMAIL')
 app.config['CRISP_WEBSITE_ID'] = os.environ.get('CRISP_WEBSITE_ID')
 app.config['CRISP_API_KEY'] = os.environ.get('CRISP_API_KEY')
 
+# Crisp Marketplace Plugin configuration
+app.config['CRISP_MARKETPLACE_ID'] = os.environ.get('CRISP_MARKETPLACE_ID')
+app.config['CRISP_MARKETPLACE_KEY'] = os.environ.get('CRISP_MARKETPLACE_KEY')
+
 # Import routes after app creation to avoid circular imports
 from routes import *
 from database import init_databases

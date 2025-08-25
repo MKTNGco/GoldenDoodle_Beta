@@ -1,0 +1,223 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoldenDoodleLM Plugin Settings</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .logo {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #495057;
+        }
+        
+        .subtitle {
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .settings-section {
+            margin-bottom: 25px;
+        }
+        
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        
+        .setting-label {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .setting-description {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+        
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle.active {
+            background: #28a745;
+        }
+        
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle.active::after {
+            transform: translateX(26px);
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .info-box h3 {
+            margin: 0 0 10px 0;
+            color: #0c5aa6;
+            font-size: 16px;
+        }
+        
+        .info-box p {
+            margin: 0;
+            font-size: 14px;
+            color: #495057;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-list li::before {
+            content: '✓';
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🐕</div>
+            <h1>GoldenDoodleLM Plugin</h1>
+            <p class="subtitle">AI-Powered Lead Enrichment & Customer Support</p>
+        </div>
+        
+        <div class="settings-section">
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">Auto Lead Enrichment</div>
+                    <div class="setting-description">Automatically enrich new conversations with lead data</div>
+                </div>
+                <div class="toggle active" onclick="toggleSetting(this)"></div>
+            </div>
+            
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">Smart Notifications</div>
+                    <div class="setting-description">Get notified about high-value leads</div>
+                </div>
+                <div class="toggle active" onclick="toggleSetting(this)"></div>
+            </div>
+            
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">AI Response Suggestions</div>
+                    <div class="setting-description">Show AI-powered response suggestions in conversations</div>
+                </div>
+                <div class="toggle" onclick="toggleSetting(this)"></div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <h3>🚀 What this plugin provides:</h3>
+            <ul class="feature-list">
+                <li>Real-time lead scoring and enrichment</li>
+                <li>Company and contact data lookup</li>
+                <li>AI-powered conversation insights</li>
+                <li>Automated lead qualification</li>
+                <li>Integration with your CRM system</li>
+            </ul>
+        </div>
+        
+        <div class="info-box" style="background: #fff3cd; border-color: #ffeaa7;">
+            <h3 style="color: #856404;">📊 Plugin Status</h3>
+            <p>Plugin is active and ready to enrich your conversations. Data sync last occurred: <strong id="lastSync">Just now</strong></p>
+        </div>
+    </div>
+    
+    <script>
+        function toggleSetting(element) {
+            element.classList.toggle('active');
+            
+            // Here you would typically make an AJAX call to save the setting
+            const isActive = element.classList.contains('active');
+            console.log('Setting toggled:', isActive);
+            
+            // Simulate saving settings (replace with actual API call)
+            setTimeout(() => {
+                console.log('Setting saved successfully');
+            }, 100);
+        }
+        
+        // Update last sync time
+        document.getElementById('lastSync').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>

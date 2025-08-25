@@ -19,6 +19,7 @@ import logging
 import psycopg2.extras
 from user_source_tracker import user_source_tracker
 from crisp_service import crisp_service
+from crisp_marketplace import crisp_marketplace
 
 # Check if Stripe should be disabled for beta access
 STRIPE_DISABLED = os.environ.get('STRIPE_DISABLED', 'false').lower() == 'true'
@@ -4570,6 +4571,150 @@ def health_check():
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }), 500
+
+
+# Crisp Marketplace Plugin Endpoints
+@app.route('/crisp/callback', methods=['POST'])
+def crisp_callback():
+    """Handle Crisp plugin installation callback"""
+    try:
+        data = request.get_json()
+        if not data:
+            logger.error("No JSON data received in Crisp callback")
+            return jsonify({'error': 'Invalid request'}), 400
+        
+        website_id = data.get('website_id')
+        token = data.get('token')
+        
+        if not website_id or not token:
+            logger.error("Missing website_id or token in callback")
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Save the installation
+        success = crisp_marketplace.save_installation(website_id, token)
+        
+        if success:
+            logger.info(f"Plugin installed successfully for website_id: {website_id}")
+            
+            # Track the plugin installation
+            analytics_service.track_user_event(
+                user_id='crisp_plugin',
+                event_name='Plugin Installed',
+                properties={
+                    'website_id': website_id,
+                    'source': 'crisp_marketplace'
+                }
+            )
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Plugin installed successfully'
+            })
+        else:
+            return jsonify({'error': 'Failed to save installation'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in Crisp callback: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/crisp/settings', methods=['GET'])
+def crisp_settings():
+    """Render plugin settings page (displayed in iframe within Crisp dashboard)"""
+    try:
+        # Get website_id from query parameters if provided
+        website_id = request.args.get('website_id')
+        
+        # You could load specific settings for this website_id here
+        if website_id:
+            installation = crisp_marketplace.get_installation(website_id)
+            if not installation:
+                logger.warning(f"Settings requested for unknown website_id: {website_id}")
+        
+        return render_template('crisp_settings.html')
+        
+    except Exception as e:
+        logger.error(f"Error rendering Crisp settings: {e}")
+        return jsonify({'error': 'Failed to load settings'}), 500
+
+
+@app.route('/crisp/action', methods=['POST'])
+def crisp_action():
+    """Handle action triggered from Crisp inbox (e.g., custom button click)"""
+    try:
+        data = request.get_json()
+        if not data:
+            logger.error("No JSON data received in Crisp action")
+            return jsonify({'error': 'Invalid request'}), 400
+        
+        session_id = data.get('session_id')
+        user_id = data.get('user_id')
+        website_id = data.get('website_id')
+        action_type = data.get('action', 'enrich_lead')
+        
+        if not session_id or not website_id:
+            logger.error("Missing session_id or website_id in action")
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        logger.info(f"Processing Crisp action: {action_type} for session: {session_id}")
+        
+        # Verify we have the installation for this website
+        installation = crisp_marketplace.get_installation(website_id)
+        if not installation:
+            logger.error(f"No installation found for website_id: {website_id}")
+            return jsonify({'error': 'Plugin not properly installed'}), 400
+        
+        # Perform the lead enrichment
+        if action_type == 'enrich_lead' and user_id:
+            enriched_data = crisp_marketplace.enrich_lead_data(user_id, website_id)
+            
+            # Update the conversation with enriched data
+            endpoint = f"/website/{website_id}/conversation/{session_id}/meta"
+            meta_data = {
+                'enriched': True,
+                'enriched_at': enriched_data['enriched_at'],
+                'lead_quality': enriched_data['lead_quality'],
+                'industry': enriched_data.get('industry', 'Unknown'),
+                'company_size': enriched_data.get('estimated_company_size', 'Unknown')
+            }
+            
+            # Make API call to update conversation metadata
+            result = crisp_marketplace.make_authenticated_request(
+                website_id, 'PUT', endpoint, {'data': meta_data}
+            )
+            
+            # Track the enrichment action
+            analytics_service.track_user_event(
+                user_id=user_id or 'anonymous',
+                event_name='Lead Enriched via Plugin',
+                properties={
+                    'session_id': session_id,
+                    'website_id': website_id,
+                    'lead_quality': enriched_data['lead_quality'],
+                    'enrichment_score': enriched_data['enrichment_score']
+                }
+            )
+            
+            logger.info(f"Lead enrichment completed for session: {session_id}")
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Lead enriched successfully',
+                'data': {
+                    'enrichment_score': enriched_data['enrichment_score'],
+                    'lead_quality': enriched_data['lead_quality']
+                }
+            })
+        
+        else:
+            return jsonify({
+                'status': 'success',
+                'message': f'Action {action_type} processed'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in Crisp action: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @app.errorhandler(500)

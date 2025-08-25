@@ -4687,7 +4687,8 @@ def crisp_action():
                 'enriched_at': enriched_data['enriched_at'],
                 'lead_quality': enriched_data['lead_quality'],
                 'industry': enriched_data.get('industry', 'Unknown'),
-                'company_size': enriched_data.get('estimated_company_size', 'Unknown')
+                'company_size': enriched_data.get('estimated_company_size', 'Unknown'),
+                'enrichment_score': enriched_data.get('enrichment_score', 0.0)
             }
             
             # Make API call to update conversation metadata

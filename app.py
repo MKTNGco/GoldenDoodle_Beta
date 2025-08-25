@@ -11,6 +11,14 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "goldendoodlelm-secret-key")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Email service configuration
+app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
+app.config['SENDGRID_FROM_EMAIL'] = os.environ.get('SENDGRID_FROM_EMAIL')
+
+# Crisp chat configuration
+app.config['CRISP_WEBSITE_ID'] = os.environ.get('CRISP_WEBSITE_ID')
+app.config['CRISP_API_KEY'] = os.environ.get('CRISP_API_KEY')
+
 # Import routes after app creation to avoid circular imports
 from routes import *
 from database import init_databases

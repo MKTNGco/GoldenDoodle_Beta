@@ -146,5 +146,32 @@
         window.STRIPE_DISABLED = {{ 'true' if config.get('STRIPE_DISABLED', '').lower() == 'true' else 'false' }};
     </script>
     {% block scripts %}{% endblock %}
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+
+    <!-- Crisp Chat Widget -->
+    <script type="text/javascript">
+        window.$crisp=[];
+        window.CRISP_WEBSITE_ID="{{ config.get('CRISP_WEBSITE_ID', '') }}";
+        (function(){
+            d=document;
+            s=d.createElement("script");
+            s.src="https://client.crisp.chat/l.js";
+            s.async=1;
+            d.getElementsByTagName("head")[0].appendChild(s);
+        })();
+
+        // Set user data if logged in
+        {% if session.user_id %}
+        $crisp.push(["set", "user:email", "{{ get_current_user().email if get_current_user() else '' }}"]);
+        $crisp.push(["set", "user:nickname", "{{ get_current_user().first_name + ' ' + get_current_user().last_name if get_current_user() else '' }}"]);
+        $crisp.push(["set", "session:data", {
+            user_id: "{{ get_current_user().user_id if get_current_user() else '' }}",
+            subscription_level: "{{ get_current_user().subscription_level.value if get_current_user() else '' }}",
+            tenant_id: "{{ get_current_user().tenant_id if get_current_user() else '' }}"
+        }]);
+        {% endif %}
+    </script>
 </body>
 </html>

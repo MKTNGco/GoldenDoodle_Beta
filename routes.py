@@ -18,6 +18,7 @@ import os
 import logging
 import psycopg2.extras
 from user_source_tracker import user_source_tracker
+from crisp_service import crisp_service
 
 # Check if Stripe should be disabled for beta access
 STRIPE_DISABLED = os.environ.get('STRIPE_DISABLED', 'false').lower() == 'true'
@@ -598,7 +599,7 @@ def register():
 
             # For free plans, beta users, or when payment is skipped, send verification email
             logger.info(f"Preparing verification email for {email}, skip_payment: {skip_payment}, is_beta: {is_beta_user_for_payment_check}")
-            
+
             verification_token = generate_verification_token()
             token_hash = hash_token(verification_token)
 
@@ -739,6 +740,9 @@ def login():
                                                    'subscription_level':
                                                    user.subscription_level
                                                })
+
+            # Track user login with Crisp
+            crisp_service.track_user_login(user=user)
 
             login_user(user)
             flash('Welcome back!', 'success')
@@ -2502,8 +2506,7 @@ def send_organization_invite():
                 })
             else:
                 logger.error(f"Failed to send invitation email to {email}.")
-                return jsonify({'error':
-                                'Failed to send invitation email'}), 500
+                return jsonify({'error': 'Failed to send invitation email'}), 500
         else:
             logger.error(
                 f"Failed to create organization invite in database for {email}."
@@ -4518,7 +4521,7 @@ def test_posthog():
                 'source': 'test_endpoint'
             }
         )
-        
+
         return jsonify({
             'posthog_configured': bool(analytics_service.posthog_key),
             'posthog_client_available': analytics_service.posthog_client is not None,

@@ -1052,7 +1052,7 @@ class ChatInterface {
             this.loadChat(chat.id);
         });
 
-        chatHistory.prepend(chatElement);
+        chatHistory.appendChild(chatElement);
     }
 
     async loadChatHistory() {
@@ -1070,7 +1070,15 @@ class ChatInterface {
 
             // Clear existing chats to prevent duplicates
             chatHistory.innerHTML = '';
-            chats.forEach(chat => {
+            
+            // Sort chats by updated_at in descending order (most recent first)
+            const sortedChats = chats.sort((a, b) => {
+                const dateA = new Date(a.updated_at || a.created_at);
+                const dateB = new Date(b.updated_at || b.created_at);
+                return dateB - dateA; // Most recent first
+            });
+            
+            sortedChats.forEach(chat => {
                 this.addChatToSidebar(chat);
             });
 

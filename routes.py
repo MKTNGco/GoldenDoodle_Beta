@@ -1220,9 +1220,15 @@ def generate():
         logger.error(f"❌ Generation error: {e}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        # Log request details for debugging
+        logger.error(f"Request data: {data}")
+        logger.error(f"User: {user.user_id if user else 'None'}")
+        logger.error(f"Is demo: {is_demo}")
+        
         return jsonify({
-            'error':
-            'An error occurred while generating content. Please try again.'
+            'error': 'An error occurred while generating content. Please try again.',
+            'debug_info': str(e) if app.debug else None
         }), 500
 
 
@@ -3895,6 +3901,42 @@ def test_cancel():
     </body>
     </html>
     '''
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for deployment debugging"""
+    try:
+        # Test database connection
+        conn = db_manager.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.close()
+        conn.close()
+        db_status = "OK"
+    except Exception as e:
+        db_status = f"ERROR: {str(e)}"
+    
+    # Test Gemini service
+    try:
+        gemini_status = "OK" if gemini_service else "NOT INITIALIZED"
+    except Exception as e:
+        gemini_status = f"ERROR: {str(e)}"
+    
+    # Test environment variables
+    import os
+    env_status = {
+        'DATABASE_URL': 'SET' if os.environ.get('DATABASE_URL') else 'MISSING',
+        'GEMINI_API_KEY': 'SET' if os.environ.get('GEMINI_API_KEY') else 'MISSING',
+        'SESSION_SECRET': 'SET' if os.environ.get('SESSION_SECRET') else 'MISSING'
+    }
+    
+    return jsonify({
+        'status': 'healthy',
+        'database': db_status,
+        'gemini_service': gemini_status,
+        'environment': env_status,
+        'timestamp': datetime.now().isoformat()
+    })
 
 
 @app.route('/debug-stripe-webhook')

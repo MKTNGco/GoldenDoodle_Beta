@@ -32,6 +32,21 @@ from routes import *
 from database import init_databases
 from auth import get_current_user
 
+# Add security headers
+@app.after_request
+def add_security_headers(response):
+    # Add Content Security Policy to allow inline scripts for development
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; "
+        "style-src 'self' 'unsafe-inline' https:; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' https:; "
+        "connect-src 'self' https:; "
+        "frame-src 'self' https:;"
+    )
+    return response
+
 # Make get_current_user available in all templates
 @app.context_processor
 def inject_user():

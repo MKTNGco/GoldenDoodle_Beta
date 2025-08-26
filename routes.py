@@ -4580,39 +4580,7 @@ def test_posthog():
             'posthog_client_available': analytics_service.posthog_client is not None
         }), 500
 
-@app.route('/health')
-def health_check():
-    """System health check endpoint"""
-    try:
-        # Test database connection
-        conn = db_manager.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        cursor.close()
-        conn.close()
 
-        # Test Stripe configuration
-        stripe_ok = bool(stripe_service.get_publishable_key())
-
-        # Test Gemini API (basic check)
-        gemini_ok = bool(os.environ.get('GEMINI_API_KEY'))
-
-        return jsonify({
-            'status': 'healthy',
-            'database': 'ok',
-            'stripe': 'ok' if stripe_ok else 'warning',
-            'gemini': 'ok' if gemini_ok else 'warning',
-            'timestamp': datetime.now().isoformat()
-        })
-
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
 
 
 # Crisp Marketplace Plugin Endpoints

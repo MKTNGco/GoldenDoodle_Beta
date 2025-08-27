@@ -4274,6 +4274,24 @@ def admin_stats():
     return render_template('admin_stats.html')
 
 
+@app.route('/admin/token-analytics')
+@super_admin_required
+def admin_token_analytics():
+    """Token usage analytics dashboard"""
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login'))
+
+    # Track admin token analytics visit
+    analytics_service.track_user_event(
+        user_id='platform_admin',
+        event_name='Viewed Token Analytics Dashboard',
+        properties={}
+    )
+
+    return render_template('admin_token_analytics.html')
+
+
 @app.route('/admin/invitation-stats')
 @admin_required
 def admin_invitation_stats():
@@ -4417,6 +4435,93 @@ def admin_beta_trial_stats():
 
     except Exception as e:
         logger.error(f"Error getting beta trial stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/token-usage-data')
+@super_admin_required
+def admin_token_usage_data():
+    """Get token usage analytics data"""
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Get overall token usage statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_users,
+                COUNT(CASE WHEN tokens_used_month > 0 THEN 1 END) as active_users,
+                SUM(tokens_used_month) as total_tokens_used,
+                AVG(tokens_used_month) as avg_tokens_per_user,
+                MAX(tokens_used_month) as max_tokens_used
+            FROM user_token_usage
+        """)
+        overall_stats = cursor.fetchone()
+
+        # Get token usage by subscription level
+        cursor.execute("""
+            SELECT 
+                u.subscription_level,
+                COUNT(*) as user_count,
+                SUM(COALESCE(utu.tokens_used_month, 0)) as total_tokens,
+                AVG(COALESCE(utu.tokens_used_month, 0)) as avg_tokens
+            FROM users u
+            LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
+            GROUP BY u.subscription_level
+            ORDER BY u.subscription_level
+        """)
+        subscription_stats = cursor.fetchall()
+
+        # Get top token users
+        cursor.execute("""
+            SELECT 
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.subscription_level,
+                utu.tokens_used_month,
+                utu.tokens_used_day,
+                CASE 
+                    WHEN up.monthly_token_limit = -1 THEN 100 
+                    ELSE ROUND((utu.tokens_used_month::decimal / up.monthly_token_limit) * 100, 2)
+                END as usage_percentage
+            FROM user_token_usage utu
+            JOIN users u ON utu.user_id = u.user_id
+            LEFT JOIN user_pricing_plans up ON u.user_id = up.user_id
+            WHERE utu.tokens_used_month > 0
+            ORDER BY utu.tokens_used_month DESC
+            LIMIT 20
+        """)
+        top_users = cursor.fetchall()
+
+        # Get daily token usage trend (last 30 days)
+        cursor.execute("""
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as api_calls,
+                SUM(CASE WHEN content_mode = 'creative' THEN 1 ELSE 0 END) as creative_calls,
+                SUM(CASE WHEN content_mode = 'analytical' THEN 1 ELSE 0 END) as analytical_calls,
+                SUM(CASE WHEN content_mode = 'empathetic' THEN 1 ELSE 0 END) as empathetic_calls
+            FROM chat_messages
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            AND message_type = 'user'
+            GROUP BY DATE(created_at)
+            ORDER BY date DESC
+        """)
+        daily_usage = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'overall_stats': dict(overall_stats) if overall_stats else {},
+            'subscription_stats': [dict(row) for row in subscription_stats],
+            'top_users': [dict(row) for row in top_users],
+            'daily_usage': [dict(row) for row in daily_usage]
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting token usage data: {e}")
         return jsonify({'error': str(e)}), 500
 
 

@@ -53,353 +53,277 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 text-dark">Token Usage Analytics</h1>
-        <div>
-            <a href="{{ url_for('platform_admin') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Admin
-            </a>
-        </div>
+        <a href="{{ url_for('platform_admin') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Admin
+        </a>
     </div>
 
-    <!-- Overall Statistics -->
-    <div class="row mb-4">
-        <div class="col-md-2">
-            <div class="stat-card">
-                <div class="stat-value">{{ "{:,}".format(overall_stats.get('total_users_tracked', 0)) }}</div>
-                <div class="stat-label">Users Tracked</div>
-            </div>
+    <!-- Loading indicator -->
+    <div id="loading" class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading analytics...</span>
         </div>
-        <div class="col-md-2">
-            <div class="stat-card">
-                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('total_monthly_tokens', 0)) }}</div>
-                <div class="stat-label">Monthly Tokens</div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="stat-card">
-                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('total_all_time_tokens', 0)) }}</div>
-                <div class="stat-label">Total Tokens</div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="stat-card">
-                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('avg_monthly_per_user', 0)) }}</div>
-                <div class="stat-label">Avg/User/Month</div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="stat-card">
-                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('max_monthly_usage', 0)) }}</div>
-                <div class="stat-label">Max Monthly</div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="stat-card">
-                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('min_monthly_usage', 0)) }}</div>
-                <div class="stat-label">Min Monthly</div>
-            </div>
-        </div>
+        <p class="mt-2">Loading token usage data...</p>
     </div>
 
-    <div class="row">
-        <!-- Usage by Plan -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0">Usage by Subscription Plan</h5>
+    <!-- Analytics content -->
+    <div id="analytics-content" style="display: none;">
+        <!-- Overall Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-users">-</div>
+                    <div class="stat-label">Total Users</div>
                 </div>
-                <div class="card-body">
-                    <canvas id="planUsageChart" width="400" height="300"></canvas>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="active-users">-</div>
+                    <div class="stat-label">Active Users (This Month)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-tokens">-</div>
+                    <div class="stat-label">Total Tokens Used</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-tokens">-</div>
+                    <div class="stat-label">Avg Tokens per User</div>
                 </div>
             </div>
         </div>
 
-        <!-- Monthly Trends -->
-        <div class="col-lg-6 mb-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0">Monthly Usage Trend</h5>
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">Usage by Subscription Level</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="subscriptionChart" width="400" height="300"></canvas>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <canvas id="trendChart" width="400" height="300"></canvas>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">Daily API Calls (Last 30 Days)</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="dailyUsageChart" width="400" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Users Table -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Top Token Users This Month</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Subscription</th>
+                                <th>Monthly Tokens</th>
+                                <th>Daily Tokens</th>
+                                <th>Usage %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-users-table">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Users Over Limit -->
-    {% if users_over_limit %}
-    <div class="card border-0 shadow-sm mb-4 border-danger">
-        <div class="card-header bg-danger text-white">
-            <h5 class="mb-0">
-                <i class="bi bi-exclamation-triangle"></i>
-                Users Over Limit ({{ users_over_limit|length }})
-            </h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>User</th>
-                        <th>Plan</th>
-                        <th>Usage</th>
-                        <th>Limit</th>
-                        <th>Percentage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user_data in users_over_limit %}
-                    <tr>
-                        <td>
-                            <strong>{{ user_data.first_name }} {{ user_data.last_name }}</strong><br>
-                            <small class="text-muted">{{ user_data.email }}</small>
-                        </td>
-                        <td><span class="badge bg-primary">{{ user_data.subscription_level }}</span></td>
-                        <td>{{ "{:,}".format(user_data.tokens_used_month) }}</td>
-                        <td>{{ "{:,}".format(user_data.token_limit) }}</td>
-                        <td>
-                            <span class="badge bg-danger">{{ user_data.usage_percentage }}%</span>
-                            <div class="usage-bar">
-                                <div class="usage-fill usage-danger" style="width: 100%"></div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Users Near Limit -->
-    {% if users_near_limit %}
-    <div class="card border-0 shadow-sm mb-4 border-warning">
-        <div class="card-header bg-warning">
-            <h5 class="mb-0">
-                <i class="bi bi-exclamation-circle"></i>
-                Users Near Limit ({{ users_near_limit|length }})
-            </h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>User</th>
-                        <th>Plan</th>
-                        <th>Usage</th>
-                        <th>Limit</th>
-                        <th>Percentage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user_data in users_near_limit %}
-                    <tr>
-                        <td>
-                            <strong>{{ user_data.first_name }} {{ user_data.last_name }}</strong><br>
-                            <small class="text-muted">{{ user_data.email }}</small>
-                        </td>
-                        <td><span class="badge bg-primary">{{ user_data.subscription_level }}</span></td>
-                        <td>{{ "{:,}".format(user_data.tokens_used_month) }}</td>
-                        <td>{{ "{:,}".format(user_data.token_limit) }}</td>
-                        <td>
-                            <span class="badge {% if user_data.usage_percentage >= 95 %}bg-danger{% else %}bg-warning{% endif %}">
-                                {{ user_data.usage_percentage }}%
-                            </span>
-                            <div class="usage-bar">
-                                <div class="usage-fill {% if user_data.usage_percentage >= 95 %}usage-danger{% else %}usage-warning{% endif %}" 
-                                     style="width: {{ user_data.usage_percentage }}%"></div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Top Token Users -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Top Token Users This Month</h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Rank</th>
-                        <th>User</th>
-                        <th>Plan</th>
-                        <th>Monthly Usage</th>
-                        <th>Total Usage</th>
-                        <th>Limit</th>
-                        <th>Usage %</th>
-                        <th>Last Reset</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user_data in top_users %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>
-                            <strong>{{ user_data.first_name }} {{ user_data.last_name }}</strong><br>
-                            <small class="text-muted">{{ user_data.email }}</small>
-                        </td>
-                        <td><span class="badge bg-primary">{{ user_data.subscription_level }}</span></td>
-                        <td>{{ "{:,}".format(user_data.tokens_used_month) }}</td>
-                        <td>{{ "{:,}".format(user_data.tokens_used_total) }}</td>
-                        <td>
-                            {% if user_data.token_limit == -1 %}
-                                <span class="text-success">Unlimited</span>
-                            {% else %}
-                                {{ "{:,}".format(user_data.token_limit) }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if user_data.token_limit == -1 %}
-                                <span class="badge bg-success">Unlimited</span>
-                            {% else %}
-                                <span class="badge {% if user_data.usage_percentage >= 95 %}bg-danger{% elif user_data.usage_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}">
-                                    {{ user_data.usage_percentage }}%
-                                </span>
-                                <div class="usage-bar">
-                                    <div class="usage-fill {% if user_data.usage_percentage >= 95 %}usage-danger{% elif user_data.usage_percentage >= 80 %}usage-warning{% else %}usage-normal{% endif %}" 
-                                         style="width: {{ user_data.usage_percentage }}%"></div>
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if user_data.last_reset %}
-                                {{ user_data.last_reset.strftime('%Y-%m-%d') }}
-                            {% else %}
-                                <span class="text-muted">N/A</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Plan Statistics -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-header">
-            <h5 class="mb-0">Usage Statistics by Plan</h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Plan</th>
-                        <th>Users</th>
-                        <th>Total Monthly Tokens</th>
-                        <th>Avg per User</th>
-                        <th>Max Usage</th>
-                        <th>Plan Limit</th>
-                        <th>Avg Utilization</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for plan_data in usage_by_plan %}
-                    <tr>
-                        <td><span class="badge bg-primary">{{ plan_data.subscription_level }}</span></td>
-                        <td>{{ plan_data.user_count }}</td>
-                        <td>{{ "{:,}".format(plan_data.total_monthly_tokens or 0) }}</td>
-                        <td>{{ "{:,}".format(plan_data.avg_monthly_tokens or 0) }}</td>
-                        <td>{{ "{:,}".format(plan_data.max_monthly_tokens or 0) }}</td>
-                        <td>
-                            {% if plan_data.token_limit == -1 %}
-                                <span class="text-success">Unlimited</span>
-                            {% else %}
-                                {{ "{:,}".format(plan_data.token_limit) }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if plan_data.token_limit == -1 %}
-                                <span class="text-success">N/A</span>
-                            {% else %}
-                                {% set avg_util = ((plan_data.avg_monthly_tokens or 0) / plan_data.token_limit * 100) %}
-                                <span class="badge {% if avg_util >= 80 %}bg-warning{% elif avg_util >= 95 %}bg-danger{% else %}bg-success{% endif %}">
-                                    {{ "%.1f"|format(avg_util) }}%
-                                </span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <!-- Error message -->
+    <div id="error-message" class="alert alert-danger" style="display: none;">
+        <h5>Error Loading Analytics</h5>
+        <p id="error-text"></p>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Plan Usage Chart
-    const planCtx = document.getElementById('planUsageChart').getContext('2d');
-    const planData = {
-        labels: [{% for plan in usage_by_plan %}'{{ plan.subscription_level }}'{{ ', ' if not loop.last }}{% endfor %}],
-        datasets: [{
-            label: 'Total Monthly Tokens',
-            data: [{% for plan in usage_by_plan %}{{ plan.total_monthly_tokens or 0 }}{{ ', ' if not loop.last }}{% endfor %}],
-            backgroundColor: [
-                '#FF6384',
-                '#36A2EB',
-                '#FFCE56',
-                '#4BC0C0',
-                '#9966FF'
-            ]
-        }]
-    };
+    loadTokenAnalytics();
+});
 
-    new Chart(planCtx, {
-        type: 'doughnut',
-        data: planData,
+function loadTokenAnalytics() {
+    fetch('/admin/token-usage-data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+            
+            displayOverallStats(data.overall_stats);
+            createSubscriptionChart(data.subscription_stats);
+            createDailyUsageChart(data.daily_usage);
+            populateTopUsersTable(data.top_users);
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('analytics-content').style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error loading analytics:', error);
+            showError('Failed to load analytics data');
+        });
+}
+
+function showError(message) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-text').textContent = message;
+    document.getElementById('error-message').style.display = 'block';
+}
+
+function displayOverallStats(stats) {
+    document.getElementById('total-users').textContent = (stats.total_users || 0).toLocaleString();
+    document.getElementById('active-users').textContent = (stats.active_users || 0).toLocaleString();
+    document.getElementById('total-tokens').textContent = (stats.total_tokens_used || 0).toLocaleString();
+    document.getElementById('avg-tokens').textContent = Math.round(stats.avg_tokens_per_user || 0).toLocaleString();
+}
+
+function createSubscriptionChart(subscriptionStats) {
+    const ctx = document.getElementById('subscriptionChart').getContext('2d');
+    
+    const labels = subscriptionStats.map(s => s.subscription_level.toUpperCase());
+    const tokenData = subscriptionStats.map(s => s.total_tokens || 0);
+    const userData = subscriptionStats.map(s => s.user_count || 0);
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Tokens Used',
+                    data: tokenData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'User Count',
+                    data: userData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
         options: {
             responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Tokens Used'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'User Count'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
                 }
             }
         }
     });
+}
 
-    // Monthly Trends Chart
-    const trendCtx = document.getElementById('trendChart').getContext('2d');
-    const trendData = {
-        labels: [{% for trend in monthly_trends|reverse %}'{{ trend.month.strftime("%Y-%m") if trend.month else "N/A" }}'{{ ', ' if not loop.last }}{% endfor %}],
-        datasets: [{
-            label: 'Total Tokens',
-            data: [{% for trend in monthly_trends|reverse %}{{ trend.total_tokens or 0 }}{{ ', ' if not loop.last }}{% endfor %}],
-            borderColor: '#36A2EB',
-            backgroundColor: 'rgba(54, 162, 235, 0.1)',
-            tension: 0.4,
-            fill: true
-        }]
-    };
-
-    new Chart(trendCtx, {
+function createDailyUsageChart(dailyUsage) {
+    const ctx = document.getElementById('dailyUsageChart').getContext('2d');
+    
+    const labels = dailyUsage.map(d => new Date(d.date).toLocaleDateString()).reverse();
+    const apiCalls = dailyUsage.map(d => d.api_calls || 0).reverse();
+    
+    new Chart(ctx, {
         type: 'line',
-        data: trendData,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'API Calls',
+                data: apiCalls,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderWidth: 2,
+                fill: true
+            }]
+        },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value.toLocaleString();
-                        }
+                    title: {
+                        display: true,
+                        text: 'API Calls'
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
                 }
             }
         }
     });
-});
+}
+
+function populateTopUsersTable(topUsers) {
+    const tbody = document.getElementById('top-users-table');
+    tbody.innerHTML = '';
+    
+    topUsers.forEach(user => {
+        const row = document.createElement('tr');
+        
+        const usagePercentage = user.usage_percentage || 0;
+        let usageClass = 'usage-normal';
+        if (usagePercentage >= 95) usageClass = 'usage-danger';
+        else if (usagePercentage >= 80) usageClass = 'usage-warning';
+        
+        row.innerHTML = `
+            <td>${user.first_name} ${user.last_name}</td>
+            <td>${user.email}</td>
+            <td><span class="badge bg-primary">${user.subscription_level.toUpperCase()}</span></td>
+            <td>${(user.tokens_used_month || 0).toLocaleString()}</td>
+            <td>${(user.tokens_used_day || 0).toLocaleString()}</td>
+            <td>
+                ${usagePercentage.toFixed(1)}%
+                <div class="usage-bar">
+                    <div class="usage-fill ${usageClass}" style="width: ${Math.min(usagePercentage, 100)}%"></div>
+                </div>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    if (topUsers.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="6" class="text-center text-muted">No token usage data available</td>';
+        tbody.appendChild(row);
+    }
+}
 </script>
 {% endblock %}

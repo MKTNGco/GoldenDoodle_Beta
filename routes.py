@@ -742,9 +742,6 @@ def login():
                                                    user.subscription_level
                                                })
 
-            # Track user login with Crisp
-            crisp_service.track_user_login(user=user)
-
             login_user(user)
             flash('Welcome back!', 'success')
             next_page = request.args.get('next')

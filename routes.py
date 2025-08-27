@@ -3076,6 +3076,161 @@ def create_checkout_session():
         cancel_url = f"{base_url}/pricing"
 
         # Ensure user_id is a string and validate length
+
+
+@app.route('/admin/token-analytics')
+@super_admin_required
+def admin_token_analytics():
+    """Token usage analytics for super admin"""
+    user = get_current_user()
+    if not user or not user.is_admin:
+        flash('Admin access required.', 'error')
+        return redirect(url_for('login'))
+    
+    # Get token usage statistics
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Overall statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT user_id) as total_users_tracked,
+                SUM(tokens_used_month) as total_monthly_tokens,
+                SUM(tokens_used_total) as total_all_time_tokens,
+                AVG(tokens_used_month) as avg_monthly_per_user,
+                MAX(tokens_used_month) as max_monthly_usage,
+                MIN(tokens_used_month) as min_monthly_usage
+            FROM user_token_usage
+        """)
+        overall_stats = dict(cursor.fetchone() or {})
+        
+        # Top token users this month
+        cursor.execute("""
+            SELECT 
+                utu.user_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.subscription_level,
+                utu.tokens_used_month,
+                utu.tokens_used_total,
+                utu.last_reset,
+                p.token_limit,
+                CASE 
+                    WHEN p.token_limit = -1 THEN 0
+                    ELSE ROUND((utu.tokens_used_month::float / p.token_limit) * 100, 2)
+                END as usage_percentage
+            FROM user_token_usage utu
+            JOIN users u ON utu.user_id = u.user_id
+            LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
+            ORDER BY utu.tokens_used_month DESC
+            LIMIT 25
+        """)
+        top_users = [dict(row) for row in cursor.fetchall()]
+        
+        # Usage by subscription level
+        cursor.execute("""
+            SELECT 
+                u.subscription_level,
+                COUNT(*) as user_count,
+                SUM(utu.tokens_used_month) as total_monthly_tokens,
+                AVG(utu.tokens_used_month) as avg_monthly_tokens,
+                MAX(utu.tokens_used_month) as max_monthly_tokens,
+                p.token_limit
+            FROM user_token_usage utu
+            JOIN users u ON utu.user_id = u.user_id
+            LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
+            GROUP BY u.subscription_level, p.token_limit
+            ORDER BY total_monthly_tokens DESC
+        """)
+        usage_by_plan = [dict(row) for row in cursor.fetchall()]
+        
+        # Users approaching limits
+        cursor.execute("""
+            SELECT 
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.subscription_level,
+                utu.tokens_used_month,
+                p.token_limit,
+                ROUND((utu.tokens_used_month::float / p.token_limit) * 100, 2) as usage_percentage
+            FROM user_token_usage utu
+            JOIN users u ON utu.user_id = u.user_id
+            JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
+            WHERE p.token_limit != -1 
+            AND (utu.tokens_used_month::float / p.token_limit) >= 0.8
+            ORDER BY usage_percentage DESC
+        """)
+        users_near_limit = [dict(row) for row in cursor.fetchall()]
+        
+        # Monthly trend data (last 6 months)
+        cursor.execute("""
+            WITH monthly_usage AS (
+                SELECT 
+                    DATE_TRUNC('month', u.created_at) as month,
+                    COUNT(DISTINCT u.user_id) as active_users,
+                    COALESCE(SUM(utu.tokens_used_month), 0) as total_tokens
+                FROM users u
+                LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
+                WHERE u.created_at >= NOW() - INTERVAL '6 months'
+                GROUP BY DATE_TRUNC('month', u.created_at)
+                ORDER BY month DESC
+            )
+            SELECT * FROM monthly_usage
+        """)
+        monthly_trends = [dict(row) for row in cursor.fetchall()]
+        
+        # Users who exceeded limits (if any)
+        cursor.execute("""
+            SELECT 
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.subscription_level,
+                utu.tokens_used_month,
+                p.token_limit,
+                ROUND((utu.tokens_used_month::float / p.token_limit) * 100, 2) as usage_percentage
+            FROM user_token_usage utu
+            JOIN users u ON utu.user_id = u.user_id
+            JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
+            WHERE p.token_limit != -1 
+            AND utu.tokens_used_month > p.token_limit
+            ORDER BY usage_percentage DESC
+        """)
+        users_over_limit = [dict(row) for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        # Track admin viewing token analytics
+        analytics_service.track_user_event(
+            user_id=str(user.user_id),
+            event_name='Viewed Token Analytics',
+            properties={'admin_access': True}
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching token analytics: {e}")
+        flash('Error loading token analytics.', 'error')
+        overall_stats = {}
+        top_users = []
+        usage_by_plan = []
+        users_near_limit = []
+        monthly_trends = []
+        users_over_limit = []
+    
+    return render_template('admin_token_analytics.html',
+                           user=user,
+                           overall_stats=overall_stats,
+                           top_users=top_users,
+                           usage_by_plan=usage_by_plan,
+                           users_near_limit=users_near_limit,
+                           monthly_trends=monthly_trends,
+                           users_over_limit=users_over_limit)
+
+
         user_id_str = str(user.user_id)
         if len(user_id_str) > 500:
             logger.error(f"❌ User ID string too long: {len(user_id_str)} characters")

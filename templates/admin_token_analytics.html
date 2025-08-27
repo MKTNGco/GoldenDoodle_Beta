@@ -1,0 +1,405 @@
+
+{% extends "base.html" %}
+
+{% block title %}Token Usage Analytics - Admin{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    .usage-bar {
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 5px;
+    }
+    .usage-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+    .usage-normal { background: #4caf50; }
+    .usage-warning { background: #ff9800; }
+    .usage-danger { background: #f44336; }
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .card-header {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-bottom: 1px solid #dee2e6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 text-dark">Token Usage Analytics</h1>
+        <div>
+            <a href="{{ url_for('platform_admin') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Overall Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="stat-card">
+                <div class="stat-value">{{ "{:,}".format(overall_stats.get('total_users_tracked', 0)) }}</div>
+                <div class="stat-label">Users Tracked</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card">
+                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('total_monthly_tokens', 0)) }}</div>
+                <div class="stat-label">Monthly Tokens</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card">
+                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('total_all_time_tokens', 0)) }}</div>
+                <div class="stat-label">Total Tokens</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card">
+                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('avg_monthly_per_user', 0)) }}</div>
+                <div class="stat-label">Avg/User/Month</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card">
+                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('max_monthly_usage', 0)) }}</div>
+                <div class="stat-label">Max Monthly</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card">
+                <div class="stat-value">{{ "{:,.0f}".format(overall_stats.get('min_monthly_usage', 0)) }}</div>
+                <div class="stat-label">Min Monthly</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Usage by Plan -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Usage by Subscription Plan</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="planUsageChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Trends -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Monthly Usage Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Over Limit -->
+    {% if users_over_limit %}
+    <div class="card border-0 shadow-sm mb-4 border-danger">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle"></i>
+                Users Over Limit ({{ users_over_limit|length }})
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>User</th>
+                        <th>Plan</th>
+                        <th>Usage</th>
+                        <th>Limit</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_data in users_over_limit %}
+                    <tr>
+                        <td>
+                            <strong>{{ user_data.first_name }} {{ user_data.last_name }}</strong><br>
+                            <small class="text-muted">{{ user_data.email }}</small>
+                        </td>
+                        <td><span class="badge bg-primary">{{ user_data.subscription_level }}</span></td>
+                        <td>{{ "{:,}".format(user_data.tokens_used_month) }}</td>
+                        <td>{{ "{:,}".format(user_data.token_limit) }}</td>
+                        <td>
+                            <span class="badge bg-danger">{{ user_data.usage_percentage }}%</span>
+                            <div class="usage-bar">
+                                <div class="usage-fill usage-danger" style="width: 100%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Users Near Limit -->
+    {% if users_near_limit %}
+    <div class="card border-0 shadow-sm mb-4 border-warning">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-circle"></i>
+                Users Near Limit ({{ users_near_limit|length }})
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>User</th>
+                        <th>Plan</th>
+                        <th>Usage</th>
+                        <th>Limit</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_data in users_near_limit %}
+                    <tr>
+                        <td>
+                            <strong>{{ user_data.first_name }} {{ user_data.last_name }}</strong><br>
+                            <small class="text-muted">{{ user_data.email }}</small>
+                        </td>
+                        <td><span class="badge bg-primary">{{ user_data.subscription_level }}</span></td>
+                        <td>{{ "{:,}".format(user_data.tokens_used_month) }}</td>
+                        <td>{{ "{:,}".format(user_data.token_limit) }}</td>
+                        <td>
+                            <span class="badge {% if user_data.usage_percentage >= 95 %}bg-danger{% else %}bg-warning{% endif %}">
+                                {{ user_data.usage_percentage }}%
+                            </span>
+                            <div class="usage-bar">
+                                <div class="usage-fill {% if user_data.usage_percentage >= 95 %}usage-danger{% else %}usage-warning{% endif %}" 
+                                     style="width: {{ user_data.usage_percentage }}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Token Users -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Top Token Users This Month</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Rank</th>
+                        <th>User</th>
+                        <th>Plan</th>
+                        <th>Monthly Usage</th>
+                        <th>Total Usage</th>
+                        <th>Limit</th>
+                        <th>Usage %</th>
+                        <th>Last Reset</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_data in top_users %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <strong>{{ user_data.first_name }} {{ user_data.last_name }}</strong><br>
+                            <small class="text-muted">{{ user_data.email }}</small>
+                        </td>
+                        <td><span class="badge bg-primary">{{ user_data.subscription_level }}</span></td>
+                        <td>{{ "{:,}".format(user_data.tokens_used_month) }}</td>
+                        <td>{{ "{:,}".format(user_data.tokens_used_total) }}</td>
+                        <td>
+                            {% if user_data.token_limit == -1 %}
+                                <span class="text-success">Unlimited</span>
+                            {% else %}
+                                {{ "{:,}".format(user_data.token_limit) }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user_data.token_limit == -1 %}
+                                <span class="badge bg-success">Unlimited</span>
+                            {% else %}
+                                <span class="badge {% if user_data.usage_percentage >= 95 %}bg-danger{% elif user_data.usage_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ user_data.usage_percentage }}%
+                                </span>
+                                <div class="usage-bar">
+                                    <div class="usage-fill {% if user_data.usage_percentage >= 95 %}usage-danger{% elif user_data.usage_percentage >= 80 %}usage-warning{% else %}usage-normal{% endif %}" 
+                                         style="width: {{ user_data.usage_percentage }}%"></div>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user_data.last_reset %}
+                                {{ user_data.last_reset.strftime('%Y-%m-%d') }}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Plan Statistics -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0">Usage Statistics by Plan</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Plan</th>
+                        <th>Users</th>
+                        <th>Total Monthly Tokens</th>
+                        <th>Avg per User</th>
+                        <th>Max Usage</th>
+                        <th>Plan Limit</th>
+                        <th>Avg Utilization</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan_data in usage_by_plan %}
+                    <tr>
+                        <td><span class="badge bg-primary">{{ plan_data.subscription_level }}</span></td>
+                        <td>{{ plan_data.user_count }}</td>
+                        <td>{{ "{:,}".format(plan_data.total_monthly_tokens or 0) }}</td>
+                        <td>{{ "{:,}".format(plan_data.avg_monthly_tokens or 0) }}</td>
+                        <td>{{ "{:,}".format(plan_data.max_monthly_tokens or 0) }}</td>
+                        <td>
+                            {% if plan_data.token_limit == -1 %}
+                                <span class="text-success">Unlimited</span>
+                            {% else %}
+                                {{ "{:,}".format(plan_data.token_limit) }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if plan_data.token_limit == -1 %}
+                                <span class="text-success">N/A</span>
+                            {% else %}
+                                {% set avg_util = ((plan_data.avg_monthly_tokens or 0) / plan_data.token_limit * 100) %}
+                                <span class="badge {% if avg_util >= 80 %}bg-warning{% elif avg_util >= 95 %}bg-danger{% else %}bg-success{% endif %}">
+                                    {{ "%.1f"|format(avg_util) }}%
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Plan Usage Chart
+    const planCtx = document.getElementById('planUsageChart').getContext('2d');
+    const planData = {
+        labels: [{% for plan in usage_by_plan %}'{{ plan.subscription_level }}'{{ ', ' if not loop.last }}{% endfor %}],
+        datasets: [{
+            label: 'Total Monthly Tokens',
+            data: [{% for plan in usage_by_plan %}{{ plan.total_monthly_tokens or 0 }}{{ ', ' if not loop.last }}{% endfor %}],
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF'
+            ]
+        }]
+    };
+
+    new Chart(planCtx, {
+        type: 'doughnut',
+        data: planData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Monthly Trends Chart
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    const trendData = {
+        labels: [{% for trend in monthly_trends|reverse %}'{{ trend.month.strftime("%Y-%m") if trend.month else "N/A" }}'{{ ', ' if not loop.last }}{% endfor %}],
+        datasets: [{
+            label: 'Total Tokens',
+            data: [{% for trend in monthly_trends|reverse %}{{ trend.total_tokens or 0 }}{{ ', ' if not loop.last }}{% endfor %}],
+            borderColor: '#36A2EB',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    };
+
+    new Chart(trendCtx, {
+        type: 'line',
+        data: trendData,
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

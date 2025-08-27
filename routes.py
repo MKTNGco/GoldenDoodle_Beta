@@ -1104,7 +1104,8 @@ def generate():
         trauma_informed_context = rag_service.get_trauma_informed_context()
 
         # Generate content with conversation history
-        logger.info(f"=== CALLING GEMINI SERVICE ===")
+        logger.info(
+            f"=== CALLING GEMINI SERVICE ===")
         logger.info(
             f"About to call gemini_service.generate_content_with_history")
         logger.info(f"Prompt: {prompt[:100]}...")
@@ -1220,12 +1221,12 @@ def generate():
         logger.error(f"❌ Generation error: {e}")
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        
+
         # Log request details for debugging
         logger.error(f"Request data: {data}")
         logger.error(f"User: {user.user_id if user else 'None'}")
         logger.error(f"Is demo: {is_demo}")
-        
+
         return jsonify({
             'error': 'An error occurred while generating content. Please try again.',
             'debug_info': str(e) if app.debug else None
@@ -3048,7 +3049,7 @@ def create_checkout_session():
 
             user_id_str = str(user.user_id)
             if len(user_id_str) > 500:
-                logger.error(f"❌ User ID string too long for customer: {len(user_id_str)} characters")
+                logger.error(f"❌ User ID string too long: {len(user_id_str)} characters")
                 return jsonify({'error': 'User ID validation failed'}), 400
 
             existing_customer_metadata = {'user_id': user_id_str}
@@ -3056,7 +3057,7 @@ def create_checkout_session():
             # Validate metadata values
             for key, value in existing_customer_metadata.items():
                 if len(str(value)) > 500:
-                    logger.error(f"❌ Customer metadata '{key}' exceeds 500 characters: {len(str(value))}")
+                    logger.error(f"❌ Metadata '{key}' exceeds 500 characters: {len(str(value))}")
                     return jsonify({'error': f'Payment configuration error: {key} value too long'}), 400
 
             logger.info(f"STRIPE DEBUG: About to create customer with metadata: {existing_customer_metadata}")
@@ -3076,161 +3077,6 @@ def create_checkout_session():
         cancel_url = f"{base_url}/pricing"
 
         # Ensure user_id is a string and validate length
-
-
-@app.route('/admin/token-analytics')
-@super_admin_required
-def admin_token_analytics():
-    """Token usage analytics for super admin"""
-    user = get_current_user()
-    if not user or not user.is_admin:
-        flash('Admin access required.', 'error')
-        return redirect(url_for('login'))
-    
-    # Get token usage statistics
-    try:
-        conn = db_manager.get_connection()
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
-        # Overall statistics
-        cursor.execute("""
-            SELECT 
-                COUNT(DISTINCT user_id) as total_users_tracked,
-                SUM(tokens_used_month) as total_monthly_tokens,
-                SUM(tokens_used_total) as total_all_time_tokens,
-                AVG(tokens_used_month) as avg_monthly_per_user,
-                MAX(tokens_used_month) as max_monthly_usage,
-                MIN(tokens_used_month) as min_monthly_usage
-            FROM user_token_usage
-        """)
-        overall_stats = dict(cursor.fetchone() or {})
-        
-        # Top token users this month
-        cursor.execute("""
-            SELECT 
-                utu.user_id,
-                u.first_name,
-                u.last_name,
-                u.email,
-                u.subscription_level,
-                utu.tokens_used_month,
-                utu.tokens_used_total,
-                utu.last_reset,
-                p.token_limit,
-                CASE 
-                    WHEN p.token_limit = -1 THEN 0
-                    ELSE ROUND((utu.tokens_used_month::float / p.token_limit) * 100, 2)
-                END as usage_percentage
-            FROM user_token_usage utu
-            JOIN users u ON utu.user_id = u.user_id
-            LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
-            ORDER BY utu.tokens_used_month DESC
-            LIMIT 25
-        """)
-        top_users = [dict(row) for row in cursor.fetchall()]
-        
-        # Usage by subscription level
-        cursor.execute("""
-            SELECT 
-                u.subscription_level,
-                COUNT(*) as user_count,
-                SUM(utu.tokens_used_month) as total_monthly_tokens,
-                AVG(utu.tokens_used_month) as avg_monthly_tokens,
-                MAX(utu.tokens_used_month) as max_monthly_tokens,
-                p.token_limit
-            FROM user_token_usage utu
-            JOIN users u ON utu.user_id = u.user_id
-            LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
-            GROUP BY u.subscription_level, p.token_limit
-            ORDER BY total_monthly_tokens DESC
-        """)
-        usage_by_plan = [dict(row) for row in cursor.fetchall()]
-        
-        # Users approaching limits
-        cursor.execute("""
-            SELECT 
-                u.first_name,
-                u.last_name,
-                u.email,
-                u.subscription_level,
-                utu.tokens_used_month,
-                p.token_limit,
-                ROUND((utu.tokens_used_month::float / p.token_limit) * 100, 2) as usage_percentage
-            FROM user_token_usage utu
-            JOIN users u ON utu.user_id = u.user_id
-            JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
-            WHERE p.token_limit != -1 
-            AND (utu.tokens_used_month::float / p.token_limit) >= 0.8
-            ORDER BY usage_percentage DESC
-        """)
-        users_near_limit = [dict(row) for row in cursor.fetchall()]
-        
-        # Monthly trend data (last 6 months)
-        cursor.execute("""
-            WITH monthly_usage AS (
-                SELECT 
-                    DATE_TRUNC('month', u.created_at) as month,
-                    COUNT(DISTINCT u.user_id) as active_users,
-                    COALESCE(SUM(utu.tokens_used_month), 0) as total_tokens
-                FROM users u
-                LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
-                WHERE u.created_at >= NOW() - INTERVAL '6 months'
-                GROUP BY DATE_TRUNC('month', u.created_at)
-                ORDER BY month DESC
-            )
-            SELECT * FROM monthly_usage
-        """)
-        monthly_trends = [dict(row) for row in cursor.fetchall()]
-        
-        # Users who exceeded limits (if any)
-        cursor.execute("""
-            SELECT 
-                u.first_name,
-                u.last_name,
-                u.email,
-                u.subscription_level,
-                utu.tokens_used_month,
-                p.token_limit,
-                ROUND((utu.tokens_used_month::float / p.token_limit) * 100, 2) as usage_percentage
-            FROM user_token_usage utu
-            JOIN users u ON utu.user_id = u.user_id
-            JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
-            WHERE p.token_limit != -1 
-            AND utu.tokens_used_month > p.token_limit
-            ORDER BY usage_percentage DESC
-        """)
-        users_over_limit = [dict(row) for row in cursor.fetchall()]
-        
-        cursor.close()
-        conn.close()
-        
-        # Track admin viewing token analytics
-        analytics_service.track_user_event(
-            user_id=str(user.user_id),
-            event_name='Viewed Token Analytics',
-            properties={'admin_access': True}
-        )
-        
-    except Exception as e:
-        logger.error(f"Error fetching token analytics: {e}")
-        flash('Error loading token analytics.', 'error')
-        overall_stats = {}
-        top_users = []
-        usage_by_plan = []
-        users_near_limit = []
-        monthly_trends = []
-        users_over_limit = []
-    
-    return render_template('admin_token_analytics.html',
-                           user=user,
-                           overall_stats=overall_stats,
-                           top_users=top_users,
-                           usage_by_plan=usage_by_plan,
-                           users_near_limit=users_near_limit,
-                           monthly_trends=monthly_trends,
-                           users_over_limit=users_over_limit)
-
-
         user_id_str = str(user.user_id)
         if len(user_id_str) > 500:
             logger.error(f"❌ User ID string too long: {len(user_id_str)} characters")
@@ -3528,8 +3374,6 @@ def analytics_usage():
     except Exception as e:
         logger.error(f"Error getting usage analytics: {e}")
         return jsonify({'error': 'Failed to get usage analytics'}), 500
-
-    return redirect(url_for('login'))
 
 
 @app.route('/billing-portal', methods=['POST'])
@@ -4070,13 +3914,13 @@ def health_check():
         db_status = "OK"
     except Exception as e:
         db_status = f"ERROR: {str(e)}"
-    
+
     # Test Gemini service
     try:
         gemini_status = "OK" if gemini_service else "NOT INITIALIZED"
     except Exception as e:
         gemini_status = f"ERROR: {str(e)}"
-    
+
     # Test environment variables
     import os
     env_status = {
@@ -4084,7 +3928,7 @@ def health_check():
         'GEMINI_API_KEY': 'SET' if os.environ.get('GEMINI_API_KEY') else 'MISSING',
         'SESSION_SECRET': 'SET' if os.environ.get('SESSION_SECRET') else 'MISSING'
     }
-    
+
     return jsonify({
         'status': 'healthy',
         'database': db_status,
@@ -4736,8 +4580,6 @@ def test_posthog():
         }), 500
 
 
-
-
 # Crisp Marketplace Plugin Endpoints
 @app.route('/crisp/callback', methods=['POST'])
 def crisp_callback():
@@ -4748,25 +4590,25 @@ def crisp_callback():
         if not crisp_marketplace.verify_webhook_signature(request.data, signature):
             logger.error("Invalid webhook signature in Crisp callback")
             return jsonify({'error': 'Invalid signature'}), 401
-            
+
         data = request.get_json()
         if not data:
             logger.error("No JSON data received in Crisp callback")
             return jsonify({'error': 'Invalid request'}), 400
-        
+
         website_id = data.get('website_id')
         token = data.get('token')
-        
+
         if not website_id or not token:
             logger.error("Missing website_id or token in callback")
             return jsonify({'error': 'Missing required fields'}), 400
-        
+
         # Save the installation
         success = crisp_marketplace.save_installation(website_id, token)
-        
+
         if success:
             logger.info(f"Plugin installed successfully for website_id: {website_id}")
-            
+
             # Track the plugin installation
             analytics_service.track_user_event(
                 user_id='crisp_plugin',
@@ -4776,14 +4618,14 @@ def crisp_callback():
                     'source': 'crisp_marketplace'
                 }
             )
-            
+
             return jsonify({
                 'status': 'success',
                 'message': 'Plugin installed successfully'
             })
         else:
             return jsonify({'error': 'Failed to save installation'}), 500
-            
+
     except Exception as e:
         logger.error(f"Error in Crisp callback: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -4795,15 +4637,15 @@ def crisp_settings():
     try:
         # Get website_id from query parameters if provided
         website_id = request.args.get('website_id')
-        
+
         # You could load specific settings for this website_id here
         if website_id:
             installation = crisp_marketplace.get_installation(website_id)
             if not installation:
                 logger.warning(f"Settings requested for unknown website_id: {website_id}")
-        
+
         return render_template('crisp_settings.html')
-        
+
     except Exception as e:
         logger.error(f"Error rendering Crisp settings: {e}")
         return jsonify({'error': 'Failed to load settings'}), 500
@@ -4818,33 +4660,33 @@ def crisp_action():
         if not crisp_marketplace.verify_webhook_signature(request.data, signature):
             logger.error("Invalid webhook signature in Crisp action")
             return jsonify({'error': 'Invalid signature'}), 401
-            
+
         data = request.get_json()
         if not data:
             logger.error("No JSON data received in Crisp action")
             return jsonify({'error': 'Invalid request'}), 400
-        
+
         session_id = data.get('session_id')
         user_id = data.get('user_id')
         website_id = data.get('website_id')
         action_type = data.get('action', 'enrich_lead')
-        
+
         if not session_id or not website_id:
             logger.error("Missing session_id or website_id in action")
             return jsonify({'error': 'Missing required fields'}), 400
-        
+
         logger.info(f"Processing Crisp action: {action_type} for session: {session_id}")
-        
+
         # Verify we have the installation for this website
         installation = crisp_marketplace.get_installation(website_id)
         if not installation:
             logger.error(f"No installation found for website_id: {website_id}")
             return jsonify({'error': 'Plugin not properly installed'}), 400
-        
+
         # Perform the lead enrichment
         if action_type == 'enrich_lead' and user_id:
             enriched_data = crisp_marketplace.enrich_lead_data(user_id, website_id)
-            
+
             # Update the conversation with enriched data
             endpoint = f"/website/{website_id}/conversation/{session_id}/meta"
             meta_data = {
@@ -4855,12 +4697,12 @@ def crisp_action():
                 'company_size': enriched_data.get('estimated_company_size', 'Unknown'),
                 'enrichment_score': enriched_data.get('enrichment_score', 0.0)
             }
-            
+
             # Make API call to update conversation metadata
             result = crisp_marketplace.make_authenticated_request(
                 website_id, 'PUT', endpoint, {'data': meta_data}
             )
-            
+
             # Track the enrichment action
             analytics_service.track_user_event(
                 user_id=user_id or 'anonymous',
@@ -4872,9 +4714,9 @@ def crisp_action():
                     'enrichment_score': enriched_data['enrichment_score']
                 }
             )
-            
+
             logger.info(f"Lead enrichment completed for session: {session_id}")
-            
+
             return jsonify({
                 'status': 'success',
                 'message': 'Lead enriched successfully',
@@ -4883,13 +4725,13 @@ def crisp_action():
                     'lead_quality': enriched_data['lead_quality']
                 }
             })
-        
+
         else:
             return jsonify({
                 'status': 'success',
                 'message': f'Action {action_type} processed'
             })
-            
+
     except Exception as e:
         logger.error(f"Error in Crisp action: {e}")
         return jsonify({'error': 'Internal server error'}), 500

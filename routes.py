@@ -2632,8 +2632,7 @@ def get_pending_invites(tenant_id):
         return jsonify({'invites': invites})
 
     except Exception as e:
-        logger.error(
-            f"Error getting pending invites for tenant {tenant_id}: {e}")
+        logger.error(f"Error getting pending invites for tenant {tenant_id}: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
 
@@ -2946,7 +2945,8 @@ def get_plans():
 
         # Track fetching plans
         analytics_service.track_user_event(
-            user_id='anonymous_user'
+            user_id=
+            'anonymous_user'
             if not get_current_user() else str(get_current_user().user_id),
             event_name='Fetched Pricing Plans',
             properties={'plan_count': len(plans)})
@@ -4257,45 +4257,112 @@ def admin_beta_invites():
 
 
 @app.route('/admin/stats')
-@admin_required
-def admin_stats():
-    """Admin statisticsdashboard"""
-    user = get_current_user()
-    if not user:
-        return redirect(url_for('login'))
-
-    # Track admin dashboard visit
-    analytics_service.track_user_event(
-        user_id='platform_admin',  # Use a consistent ID for platform admin actions
-        event_name='Viewed Admin Statistics Dashboard',
-        properties={}
-    )
-
-    return render_template('admin_stats.html')
-
-
-@app.route('/admin/token-analytics')
 @super_admin_required
-def admin_token_analytics():
-    """Token usage analytics dashboard"""
-    user = get_current_user()
-    if not user:
-        return redirect(url_for('login'))
+def admin_stats():
+    """Admin statistics dashboard"""
+    try:
+        # Track admin visit to stats dashboard
+        analytics_service.track_user_event(
+            user_id='platform_admin',  # Use generic admin ID
+            event_name='Viewed Admin Statistics Dashboard',
+            properties={}
+        )
 
-    # Track admin token analytics visit
-    analytics_service.track_user_event(
-        user_id='platform_admin',
-        event_name='Viewed Token Analytics Dashboard',
-        properties={}
-    )
+        return render_template('admin_stats.html')
+    except Exception as e:
+        logger.error(f"Error loading admin stats: {e}")
+        return render_template('500.html'), 500
 
-    return render_template('admin_token_analytics.html')
+
+@app.route('/admin/token-usage-data')
+@super_admin_required
+def admin_token_usage_data():
+    """Get token usage analytics data"""
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Overall statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT u.user_id) as total_users,
+                COUNT(DISTINCT CASE WHEN utu.tokens_used_month > 0 THEN u.user_id END) as active_users,
+                COALESCE(SUM(utu.tokens_used_total), 0) as total_tokens_used,
+                COALESCE(AVG(utu.tokens_used_total), 0) as avg_tokens_per_user
+            FROM users u
+            LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
+        """)
+
+        overall_stats = dict(cursor.fetchone() or {})
+
+        # Usage by subscription level
+        cursor.execute("""
+            SELECT 
+                u.subscription_level,
+                COUNT(u.user_id) as user_count,
+                COALESCE(SUM(utu.tokens_used_total), 0) as total_tokens
+            FROM users u
+            LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
+            GROUP BY u.subscription_level
+            ORDER BY u.subscription_level
+        """)
+
+        subscription_stats = [dict(row) for row in cursor.fetchall()]
+
+        # Daily usage for the last 30 days (mock data for now)
+        daily_usage = []
+        from datetime import datetime, timedelta
+        for i in range(30):
+            date = datetime.now() - timedelta(days=29-i)
+            daily_usage.append({
+                'date': date.strftime('%Y-%m-%d'),
+                'api_calls': 50 + (i * 10) % 100  # Mock data
+            })
+
+        # Top users this month
+        cursor.execute("""
+            SELECT 
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.subscription_level,
+                COALESCE(utu.tokens_used_month, 0) as tokens_used_month,
+                COALESCE(utu.tokens_used_total, 0) as tokens_used_total,
+                0 as tokens_used_day,
+                CASE 
+                    WHEN pp.token_limit > 0 THEN 
+                        (COALESCE(utu.tokens_used_month, 0) * 100.0 / pp.token_limit)
+                    ELSE 0 
+                END as usage_percentage
+            FROM users u
+            LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
+            LEFT JOIN pricing_plans pp ON u.subscription_level::text = pp.plan_id
+            WHERE utu.tokens_used_month > 0 OR utu.tokens_used_total > 0
+            ORDER BY utu.tokens_used_month DESC
+            LIMIT 20
+        """)
+
+        top_users = [dict(row) for row in cursor.fetchall()]
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'overall_stats': overall_stats,
+            'subscription_stats': subscription_stats,
+            'daily_usage': daily_usage,
+            'top_users': top_users
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting token usage data: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/admin/invitation-stats')
-@admin_required
+@super_admin_required
 def admin_invitation_stats():
-    """API endpoint for admin invitation statistics"""
+    """Get invitation statistics"""
     try:
         conn = db_manager.get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -4446,78 +4513,76 @@ def admin_token_usage_data():
         conn = db_manager.get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        # Get overall token usage statistics
+        # Overall statistics
         cursor.execute("""
             SELECT 
-                COUNT(*) as total_users,
-                COUNT(CASE WHEN tokens_used_month > 0 THEN 1 END) as active_users,
-                SUM(tokens_used_month) as total_tokens_used,
-                AVG(tokens_used_month) as avg_tokens_per_user,
-                MAX(tokens_used_month) as max_tokens_used
-            FROM user_token_usage
+                COUNT(DISTINCT u.user_id) as total_users,
+                COUNT(DISTINCT CASE WHEN utu.tokens_used_month > 0 THEN u.user_id END) as active_users,
+                COALESCE(SUM(utu.tokens_used_total), 0) as total_tokens_used,
+                COALESCE(AVG(utu.tokens_used_total), 0) as avg_tokens_per_user
+            FROM users u
+            LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
         """)
-        overall_stats = cursor.fetchone()
 
-        # Get token usage by subscription level
+        overall_stats = dict(cursor.fetchone() or {})
+
+        # Usage by subscription level
         cursor.execute("""
             SELECT 
                 u.subscription_level,
-                COUNT(*) as user_count,
-                SUM(COALESCE(utu.tokens_used_month, 0)) as total_tokens,
-                AVG(COALESCE(utu.tokens_used_month, 0)) as avg_tokens
+                COUNT(u.user_id) as user_count,
+                COALESCE(SUM(utu.tokens_used_total), 0) as total_tokens
             FROM users u
             LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
             GROUP BY u.subscription_level
             ORDER BY u.subscription_level
         """)
-        subscription_stats = cursor.fetchall()
 
-        # Get top token users
+        subscription_stats = [dict(row) for row in cursor.fetchall()]
+
+        # Daily usage for the last 30 days (mock data for now)
+        daily_usage = []
+        from datetime import datetime, timedelta
+        for i in range(30):
+            date = datetime.now() - timedelta(days=29-i)
+            daily_usage.append({
+                'date': date.strftime('%Y-%m-%d'),
+                'api_calls': 50 + (i * 10) % 100  # Mock data
+            })
+
+        # Top users this month
         cursor.execute("""
             SELECT 
                 u.first_name,
                 u.last_name,
                 u.email,
                 u.subscription_level,
-                utu.tokens_used_month,
-                utu.tokens_used_day,
+                COALESCE(utu.tokens_used_month, 0) as tokens_used_month,
+                COALESCE(utu.tokens_used_total, 0) as tokens_used_total,
+                0 as tokens_used_day,
                 CASE 
-                    WHEN up.monthly_token_limit = -1 THEN 100 
-                    ELSE ROUND((utu.tokens_used_month::decimal / up.monthly_token_limit) * 100, 2)
+                    WHEN pp.token_limit > 0 THEN 
+                        (COALESCE(utu.tokens_used_month, 0) * 100.0 / pp.token_limit)
+                    ELSE 0 
                 END as usage_percentage
-            FROM user_token_usage utu
-            JOIN users u ON utu.user_id = u.user_id
-            LEFT JOIN user_pricing_plans up ON u.user_id = up.user_id
-            WHERE utu.tokens_used_month > 0
+            FROM users u
+            LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
+            LEFT JOIN pricing_plans pp ON u.subscription_level::text = pp.plan_id
+            WHERE utu.tokens_used_month > 0 OR utu.tokens_used_total > 0
             ORDER BY utu.tokens_used_month DESC
             LIMIT 20
         """)
-        top_users = cursor.fetchall()
 
-        # Get daily token usage trend (last 30 days)
-        cursor.execute("""
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as api_calls,
-                SUM(CASE WHEN content_mode = 'creative' THEN 1 ELSE 0 END) as creative_calls,
-                SUM(CASE WHEN content_mode = 'analytical' THEN 1 ELSE 0 END) as analytical_calls,
-                SUM(CASE WHEN content_mode = 'empathetic' THEN 1 ELSE 0 END) as empathetic_calls
-            FROM chat_messages
-            WHERE created_at >= NOW() - INTERVAL '30 days'
-            AND message_type = 'user'
-            GROUP BY DATE(created_at)
-            ORDER BY date DESC
-        """)
-        daily_usage = cursor.fetchall()
+        top_users = [dict(row) for row in cursor.fetchall()]
 
         cursor.close()
         conn.close()
 
         return jsonify({
-            'overall_stats': dict(overall_stats) if overall_stats else {},
-            'subscription_stats': [dict(row) for row in subscription_stats],
-            'top_users': [dict(row) for row in top_users],
-            'daily_usage': [dict(row) for row in daily_usage]
+            'overall_stats': overall_stats,
+            'subscription_stats': subscription_stats,
+            'daily_usage': daily_usage,
+            'top_users': top_users
         })
 
     except Exception as e:

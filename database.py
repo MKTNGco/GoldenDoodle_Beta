@@ -1584,19 +1584,19 @@ class DatabaseManager:
                 conn.close()
                 return
 
-            # Insert default pricing plans
+            # Insert default pricing plans with the correct column structure
             plans = [
-                ('free', 'Free', 'Free Plan', 'Ideal for trying out the service with basic features.', 0, 0, 10000, 5, '["Basic chat", "Trauma-informed AI"]', 1, 'none'),
-                ('solo', 'Solo', 'Solo Plan', 'Perfect for individual professionals needing advanced features.', 29, 290, 100000, 50, '["Everything in Free", "Advanced features", "Priority support"]', 3, 'basic'),
-                ('team', 'Team', 'Team Plan', 'Built for small teams to collaborate and manage AI usage.', 99, 990, 500000, 50, '["Everything in Solo", "Team collaboration", "Admin controls"]', 3, 'standard'),
-                ('professional', 'Professional', 'Professional Plan', 'For businesses requiring extensive AI capabilities and dedicated support.', 199, 1990, 1500000, -1, '["Everything in Team", "Advanced analytics", "Custom integrations"]', 10, 'premium')
+                ('free', 'The Companion', 'Ideal for trying out the service with basic features.', 0, 0, 20000, 10, 0, 'none'),
+                ('solo', 'The Practitioner', 'Perfect for individual professionals needing advanced features.', 29, 290, 200000, -1, 1, 'email'),
+                ('team', 'The Organization', 'Built for small teams to collaborate and manage AI usage.', 39, 390, 250000, -1, 10, 'priority'),
+                ('professional', 'The Powerhouse', 'For businesses requiring extensive AI capabilities and dedicated support.', 82, 820, 1000000, -1, 10, 'top_priority')
             ]
 
             for plan in plans:
                 cursor.execute("""
                     INSERT INTO pricing_plans 
-                    (plan_id, name, display_name, core_value, price_monthly, price_annual, token_limit, chat_history_limit, brand_voices, features, user_seats, support_level)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (plan_id, name, core_value, price_monthly, price_annual, token_limit, chat_history_limit, brand_voices, support_level)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, plan)
 
             conn.commit()
@@ -1620,7 +1620,7 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
-                SELECT plan_id, name, display_name, core_value, price_monthly, price_annual, 
+                SELECT plan_id, name, core_value, price_monthly, price_annual, 
                        token_limit, chat_history_limit, brand_voices, support_level
                 FROM pricing_plans 
                 ORDER BY price_monthly ASC

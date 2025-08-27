@@ -205,7 +205,7 @@ class PricingPage {
                     ${isPopular ? '<div class="popular-badge">Most Popular</div>' : ''}
 
                     <div class="card-header text-center">
-                        <h3 class="plan-name">${plan.display_name || plan.name || 'Unknown Plan'}</h3>
+                        <h3 class="plan-name">${plan.name || 'Unknown Plan'}</h3>
                         <p class="plan-description text-muted">${plan.target_user || 'No description available'}</p>
                     </div>
 

@@ -205,7 +205,7 @@ class PricingPage {
                     ${isPopular ? '<div class="popular-badge">Most Popular</div>' : ''}
 
                     <div class="card-header text-center">
-                        <h3 class="plan-name">${plan.name || 'Unknown Plan'}</h3>
+                        <h3 class="plan-name">${plan.display_name || plan.name || 'Unknown Plan'}</h3>
                         <p class="plan-description text-muted">${plan.target_user || 'No description available'}</p>
                     </div>
 
@@ -218,7 +218,7 @@ class PricingPage {
 
                         <div class="core-value mb-4">
                             <h6 class="fw-bold text-primary">Core Value:</h6>
-                            <p class="text-muted small">${plan.core_value || 'No core value specified'}</p>
+                            <p class="text-muted small">${plan.core_value || 'Providing trauma-informed AI assistance'}</p>
                         </div>
 
                         <ul class="feature-list">
@@ -248,7 +248,7 @@ class PricingPage {
         if (plan.templates === 'basic') {
             features.push({ text: 'Basic Writing Tools (Email, Social, Rewrite, Article)', available: true });
         } else {
-            features.push({ text: 'All 7 Advanced Writing Tools', available: true });
+            features.push({ text: 'All 8 Advanced Writing Tools', available: true });
         }
 
         // Analysis & Brainstorm

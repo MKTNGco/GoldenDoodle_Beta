@@ -216,21 +216,20 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS pricing_plans (
                     plan_id VARCHAR(50) PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    price_monthly DECIMAL(10,2) NOT NULL,
-                    price_annual DECIMAL(10,2) NULL,
-                    target_user TEXT,
+                    name VARCHAR(100) NOT NULL,
+                    display_name VARCHAR(100),
                     core_value TEXT,
-                    analysis_brainstorm BOOLEAN NOT NULL DEFAULT FALSE,
-                    templates VARCHAR(50) NOT NULL DEFAULT 'basic',
-                    token_limit INTEGER NOT NULL DEFAULT 20000,
-                    brand_voices INTEGER NOT NULL DEFAULT 0,
-                    admin_controls BOOLEAN NOT NULL DEFAULT FALSE,
-                    chat_history_limit INTEGER NOT NULL DEFAULT 10,
-                    user_seats INTEGER NOT NULL DEFAULT 1,
-                    support_level VARCHAR(50) NOT NULL DEFAULT 'none',
+                    price_monthly DECIMAL(10,2),
+                    price_annual DECIMAL(10,2),
+                    token_limit INTEGER,
+                    chat_history_limit INTEGER,
+                    brand_voices INTEGER DEFAULT 0,
+                    admin_controls BOOLEAN DEFAULT FALSE,
+                    features JSONB,
+                    user_seats INTEGER DEFAULT 1,
+                    support_level VARCHAR(50) DEFAULT 'none',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
+                )
             """)
 
             # Create user token usage tracking table
@@ -1587,17 +1586,17 @@ class DatabaseManager:
 
             # Insert default pricing plans
             plans = [
-                ('free', 'Free', 0, 0, 10000, 5, 1, '["Basic chat", "Trauma-informed AI"]'),
-                ('solo', 'Solo', 29, 290, 100000, 50, 3, '["Everything in Free", "Advanced features", "Priority support"]'),
-                ('team', 'Team', 99, 990, 500000, 50, 3, '["Everything in Solo", "Team collaboration", "Admin controls"]'),
-                ('professional', 'Professional', 199, 1990, 1500000, -1, 10, '["Everything in Team", "Advanced analytics", "Custom integrations"]')
+                ('free', 'Free', 'Free Plan', 'Ideal for trying out the service with basic features.', 0, 0, 10000, 5, '["Basic chat", "Trauma-informed AI"]', 1, 'none'),
+                ('solo', 'Solo', 'Solo Plan', 'Perfect for individual professionals needing advanced features.', 29, 290, 100000, 50, '["Everything in Free", "Advanced features", "Priority support"]', 3, 'basic'),
+                ('team', 'Team', 'Team Plan', 'Built for small teams to collaborate and manage AI usage.', 99, 990, 500000, 50, '["Everything in Solo", "Team collaboration", "Admin controls"]', 3, 'standard'),
+                ('professional', 'Professional', 'Professional Plan', 'For businesses requiring extensive AI capabilities and dedicated support.', 199, 1990, 1500000, -1, '["Everything in Team", "Advanced analytics", "Custom integrations"]', 10, 'premium')
             ]
 
             for plan in plans:
                 cursor.execute("""
                     INSERT INTO pricing_plans 
-                    (plan_id, name, price_monthly, price_annual, token_limit, chat_history_limit, brand_voices, admin_controls, features, user_seats, support_level)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (plan_id, name, display_name, core_value, price_monthly, price_annual, token_limit, chat_history_limit, brand_voices, features, user_seats, support_level)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, plan)
 
             conn.commit()
@@ -1621,7 +1620,7 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
-                SELECT plan_id, name, price_monthly, price_annual, 
+                SELECT plan_id, name, display_name, core_value, price_monthly, price_annual, 
                        token_limit, chat_history_limit, brand_voices, support_level
                 FROM pricing_plans 
                 ORDER BY price_monthly ASC
@@ -1644,7 +1643,7 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             cursor.execute("""
-                SELECT u.subscription_level, p.name as plan_name, p.price_monthly, p.token_limit, 
+                SELECT u.subscription_level, p.name as plan_name, p.display_name, p.core_value, p.price_monthly, p.token_limit, 
                        p.chat_history_limit, p.brand_voices, p.support_level
                 FROM users u
                 LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
@@ -1711,7 +1710,7 @@ class DatabaseManager:
             if not plan:
                 logger.warning(f"Could not get plan for user {user_id}, allowing request")
                 return {'allowed': True}
-            
+
             if not usage:
                 logger.warning(f"Could not get usage for user {user_id}, allowing request")
                 return {'allowed': True}

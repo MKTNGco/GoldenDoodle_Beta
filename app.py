@@ -38,12 +38,13 @@ def add_security_headers(response):
     # Add Content Security Policy to allow inline scripts for development
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; "
         "style-src 'self' 'unsafe-inline' https:; "
-        "img-src 'self' data: https:; "
-        "font-src 'self' https:; "
-        "connect-src 'self' https:; "
-        "frame-src 'self' https:;"
+        "img-src 'self' data: https: blob:; "
+        "font-src 'self' https: data:; "
+        "connect-src 'self' https: wss: ws:; "
+        "frame-src 'self' https:; "
+        "worker-src 'self' blob:;"
     )
     return response
 

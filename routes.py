@@ -2392,6 +2392,64 @@ def admin_organization_details(tenant_id):
                            organization_users=organization_users)
 
 
+@app.route('/admin/token-analytics')
+@super_admin_required
+def admin_token_analytics():
+    """Token analytics dashboard for admins"""
+    try:
+        conn = db_manager.get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get token usage analytics with proper table names
+        cursor.execute("""
+            SELECT 
+                u.user_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.subscription_level,
+                COALESCE(ut.tokens_used_month, 0) as tokens_used_month,
+                COALESCE(ut.tokens_used_total, 0) as tokens_used_total,
+                p.token_limit,
+                t.name as organization_name
+            FROM users u
+            LEFT JOIN user_token_usage ut ON u.user_id = ut.user_id
+            LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
+            LEFT JOIN tenants t ON u.tenant_id = t.tenant_id
+            ORDER BY ut.tokens_used_month DESC NULLS LAST
+            LIMIT 100
+        """)
+        
+        analytics_data = [dict(row) for row in cursor.fetchall()]
+        
+        # Get summary statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_users,
+                SUM(COALESCE(ut.tokens_used_month, 0)) as total_tokens_month,
+                SUM(COALESCE(ut.tokens_used_total, 0)) as total_tokens_all_time,
+                AVG(COALESCE(ut.tokens_used_month, 0)) as avg_tokens_month
+            FROM users u
+            LEFT JOIN user_token_usage ut ON u.user_id = ut.user_id
+        """)
+        
+        summary = dict(cursor.fetchone() or {})
+        
+        cursor.close()
+        conn.close()
+        
+        return render_template('admin_token_analytics.html', 
+                             analytics_data=analytics_data,
+                             summary=summary)
+        
+    except Exception as e:
+        logger.error(f"Error loading token analytics: {e}")
+        return render_template('admin_token_analytics.html', 
+                             analytics_data=[],
+                             summary={},
+                             error=str(e))
+
+
 @app.route('/admin/update-subscription', methods=['POST'])
 @super_admin_required
 def admin_update_subscription():

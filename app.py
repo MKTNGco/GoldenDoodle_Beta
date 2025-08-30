@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure detailed logging
@@ -31,6 +31,22 @@ app.config['CRISP_MARKETPLACE_KEY'] = os.environ.get('CRISP_MARKETPLACE_KEY')
 from routes import *
 from database import init_databases
 from auth import get_current_user
+from analytics_service import analytics_service
+
+# AUTOMATIC PAGE VIEW TRACKING FOR DAU/WAU
+@app.before_request
+def track_page_views():
+    """Automatically track every page view for DAU/WAU metrics"""
+    # Skip tracking for static files, favicons, etc.
+    if (request.path.startswith('/static') or 
+        request.path.startswith('/favicon') or 
+        request.path.endswith('.css') or 
+        request.path.endswith('.js') or
+        request.path.endswith('.ico')):
+        return
+
+    # This creates your DAU/WAU data automatically
+    analytics_service.track_page_view()
 
 # Add security headers
 @app.after_request

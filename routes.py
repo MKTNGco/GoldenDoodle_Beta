@@ -456,7 +456,7 @@ def register():
                     logger.error(f"✓ VALIDATED: user_id final length: {len(user_id)}")
 
                     # Create Stripe customer with validated user_id
-                    customer_metadata = {'user_id': user_id}
+                    customer_metadata = {'user_id': str(user_id)}
 
                     logger.info(f"STRIPE DEBUG: Creating customer with validated metadata: {customer_metadata}")
                     # Create Stripe customer
@@ -517,8 +517,8 @@ def register():
 
                     # Create checkout session metadata
                     checkout_metadata = {
-                        'user_id': user_id,  # Already validated as string above
-                        'plan_id': subscription_level,
+                        'user_id': str(user_id),
+                        'plan_id': str(subscription_level),
                         'new_registration': 'true',
                         'trial_days': '0'
                     }

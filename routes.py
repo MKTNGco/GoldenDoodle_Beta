@@ -292,7 +292,7 @@ def register():
                 # Individual plans (Solo/Pro)
                 if subscription_enum == SubscriptionLevel.SOLO:
                     max_brand_voices = 1
-                elif subscription_enum == SubscriptionLevel.PRO:
+                elif subscription_enum == SubscriptionLevel.PROFESSIONAL: # Corrected from PRO
                     max_brand_voices = 10
                 else:
                     max_brand_voices = 1  # Default
@@ -1266,13 +1266,11 @@ def account():
     user_brand_voices = []  # No longer using user-specific brand voices
 
     # Determine max user voices based on subscription
-    if user.subscription_level == SubscriptionLevel.PRO:
+    if user.subscription_level == SubscriptionLevel.PROFESSIONAL: # Corrected from PRO
         max_user_voices = 10
     elif user.subscription_level == SubscriptionLevel.SOLO:
         max_user_voices = 1
-    elif user.subscription_level in [
-            SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE
-    ]:
+    elif user.subscription_level == SubscriptionLevel.TEAM: # Corrected from list check
         max_user_voices = 10
     else:
         max_user_voices = 1
@@ -1490,13 +1488,11 @@ def brand_voices():
     user_brand_voices = []  # No longer using user-specific brand voices
 
     # Check limits based on subscription level
-    if user.subscription_level == SubscriptionLevel.PRO:
+    if user.subscription_level == SubscriptionLevel.PROFESSIONAL: # Corrected from PRO
         max_user_voices = 10
     elif user.subscription_level == SubscriptionLevel.SOLO:
         max_user_voices = 1
-    elif user.subscription_level in [
-            SubscriptionLevel.TEAM, SubscriptionLevel.ENTERPRISE
-    ]:
+    elif user.subscription_level == SubscriptionLevel.TEAM: # Corrected from list check
         max_user_voices = 10  # Team members can have personal voices too
     else:
         max_user_voices = 1  # Default

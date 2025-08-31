@@ -43,9 +43,14 @@
                 <div class="text-muted">
                     Total Users: {{ users|length }} | Total Organizations: {{ tenants|length }}
                 </div>
-                <a href="{{ url_for('admin_stats') }}" class="btn btn-info">
-                    <i class="fas fa-chart-bar me-2"></i>View Invitation Statistics
-                </a>
+                <div>
+                    <a href="{{ url_for('admin_stats') }}" class="btn btn-info me-2">
+                        <i class="fas fa-chart-bar me-2"></i>View Statistics
+                    </a>
+                    <a href="{{ url_for('admin_beta_invites') }}" class="btn btn-success">
+                        <i class="fas fa-envelope-open-text me-2"></i>Send Beta Invites
+                    </a>
+                </div>
             </div>
         </div>
     </div>

@@ -190,21 +190,37 @@
                                     <h6 class="text-primary mb-3">Account Details</h6>
                                     <div class="mb-3">
                                         <label class="form-label text-muted">Subscription Level</label>
-                                        <p class="fw-semibold">{{ user.subscription_level.value.title() }}</p>
+                                        <p class="mb-0">
+                                            {% if user.subscription_level.value == 'free' %}
+                                                <span class="badge bg-secondary">Free</span>
+                                            {% elif user.subscription_level.value == 'solo' %}
+                                                <span class="badge bg-primary">Solo</span>
+                                            {% elif user.subscription_level.value == 'team' %}
+                                                <span class="badge bg-success">Team</span>
+                                            {% elif user.subscription_level.value == 'professional' %}
+                                                <span class="badge bg-warning">Professional</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ user.subscription_level.value.title() }}</span>
+                                            {% endif %}
+                                        </p>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label text-muted">Account Type</label>
-                                        <span class="fw-bold">
+                                        <p class="mb-0">
                                             {% if tenant.tenant_type.value == 'company' %}
                                                 {% if user.is_admin %}
-                                                    Organization Admin
+                                                    Organization Administrator
                                                 {% else %}
                                                     Team Member
                                                 {% endif %}
                                             {% else %}
-                                                Personal Account
+                                                {% if user.is_admin %}
+                                                    Administrator
+                                                {% else %}
+                                                    Member
+                                                {% endif %}
                                             {% endif %}
-                                        </span>
+                                        </p>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label text-muted">User ID</label>
@@ -217,27 +233,42 @@
                         <!-- Organization Tab -->
                         <div class="tab-pane fade" id="organization" role="tabpanel">
                             <div class="row">
-                                <div class="col-md-8">
-                                    <h6 class="text-primary mb-3">Organization Details</h6>
-                                    <div class="mb-3">
-                                        <label class="form-label text-muted">Organization Name</label>
-                                        <p class="fw-semibold">{{ tenant.name }}</p>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label text-muted">Organization Type</label>
-                                        <p class="fw-semibold">{{ 'Company' if tenant.tenant_type.value == 'company' else 'Individual Account' }}</p>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label text-muted">Your Role</label>
-                                        <p class="fw-semibold">{{ 'Administrator' if user.is_admin else 'Member' }}</p>
-                                    </div>
-                                    {% if tenant.tenant_type.value == 'company' %}
-                                    <div class="mb-3">
-                                        <label class="form-label text-muted">Brand Voice Limit</label>
-                                        <p class="fw-semibold">{{ company_brand_voices|length }} / {{ tenant.max_brand_voices }} Company Voices</p>
-                                    </div>
-                                    {% endif %}
+                                <div class="col-md-6">
+                                    <h5 class="text-muted">Organization</h5>
+                                    <p class="mb-0">
+                                        {% if tenant.tenant_type.value == 'company' %}
+                                            {{ tenant.name }}
+                                        {% else %}
+                                            Personal Account
+                                        {% endif %}
+                                    </p>
                                 </div>
+                                <div class="col-md-6">
+                                    <h5 class="text-muted">Organization Type</h5>
+                                    <p class="mb-0">
+                                        {% if tenant.tenant_type.value == 'company' %}
+                                            Company
+                                        {% else %}
+                                            Individual Account
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="text-muted">Your Role</h5>
+                                    <p class="mb-0">
+                                        {% if user.is_admin %}
+                                            Administrator
+                                        {% else %}
+                                            Member
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                {% if tenant.tenant_type.value == 'company' %}
+                                <div class="col-md-6">
+                                    <h5 class="text-muted">Brand Voice Limit</h5>
+                                    <p class="mb-0">{{ company_brand_voices|length }} / {{ tenant.max_brand_voices }} Company Voices</p>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
 

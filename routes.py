@@ -170,13 +170,39 @@ def register():
                         is_organization_invite=is_organization_invite,
                         organization_invite=organization_invite)
 
-                # Check if this is a beta organization
+                # Get the existing tenant to ensure it's a company type
                 tenant = db_manager.get_tenant_by_id(organization_invite['tenant_id'])
+                if not tenant:
+                    if expects_json:
+                        return jsonify({'error': 'Invalid organization invitation.', 'retry': True}), 400
+                    flash('Invalid organization invitation.', 'error')
+                    return render_template('register.html',
+                                         is_organization_invite=is_organization_invite,
+                                         organization_invite=organization_invite)
 
-                # All organization members get team level access regardless of beta status
+                # Ensure the tenant is a company type for organization members
+                if tenant.tenant_type != TenantType.COMPANY:
+                    logger.error(f"Organization invite for non-company tenant: {tenant.tenant_id}")
+                    # Update tenant to be company type if it isn't already
+                    try:
+                        conn = db_manager.get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            UPDATE tenants 
+                            SET tenant_type = %s, max_brand_voices = GREATEST(max_brand_voices, 10)
+                            WHERE tenant_id = %s
+                        """, (TenantType.COMPANY.value, tenant.tenant_id))
+                        conn.commit()
+                        cursor.close()
+                        conn.close()
+                        logger.info(f"Updated tenant {tenant.tenant_id} to company type")
+                    except Exception as e:
+                        logger.error(f"Failed to update tenant type: {e}")
+
+                # All organization members get team level access
                 member_subscription_level = SubscriptionLevel.TEAM
 
-                # Create user as organization member with predetermined settings
+                # Create user as organization member with team subscription
                 user_id = db_manager.create_user(
                     tenant_id=organization_invite['tenant_id'],
                     first_name=first_name,
@@ -1275,27 +1301,37 @@ def account():
     user_brand_voices = []  # No longer using user-specific brand voices
 
     # Determine max user voices based on subscription
-    if user.subscription_level == SubscriptionLevel.PROFESSIONAL: # Corrected from PRO
+    if user.subscription_level == SubscriptionLevel.PROFESSIONAL:
         max_user_voices = 10
     elif user.subscription_level == SubscriptionLevel.SOLO:
         max_user_voices = 1
-    elif user.subscription_level == SubscriptionLevel.TEAM: # Corrected from list check
+    elif user.subscription_level == SubscriptionLevel.TEAM:
         max_user_voices = 10
     else:
         max_user_voices = 1
+
+    # For team/organization members, ensure they show as company account
+    display_account_type = "Organization Member"
+    display_organization = tenant.name
+    if tenant.tenant_type == TenantType.COMPANY and user.subscription_level == SubscriptionLevel.TEAM:
+        display_account_type = "Team Member"
+        if user.is_admin:
+            display_account_type = "Organization Administrator"
 
     # Track user visit to account page
     analytics_service.track_user_event(
         user_id=str(user.user_id),
         event_name='Visited Account Page',
-        properties={'subscription_level': user.subscription_level})
+        properties={'subscription_level': user.subscription_level.value})
 
     return render_template('account.html',
                            user=user,
                            tenant=tenant,
                            company_brand_voices=company_brand_voices,
                            user_brand_voices=user_brand_voices,
-                           max_user_voices=max_user_voices)
+                           max_user_voices=max_user_voices,
+                           display_account_type=display_account_type,
+                           display_organization=display_organization)
 
 
 @app.route('/update-profile', methods=['POST'])

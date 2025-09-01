@@ -885,6 +885,64 @@ class DatabaseManager:
             logger.error(f"Error marking password reset token as used: {e}")
             return False
 
+    def get_organization_invite_by_token(self, token: str) -> Optional[Dict]:
+        """Get organization invitation by token"""
+        try:
+            from email_service import hash_token
+            token_hash = hash_token(token)
+            
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cursor.execute("""
+                SELECT oit.*, t.name as organization_name, u.first_name as invited_by_name, u.last_name as invited_by_last_name
+                FROM organization_invite_tokens oit
+                JOIN tenants t ON oit.tenant_id = t.tenant_id
+                JOIN users u ON oit.invited_by_user_id = u.user_id
+                WHERE oit.token_hash = %s AND oit.expires_at > %s AND oit.used = FALSE
+            """, (token_hash, datetime.utcnow()))
+
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if row:
+                return {
+                    'token_hash': row['token_hash'],
+                    'tenant_id': str(row['tenant_id']),
+                    'email': row['email'],
+                    'organization_name': row['organization_name'],
+                    'invited_by_name': f"{row['invited_by_name']} {row['invited_by_last_name']}",
+                    'expires_at': row['expires_at']
+                }
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting organization invite by token: {e}")
+            return None
+
+    def use_organization_invite_token(self, token_hash: str) -> bool:
+        """Mark organization invite token as used"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE organization_invite_tokens 
+                SET used = TRUE 
+                WHERE token_hash = %s
+            """, (token_hash,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error marking organization invite token as used: {e}")
+            return False
+
     def resend_verification_email(self, user_id: str) -> bool:
         """Delete existing verification tokens for user"""
         try:

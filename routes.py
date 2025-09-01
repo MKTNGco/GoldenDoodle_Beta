@@ -2542,34 +2542,23 @@ def send_organization_invite():
         if db_manager.create_organization_invite(user.tenant_id, user.user_id,
                                                  email, token_hash):
             logger.info(
-                f"Organization invite created for {email} to tenant {tenant.name}."
-            )
+                f"Organization invite created for {email} to tenant {tenant.name}.")
             # Send invite email
+            invite_url = f"{request.url_root}register?token={invite_token}"
+
             if email_service.send_organization_invite_email(
-                    email, invite_token, tenant.name,
-                    f"{user.first_name} {user.last_name}"):
-                # Track organization invite sent
-                analytics_service.track_user_event(
-                    user_id=str(user.user_id),
-                    event_name='Organization Invite Sent',
-                    properties={
-                        'organization_id': tenant.tenant_id,
-                        'invited_email': email
-                    })
-                logger.info(f"Invitation email sent successfully to {email}.")
+                email, invite_url, tenant.name, user.first_name):
+                logger.info(f"Organization invitation sent to {email}")
                 return jsonify({
-                    'success':
-                    True,
-                    'message':
-                    f'Invitation sent to {email} successfully'
+                    'success': True,
+                    'message': f'Invitation sent to {email}'
                 })
             else:
-                logger.error(f"Failed to send invitation email to {email}.")
+                logger.error(f"Failed to send organization invitation to {email}")
                 return jsonify({'error': 'Failed to send invitation email'}), 500
         else:
             logger.error(
-                f"Failed to create organization invite in database for {email}."
-            )
+                f"Failed to create organization invite in database for {email}.")
             return jsonify({'error': 'Failed to create invitation'}), 500
 
     except Exception as e:

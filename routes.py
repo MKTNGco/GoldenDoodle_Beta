@@ -173,7 +173,7 @@ def register():
                 # Check if this is a beta organization
                 tenant = db_manager.get_tenant_by_id(organization_invite['tenant_id'])
 
-                # For beta organizations, members also get team level access
+                # All organization members get team level access regardless of beta status
                 member_subscription_level = SubscriptionLevel.TEAM
 
                 # Create user as organization member with predetermined settings

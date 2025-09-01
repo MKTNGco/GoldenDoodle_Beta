@@ -626,6 +626,7 @@ class DatabaseManager:
                 user.email_verified = row.get('email_verified', False)
                 user.created_at = row.get('created_at')
                 user.last_login = row.get('last_login')
+                user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
                 return user
             return None
 
@@ -661,6 +662,7 @@ class DatabaseManager:
                 user.email_verified = row.get('email_verified', False)
                 user.created_at = row.get('created_at')
                 user.last_login = row.get('last_login')
+                user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
                 return user
             return None
 
@@ -890,7 +892,7 @@ class DatabaseManager:
         try:
             from email_service import hash_token
             token_hash = hash_token(token)
-            
+
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -1574,6 +1576,7 @@ class DatabaseManager:
                 user.stripe_subscription_id = row.get('stripe_subscription_id')
                 user.subscription_status = row.get('subscription_status', 'free')
                 user.current_period_end = row.get('current_period_end')
+                user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
                 return user
             return None
 

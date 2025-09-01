@@ -290,36 +290,41 @@ def register():
             is_beta_user = False
             if invitation_data and invitation_data.get('invitation_type') == 'beta':
                 is_beta_user = True
-                # Force beta user settings
+                # Force beta user settings - ALWAYS override everything for beta users
                 user_type = 'company'
                 subscription_level = 'team'
                 subscription_enum = SubscriptionLevel.TEAM
                 organization_name = organization_name if organization_name else f"{first_name} {last_name}'s Beta Organization"
                 logger.info(f"🎯 BETA USER DETECTED: {email} - forcing company/team settings")
+            else:
+                # For non-beta users, use existing logic
+                if 'subscription_enum' not in locals():
+                    subscription_enum = SubscriptionLevel(subscription_level)
 
             # Create tenant based on final user_type (which may have been overridden for beta)
             if is_beta_user or user_type == 'company':
                 if is_beta_user:
-                    # Beta users get premium benefits
+                    # Beta users get premium benefits - 10 brand voices minimum
                     max_brand_voices = 10
-                    logger.info(f"Creating BETA organization for {email}")
+                    logger.info(f"Creating BETA organization for {email} with 10 brand voices")
                 elif subscription_enum == SubscriptionLevel.TEAM:
-                    max_brand_voices = 3
+                    max_brand_voices = 10  # Team accounts get 10 voices
                 elif subscription_enum == SubscriptionLevel.ENTERPRISE:
                     max_brand_voices = 10
                 else:
-                    max_brand_voices = 3
+                    max_brand_voices = 10  # Default for company accounts
 
                 tenant = db_manager.create_tenant(
                     name=organization_name,
                     tenant_type=TenantType.COMPANY,
                     max_brand_voices=max_brand_voices)
                 is_admin = True  # First user in company is admin
+                logger.info(f"Created company tenant for {email}: {tenant.tenant_id}, max_voices: {max_brand_voices}")
             else:
                 # Individual plans (Solo/Pro)
                 if subscription_enum == SubscriptionLevel.SOLO:
                     max_brand_voices = 1
-                elif subscription_enum == SubscriptionLevel.PROFESSIONAL: # Corrected from PRO
+                elif subscription_enum == SubscriptionLevel.PROFESSIONAL:
                     max_brand_voices = 10
                 else:
                     max_brand_voices = 1  # Default
@@ -329,16 +334,18 @@ def register():
                     tenant_type=TenantType.INDEPENDENT_USER,
                     max_brand_voices=max_brand_voices)
                 is_admin = False
+                logger.info(f"Created individual tenant for {email}: {tenant.tenant_id}")
 
-            # Create user - ensure we use the corrected subscription level for beta users
-            final_subscription_level = subscription_enum if 'subscription_enum' in locals() else SubscriptionLevel(subscription_level)
+            # Create user - ensure we use the correct subscription level
+            final_subscription_level = subscription_enum
             
-            # DOUBLE CHECK: For beta users, ensure team subscription
+            # CRITICAL: For beta users, FORCE team subscription and admin status
             if is_beta_user:
                 final_subscription_level = SubscriptionLevel.TEAM
-                logger.info(f"🎯 BETA USER: Final check - setting subscription to TEAM for {email}")
+                is_admin = True  # Beta users are always admins
+                logger.info(f"🎯 BETA USER: Final settings - TEAM subscription, Admin: True for {email}")
             
-            logger.info(f"Creating user with subscription level: {final_subscription_level}")
+            logger.info(f"Creating user {email} with subscription: {final_subscription_level}, admin: {is_admin}")
             
             user_obj = db_manager.create_user(
                 tenant_id=tenant.tenant_id,
@@ -408,30 +415,30 @@ def register():
                     f"Tracked signup source for {email}: {signup_source}")
 
                 # Create trials based on user type
-                if signup_source == 'invitation_beta':
+                if signup_source == 'invitation_beta' or is_beta_user:
                     # Create 90-day beta trial for beta users
                     try:
                         from beta_trial_manager import beta_trial_manager
                         beta_trial_created = beta_trial_manager.create_beta_trial(
-                            user_id=user_id,
+                            user_id=str(user_obj.user_id),  # Ensure string conversion
                             user_email=email,
                             invite_code=invitation_code)
                         if beta_trial_created:
                             logger.info(
-                                f"Created 90-day beta trial for {email}")
+                                f"✅ Created 90-day beta trial for {email}")
                         else:
                             logger.warning(
-                                f"Failed to create beta trial for {email}")
+                                f"⚠️ Failed to create beta trial for {email}")
                     except Exception as beta_error:
-                        logger.warning(
-                            f"Failed to create beta trial for {email}: {beta_error}"
+                        logger.error(
+                            f"❌ Failed to create beta trial for {email}: {beta_error}"
                         )
                 else:
                     # Create 7-day premium trial for all other users (including free)
                     try:
                         from trial_utils import create_premium_trial_for_free_user
                         premium_trial_created = create_premium_trial_for_free_user(
-                            user_id=user_id, user_email=email)
+                            user_id=str(user_obj.user_id), user_email=email)
                         if premium_trial_created:
                             logger.info(
                                 f"Created 7-day premium trial for {email}")
@@ -450,22 +457,13 @@ def register():
 
             # Check if this is a beta user or if we should skip payment processing
             skip_payment = False
-            is_beta_user_for_payment_check = False # Renamed to avoid conflict with earlier variable
+            is_beta_user_for_payment_check = is_beta_user  # Use the same variable
 
             # Check if user is beta (from invitation) - this takes priority
-            if invitation_data and invitation_data.get('invitation_type') == 'beta':
+            if is_beta_user:
                 skip_payment = True
-                is_beta_user_for_payment_check = True
-                # Force beta users to team subscription level for "The Organization" plan
-                subscription_level = 'team'
-                subscription_enum = SubscriptionLevel.TEAM
-                logger.info(f"Beta user detected - setting to team subscription and skipping payment for {email}")
-                
-                # CRITICAL: Update user_type for beta users to ensure they get company tenant
-                user_type = 'company'
-                if not organization_name:
-                    organization_name = f"{first_name} {last_name}'s Beta Organization"
-                logger.info(f"Beta user: forcing company account with org name: {organization_name}")
+                logger.info(f"🎯 BETA USER PAYMENT: Skipping payment for beta user {email}")
+                logger.info(f"🎯 BETA USER STATE: subscription_level={subscription_level}, user_type={user_type}, org_name={organization_name}")
             # Check if Stripe is globally disabled
             elif STRIPE_DISABLED:
                 skip_payment = True
@@ -1321,7 +1319,11 @@ def account():
     if tenant.tenant_type == TenantType.COMPANY:
         if user.subscription_level == SubscriptionLevel.TEAM:
             if user.is_admin:
-                display_account_type = "Organization Administrator"
+                # Check if this is a beta organization
+                if is_beta_organization(tenant.tenant_id):
+                    display_account_type = "Beta Organization Administrator"
+                else:
+                    display_account_type = "Organization Administrator"
             else:
                 display_account_type = "Team Member"
         else:

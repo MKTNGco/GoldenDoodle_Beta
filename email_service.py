@@ -203,7 +203,7 @@ The GoldenDoodleLM Team
                         <strong>{inviter_name}</strong> has invited you to join <strong>{organization_name}</strong> on GoldenDoodleLM.
                     </p>
                     <p style="color: #34495e; line-height: 1.6; margin-bottom: 25px;">
-                        GoldenDoodleLM helps organizations create trauma-informed content that prioritizes safety, trust, and empowerment in all communications.
+                        GoldenDoodleLM helps organizations create content that prioritizes safety, trust, and empowerment in all communications.
                     </p>
                     <div style="text-align: center;">
                         <a href="{invite_url}" 

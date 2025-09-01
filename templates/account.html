@@ -194,7 +194,17 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label text-muted">Account Type</label>
-                                        <p class="fw-semibold">{{ 'Admin' if user.is_admin else 'Member' }}</p>
+                                        <span class="fw-bold">
+                                            {% if tenant.tenant_type.value == 'company' %}
+                                                {% if user.is_admin %}
+                                                    Organization Admin
+                                                {% else %}
+                                                    Team Member
+                                                {% endif %}
+                                            {% else %}
+                                                Personal Account
+                                            {% endif %}
+                                        </span>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label text-muted">User ID</label>
@@ -427,7 +437,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Account Deletion Section -->
                             <hr class="my-4">
                             <div class="row">
@@ -669,7 +679,7 @@
                             All your data, including brand voices and account information, will be permanently deleted.
                         </p>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="confirmEmail" class="form-label">
                             To confirm, please enter your email address:
@@ -677,14 +687,14 @@
                         <input type="email" class="form-control" id="confirmEmail" placeholder="{{ user.email }}" required>
                         <div class="form-text">Enter your email exactly as shown above</div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="deleteReason" class="form-label">
                             Why are you deleting your account? (Optional)
                         </label>
                         <textarea class="form-control" id="deleteReason" rows="3" placeholder="Help us improve by letting us know why you're leaving..."></textarea>
                     </div>
-                    
+
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="confirmDeletion" required>
                         <label class="form-check-label" for="confirmDeletion">
@@ -749,13 +759,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // Show results modal
                 showInvitationResults(data.results, data.total_sent);
-                
+
                 // Reset form
                 document.getElementById('inviteFriendsForm').reset();
-                
+
                 // Hide invite modal
                 bootstrap.Modal.getInstance(document.getElementById('inviteFriendsModal')).hide();
-                
+
                 // Reload invitation stats
                 loadInvitationStats();
             } else {
@@ -777,7 +787,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sendInviteBtn) {
         sendInviteBtn.addEventListener('click', function() {
             const email = document.getElementById('inviteEmail').value.trim();
-            
+
             if (!email) {
                 alert('Please enter an email address');
                 return;
@@ -822,14 +832,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!pendingSection) return;
 
         const tenantId = '{{ tenant.tenant_id }}';
-        
+
         fetch(`/get-pending-invites/${tenantId}`)
         .then(response => response.json())
         .then(data => {
             if (data.invites && data.invites.length > 0) {
                 let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
                 html += '<thead><tr><th>Email</th><th>Invited By</th><th>Sent</th></tr></thead><tbody>';
-                
+
                 data.invites.forEach(invite => {
                     const sentDate = new Date(invite.created_at).toLocaleDateString();
                     html += `<tr>
@@ -838,7 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>${sentDate}</td>
                     </tr>`;
                 });
-                
+
                 html += '</tbody></table></div>';
                 pendingSection.innerHTML = html;
             } else {
@@ -857,7 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!activeUsersSection) return;
 
         const tenantId = '{{ tenant.tenant_id }}';
-        
+
         fetch(`/get-active-users/${tenantId}`)
         .then(response => response.json())
         .then(data => {
@@ -873,27 +883,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th>Member Since</th>
                     </tr>
                 </thead><tbody>`;
-                
+
                 data.users.forEach(user => {
                     const lastLogin = user.last_login ? 
                         new Date(user.last_login).toLocaleDateString() + ' ' + 
                         new Date(user.last_login).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) :
                         '<span class="text-muted">Never</span>';
-                    
+
                     const memberSince = user.created_at ? 
                         new Date(user.created_at).toLocaleDateString() : 'N/A';
-                    
+
                     const adminCrown = user.is_admin ? 
                         ' <i class="fas fa-crown text-warning ms-1" title="Administrator"></i>' : '';
-                    
+
                     const accessLevel = user.is_admin ?
                         '<span class="badge bg-warning text-dark">Administrator</span>' :
                         '<span class="badge bg-secondary">User</span>';
-                    
+
                     const status = user.email_verified ?
                         '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Active</span>' :
                         '<span class="badge bg-warning"><i class="fas fa-exclamation me-1"></i>Pending</span>';
-                    
+
                     html += `<tr>
                         <td>${user.first_name} ${user.last_name}${adminCrown}</td>
                         <td>${user.email}</td>
@@ -903,7 +913,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>${memberSince}</td>
                     </tr>`;
                 });
-                
+
                 html += '</tbody></table></div>';
                 activeUsersSection.innerHTML = html;
             } else {
@@ -1007,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.pending_invitations && data.pending_invitations.length > 0) {
                 let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
                 html += '<thead><tr><th>Email</th><th>Invitation Code</th><th>Sent Date</th></tr></thead><tbody>';
-                
+
                 data.pending_invitations.forEach(invite => {
                     const sentDate = new Date(invite.created_at).toLocaleDateString();
                     html += `<tr>
@@ -1016,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>${sentDate}</td>
                     </tr>`;
                 });
-                
+
                 html += '</tbody></table></div>';
                 pendingSection.innerHTML = html;
             } else {
@@ -1041,27 +1051,27 @@ document.addEventListener('DOMContentLoaded', function() {
         if (results.length > 0) {
             html += '<div class="table-responsive"><table class="table table-sm">';
             html += '<thead><tr><th>Email</th><th>Status</th><th>Invitation Code</th></tr></thead><tbody>';
-            
+
             results.forEach(result => {
                 const statusIcon = result.success ? 
                     '<i class="fas fa-check-circle text-success"></i>' : 
                     '<i class="fas fa-exclamation-circle text-danger"></i>';
-                
+
                 const statusText = result.success ? 
                     (result.email_sent ? 'Sent' : 'Created (Email failed)') : 
                     result.error;
-                
+
                 const inviteCode = result.invite_code ? 
                     `<code>${result.invite_code}</code>` : 
                     '-';
-                
+
                 html += `<tr>
                     <td>${result.email}</td>
                     <td>${statusIcon} ${statusText}</td>
                     <td>${inviteCode}</td>
                 </tr>`;
             });
-            
+
             html += '</tbody></table></div>';
         }
 

@@ -303,14 +303,17 @@ def register():
                     max_brand_voices=max_brand_voices)
                 is_admin = False
 
-            # Create user
+            # Create user - ensure we use the corrected subscription level for beta users
+            final_subscription_level = subscription_enum if 'subscription_enum' in locals() else SubscriptionLevel(subscription_level)
+            logger.info(f"Creating user with subscription level: {final_subscription_level}")
+            
             user_obj = db_manager.create_user(
                 tenant_id=tenant.tenant_id,
                 first_name=first_name,
                 last_name=last_name,
                 email=email,
                 password=password,
-                subscription_level=SubscriptionLevel(subscription_level),
+                subscription_level=final_subscription_level,
                 is_admin=is_admin)
 
             # CRITICAL DEBUG: Check what create_user returns
@@ -424,6 +427,12 @@ def register():
                 subscription_level = 'team'
                 subscription_enum = SubscriptionLevel.TEAM
                 logger.info(f"Beta user detected - setting to team subscription and skipping payment for {email}")
+                
+                # CRITICAL: Update user_type for beta users to ensure they get company tenant
+                user_type = 'company'
+                if not organization_name:
+                    organization_name = f"{first_name} {last_name}'s Beta Organization"
+                logger.info(f"Beta user: forcing company account with org name: {organization_name}")
             # Check if Stripe is globally disabled
             elif STRIPE_DISABLED:
                 skip_payment = True

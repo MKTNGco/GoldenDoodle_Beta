@@ -207,19 +207,23 @@
                                     <div class="mb-3">
                                         <label class="form-label text-muted">Account Type</label>
                                         <p class="mb-0">
+                                            <!-- Determine display values based on user and tenant -->
                                             {% if tenant.tenant_type.value == 'company' %}
-                                                {% if user.is_admin %}
-                                                    Organization Administrator
+                                                {% if user.subscription_level.value == 'team' %}
+                                                    {% if user.is_admin %}
+                                                        {% set display_account_type = "Organization Administrator" %}
+                                                    {% else %}
+                                                        {% set display_account_type = "Team Member" %}
+                                                    {% endif %}
                                                 {% else %}
-                                                    Team Member
+                                                    {% set display_account_type = "Organization Member" %}
                                                 {% endif %}
+                                                {% set display_organization = tenant.name %}
                                             {% else %}
-                                                {% if user.is_admin %}
-                                                    Administrator
-                                                {% else %}
-                                                    Member
-                                                {% endif %}
+                                                {% set display_account_type = "Personal Account" %}
+                                                {% set display_organization = "Personal Account" %}
                                             {% endif %}
+                                            {{ display_account_type }}
                                         </p>
                                     </div>
                                     <div class="mb-3">
@@ -234,14 +238,8 @@
                         <div class="tab-pane fade" id="organization" role="tabpanel">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <h5 class="text-muted">Organization</h5>
-                                    <p class="mb-0">
-                                        {% if tenant.tenant_type.value == 'company' %}
-                                            {{ tenant.name }}
-                                        {% else %}
-                                            Personal Account
-                                        {% endif %}
-                                    </p>
+                                    <h4>Organization</h4>
+                                    <p class="text-muted">{{ display_organization if display_organization else tenant.name }}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <h5 class="text-muted">Organization Type</h5>

@@ -286,28 +286,29 @@ def register():
             if 'subscription_enum' not in locals():
                 subscription_enum = SubscriptionLevel(subscription_level)
 
-            # Beta users are always treated as company accounts with team benefits
-            is_beta_user = False # Default to false
+            # CRITICAL: Check for beta users FIRST and override all settings
+            is_beta_user = False
             if invitation_data and invitation_data.get('invitation_type') == 'beta':
                 is_beta_user = True
+                # Force beta user settings
+                user_type = 'company'
+                subscription_level = 'team'
+                subscription_enum = SubscriptionLevel.TEAM
+                organization_name = organization_name if organization_name else f"{first_name} {last_name}'s Beta Organization"
+                logger.info(f"🎯 BETA USER DETECTED: {email} - forcing company/team settings")
 
-            if is_beta_user:
-                # Force beta users to be company accounts with team plan benefits
-                max_brand_voices = 10  # Give beta users generous brand voice limit
-                tenant = db_manager.create_tenant(
-                    name=organization_name if organization_name else f"{first_name} {last_name}'s Beta Organization",
-                    tenant_type=TenantType.COMPANY,
-                    max_brand_voices=max_brand_voices)
-                is_admin = True  # Beta users are always admins of their organization
-                logger.info(f"Created beta organization for {email} with {max_brand_voices} brand voices")
-            elif user_type == 'company':
-                # Team or Enterprise plans
-                if subscription_enum == SubscriptionLevel.TEAM:
+            # Create tenant based on final user_type (which may have been overridden for beta)
+            if is_beta_user or user_type == 'company':
+                if is_beta_user:
+                    # Beta users get premium benefits
+                    max_brand_voices = 10
+                    logger.info(f"Creating BETA organization for {email}")
+                elif subscription_enum == SubscriptionLevel.TEAM:
                     max_brand_voices = 3
                 elif subscription_enum == SubscriptionLevel.ENTERPRISE:
-                    max_brand_voices = 10  # Higher limit for enterprise
+                    max_brand_voices = 10
                 else:
-                    max_brand_voices = 3  # Default for team plans
+                    max_brand_voices = 3
 
                 tenant = db_manager.create_tenant(
                     name=organization_name,
@@ -331,6 +332,12 @@ def register():
 
             # Create user - ensure we use the corrected subscription level for beta users
             final_subscription_level = subscription_enum if 'subscription_enum' in locals() else SubscriptionLevel(subscription_level)
+            
+            # DOUBLE CHECK: For beta users, ensure team subscription
+            if is_beta_user:
+                final_subscription_level = SubscriptionLevel.TEAM
+                logger.info(f"🎯 BETA USER: Final check - setting subscription to TEAM for {email}")
+            
             logger.info(f"Creating user with subscription level: {final_subscription_level}")
             
             user_obj = db_manager.create_user(
@@ -1310,13 +1317,19 @@ def account():
     else:
         max_user_voices = 1
 
-    # For team/organization members, ensure they show as company account
-    display_account_type = "Organization Member"
-    display_organization = tenant.name
-    if tenant.tenant_type == TenantType.COMPANY and user.subscription_level == SubscriptionLevel.TEAM:
-        display_account_type = "Team Member"
-        if user.is_admin:
-            display_account_type = "Organization Administrator"
+    # Determine display values based on user and tenant
+    if tenant.tenant_type == TenantType.COMPANY:
+        if user.subscription_level == SubscriptionLevel.TEAM:
+            if user.is_admin:
+                display_account_type = "Organization Administrator"
+            else:
+                display_account_type = "Team Member"
+        else:
+            display_account_type = "Organization Member"
+        display_organization = tenant.name
+    else:
+        display_account_type = "Personal Account"
+        display_organization = "Personal Account"
 
     # Track user visit to account page
     analytics_service.track_user_event(

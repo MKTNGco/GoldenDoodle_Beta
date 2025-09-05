@@ -12,10 +12,12 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-# Define RealDictCursor for use in methods  
+# Define RealDictCursor for use in methods
 from psycopg2.extras import RealDictCursor
 
+
 class DatabaseManager:
+
     def __init__(self):
         self.main_db_url = os.environ.get("DATABASE_URL")
         if not self.main_db_url:
@@ -31,7 +33,8 @@ class DatabaseManager:
         import re
         # Allow only alphanumeric characters, hyphens, and underscores
         # Typical UUID format: 8-4-4-4-12 characters
-        return bool(re.match(r'^[a-zA-Z0-9_-]+$', identifier)) and len(identifier) <= 50
+        return bool(re.match(r'^[a-zA-Z0-9_-]+$',
+                             identifier)) and len(identifier) <= 50
 
     def init_main_database(self):
         """Initialize the main control plane database"""
@@ -382,7 +385,9 @@ class DatabaseManager:
             try:
                 self.populate_pricing_plans()
             except AttributeError:
-                logger.warning("populate_pricing_plans method not found, skipping pricing plans initialization")
+                logger.warning(
+                    "populate_pricing_plans method not found, skipping pricing plans initialization"
+                )
 
             logger.info("Main database initialized successfully")
 
@@ -465,7 +470,8 @@ class DatabaseManager:
             table_suffix = tenant.tenant_id.replace('-', '_')
 
             # Create company brand voices table for all tenants (since we treat all voices as company voices now)
-            cursor.execute(sql.SQL("""
+            cursor.execute(
+                sql.SQL("""
                 CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
@@ -473,10 +479,12 @@ class DatabaseManager:
                     markdown_content TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-            """).format(sql.Identifier(f"company_brand_voices_{table_suffix}")))
+            """).format(
+                    sql.Identifier(f"company_brand_voices_{table_suffix}")))
 
             # Create user brand voices table (keeping for backward compatibility)
-            cursor.execute(sql.SQL("""
+            cursor.execute(
+                sql.SQL("""
                 CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     user_id UUID NOT NULL,
@@ -490,33 +498,38 @@ class DatabaseManager:
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info(f"Tenant database tables created successfully for {tenant.tenant_id}")
+            logger.info(
+                f"Tenant database tables created successfully for {tenant.tenant_id}"
+            )
 
         except Exception as e:
             logger.error(f"Error creating tenant database: {e}")
             raise
 
-    def create_tenant(self, name: str, tenant_type: TenantType, max_brand_voices: int = 3) -> Tenant:
+    def create_tenant(self,
+                      name: str,
+                      tenant_type: TenantType,
+                      max_brand_voices: int = 3) -> Tenant:
         """Create a new tenant"""
         try:
             tenant_id = str(uuid.uuid4())
             database_name = f"tenant_{tenant_id.replace('-', '_')}"
 
-            tenant = Tenant(
-                tenant_id=tenant_id,
-                tenant_type=tenant_type,
-                name=name,
-                database_name=database_name,
-                max_brand_voices=max_brand_voices
-            )
+            tenant = Tenant(tenant_id=tenant_id,
+                            tenant_type=tenant_type,
+                            name=name,
+                            database_name=database_name,
+                            max_brand_voices=max_brand_voices)
 
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO tenants (tenant_id, tenant_type, name, database_name, max_brand_voices)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (tenant.tenant_id, tenant.tenant_type.value, tenant.name, tenant.database_name, tenant.max_brand_voices))
+            """, (tenant.tenant_id, tenant.tenant_type.value, tenant.name,
+                  tenant.database_name, tenant.max_brand_voices))
 
             conn.commit()
             cursor.close()
@@ -531,35 +544,41 @@ class DatabaseManager:
             logger.error(f"Error creating tenant: {e}")
             raise
 
-    def create_user(self, tenant_id: str, first_name: str, last_name: str, email: str, password: str, 
-                   subscription_level: SubscriptionLevel, is_admin: bool = False) -> User:
+    def create_user(self,
+                    tenant_id: str,
+                    first_name: str,
+                    last_name: str,
+                    email: str,
+                    password: str,
+                    subscription_level: SubscriptionLevel,
+                    is_admin: bool = False) -> User:
         """Create a new user"""
         try:
             user_id = str(uuid.uuid4())
             password_hash = generate_password_hash(password)
 
-            user = User(
-                user_id=user_id,
-                tenant_id=tenant_id,
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                password_hash=password_hash,
-                subscription_level=subscription_level,
-                is_admin=is_admin
-            )
+            user = User(user_id=user_id,
+                        tenant_id=tenant_id,
+                        first_name=first_name,
+                        last_name=last_name,
+                        email=email,
+                        password_hash=password_hash,
+                        subscription_level=subscription_level,
+                        is_admin=is_admin)
 
             conn = self.get_connection()
             cursor = conn.cursor()
 
             # Create user
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO users (user_id, tenant_id, first_name, last_name, email, password_hash, 
                                  subscription_level, is_admin, email_verified, created_at, plan_id)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING *
-            """, (user_id, tenant_id, first_name, last_name, email, password_hash, 
-                  subscription_level.value, is_admin, False, datetime.now(), subscription_level.value))
+            """, (user_id, tenant_id, first_name, last_name, email,
+                  password_hash, subscription_level.value, is_admin, False,
+                  datetime.now(), subscription_level.value))
 
             user_row = cursor.fetchone()
             conn.commit()
@@ -570,8 +589,11 @@ class DatabaseManager:
                 raise Exception("Failed to create user - no data returned")
 
             logger.error(f"🔍 DB DEBUG: user_row from database: {user_row}")
-            logger.error(f"🔍 DB DEBUG: user_row[0] (user_id) type: {type(user_row[0])}")
-            logger.error(f"🔍 DB DEBUG: user_row[0] (user_id) value: {repr(user_row[0])}")
+            logger.error(
+                f"🔍 DB DEBUG: user_row[0] (user_id) type: {type(user_row[0])}")
+            logger.error(
+                f"🔍 DB DEBUG: user_row[0] (user_id) value: {repr(user_row[0])}"
+            )
 
             # Return User object with proper string conversion - user_row is a tuple
             user_obj = User(
@@ -581,16 +603,24 @@ class DatabaseManager:
                 last_name=user_row[3],  # last_name
                 email=user_row[4],  # email
                 password_hash=user_row[5],  # password_hash
-                subscription_level=SubscriptionLevel(user_row[6]),  # subscription_level
+                subscription_level=SubscriptionLevel(
+                    user_row[6]),  # subscription_level
                 is_admin=user_row[7],  # is_admin
                 email_verified=user_row[8],  # email_verified
-                created_at=user_row[9].isoformat() if user_row[9] else None,  # created_at
-                plan_id=user_row[10] if len(user_row) > 10 else 'free'  # plan_id
+                created_at=user_row[9].isoformat()
+                if user_row[9] else None,  # created_at
+                plan_id=user_row[10]
+                if len(user_row) > 10 else 'free'  # plan_id
             )
 
-            logger.error(f"🔍 DB DEBUG: Created User object type: {type(user_obj)}")
-            logger.error(f"🔍 DB DEBUG: Created User object user_id: {repr(user_obj.user_id)}")
-            logger.error(f"🔍 DB DEBUG: Created User object user_id type: {type(user_obj.user_id)}")
+            logger.error(
+                f"🔍 DB DEBUG: Created User object type: {type(user_obj)}")
+            logger.error(
+                f"🔍 DB DEBUG: Created User object user_id: {repr(user_obj.user_id)}"
+            )
+            logger.error(
+                f"🔍 DB DEBUG: Created User object user_id type: {type(user_obj.user_id)}"
+            )
 
             return user_obj
 
@@ -604,29 +634,31 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM users WHERE email = %s
-            """, (email,))
+            """, (email, ))
 
             row = cursor.fetchone()
             cursor.close()
             conn.close()
 
             if row:
-                user = User(
-                    user_id=str(row['user_id']),
-                    tenant_id=str(row['tenant_id']),
-                    first_name=row['first_name'],
-                    last_name=row['last_name'],
-                    email=row['email'],
-                    password_hash=row['password_hash'],
-                    subscription_level=SubscriptionLevel(row['subscription_level']),
-                    is_admin=row['is_admin']
-                )
+                user = User(user_id=str(row['user_id']),
+                            tenant_id=str(row['tenant_id']),
+                            first_name=row['first_name'],
+                            last_name=row['last_name'],
+                            email=row['email'],
+                            password_hash=row['password_hash'],
+                            subscription_level=SubscriptionLevel(
+                                row['subscription_level']),
+                            is_admin=row['is_admin'])
                 user.email_verified = row.get('email_verified', False)
                 user.created_at = row.get('created_at')
                 user.last_login = row.get('last_login')
-                user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
+                user.plan_id = row.get(
+                    'plan_id', row['subscription_level']
+                )  # Ensure plan_id matches subscription_level
                 return user
             return None
 
@@ -640,29 +672,31 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM users WHERE user_id = %s
-            """, (user_id,))
+            """, (user_id, ))
 
             row = cursor.fetchone()
             cursor.close()
             conn.close()
 
             if row:
-                user = User(
-                    user_id=str(row['user_id']),
-                    tenant_id=str(row['tenant_id']),
-                    first_name=row['first_name'],
-                    last_name=row['last_name'],
-                    email=row['email'],
-                    password_hash=row['password_hash'],
-                    subscription_level=SubscriptionLevel(row['subscription_level']),
-                    is_admin=row['is_admin']
-                )
+                user = User(user_id=str(row['user_id']),
+                            tenant_id=str(row['tenant_id']),
+                            first_name=row['first_name'],
+                            last_name=row['last_name'],
+                            email=row['email'],
+                            password_hash=row['password_hash'],
+                            subscription_level=SubscriptionLevel(
+                                row['subscription_level']),
+                            is_admin=row['is_admin'])
                 user.email_verified = row.get('email_verified', False)
                 user.created_at = row.get('created_at')
                 user.last_login = row.get('last_login')
-                user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
+                user.plan_id = row.get(
+                    'plan_id', row['subscription_level']
+                )  # Ensure plan_id matches subscription_level
                 return user
             return None
 
@@ -676,11 +710,12 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE users 
                 SET last_login = CURRENT_TIMESTAMP 
                 WHERE user_id = %s
-            """, (user_id,))
+            """, (user_id, ))
 
             success = cursor.rowcount > 0
             conn.commit()
@@ -698,11 +733,12 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE users 
                 SET email_verified = TRUE 
                 WHERE user_id = %s
-            """, (user_id,))
+            """, (user_id, ))
 
             success = cursor.rowcount > 0
             conn.commit()
@@ -720,22 +756,21 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM tenants WHERE tenant_id = %s
-            """, (tenant_id,))
+            """, (tenant_id, ))
 
             row = cursor.fetchone()
             cursor.close()
             conn.close()
 
             if row:
-                return Tenant(
-                    tenant_id=str(row['tenant_id']),
-                    tenant_type=TenantType(row['tenant_type']),
-                    name=row['name'],
-                    database_name=row['database_name'],
-                    max_brand_voices=row['max_brand_voices']
-                )
+                return Tenant(tenant_id=str(row['tenant_id']),
+                              tenant_type=TenantType(row['tenant_type']),
+                              name=row['name'],
+                              database_name=row['database_name'],
+                              max_brand_voices=row['max_brand_voices'])
             return None
 
         except Exception as e:
@@ -758,7 +793,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
                 VALUES (%s, %s, %s)
             """, (user_id, token_hash, expires_at))
@@ -778,7 +814,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT user_id FROM email_verification_tokens 
                 WHERE token_hash = %s AND expires_at > %s AND used = FALSE
             """, (token_hash, datetime.utcnow()))
@@ -789,18 +826,20 @@ class DatabaseManager:
                 user_id = str(row[0])
 
                 # Mark token as used
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE email_verification_tokens 
                     SET used = TRUE 
                     WHERE token_hash = %s
-                """, (token_hash,))
+                """, (token_hash, ))
 
                 # Mark user email as verified
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE users 
                     SET email_verified = TRUE 
                     WHERE user_id = %s
-                """, (user_id,))
+                """, (user_id, ))
 
                 conn.commit()
                 cursor.close()
@@ -815,7 +854,8 @@ class DatabaseManager:
             logger.error(f"Error verifying email token: {e}")
             return None
 
-    def create_password_reset_token(self, user_id: str, token_hash: str) -> bool:
+    def create_password_reset_token(self, user_id: str,
+                                    token_hash: str) -> bool:
         """Create password reset token"""
         try:
             expires_at = datetime.utcnow() + timedelta(hours=1)
@@ -824,12 +864,14 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             # Delete any existing tokens for this user
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM password_reset_tokens 
                 WHERE user_id = %s
-            """, (user_id,))
+            """, (user_id, ))
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
                 VALUES (%s, %s, %s)
             """, (user_id, token_hash, expires_at))
@@ -849,7 +891,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT user_id FROM password_reset_tokens 
                 WHERE token_hash = %s AND expires_at > %s AND used = FALSE
             """, (token_hash, datetime.utcnow()))
@@ -872,11 +915,12 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE password_reset_tokens 
                 SET used = TRUE 
                 WHERE token_hash = %s
-            """, (token_hash,))
+            """, (token_hash, ))
 
             conn.commit()
             cursor.close()
@@ -896,7 +940,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT oit.*, t.name as organization_name, u.first_name as invited_by_name, u.last_name as invited_by_last_name
                 FROM organization_invite_tokens oit
                 JOIN tenants t ON oit.tenant_id = t.tenant_id
@@ -914,7 +959,8 @@ class DatabaseManager:
                     'tenant_id': str(row['tenant_id']),
                     'email': row['email'],
                     'organization_name': row['organization_name'],
-                    'invited_by_name': f"{row['invited_by_name']} {row['invited_by_last_name']}",
+                    'invited_by_name':
+                    f"{row['invited_by_name']} {row['invited_by_last_name']}",
                     'expires_at': row['expires_at']
                 }
             return None
@@ -929,11 +975,12 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE organization_invite_tokens 
                 SET used = TRUE 
                 WHERE token_hash = %s
-            """, (token_hash,))
+            """, (token_hash, ))
 
             success = cursor.rowcount > 0
             conn.commit()
@@ -942,7 +989,8 @@ class DatabaseManager:
             return success
 
         except Exception as e:
-            logger.error(f"Error marking organization invite token as used: {e}")
+            logger.error(
+                f"Error marking organization invite token as used: {e}")
             return False
 
     def resend_verification_email(self, user_id: str) -> bool:
@@ -951,10 +999,11 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM email_verification_tokens 
                 WHERE user_id = %s
-            """, (user_id,))
+            """, (user_id, ))
 
             conn.commit()
             cursor.close()
@@ -976,12 +1025,16 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
+            table_name = sql.Identifier(
+                f"company_brand_voices_{tenant_id.replace('-', '_')}")
 
-            logger.info(f"Getting company brand voices from table: {table_name.string}")
+            logger.info(
+                f"Getting company brand voices from table: {table_name.string}"
+            )
 
             # First, ensure the table exists
-            cursor.execute(sql.SQL("""
+            cursor.execute(
+                sql.SQL("""
                 CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
@@ -994,7 +1047,8 @@ class DatabaseManager:
             # Commit the table creation before querying
             conn.commit()
 
-            cursor.execute(sql.SQL("""
+            cursor.execute(
+                sql.SQL("""
                 SELECT * FROM {} ORDER BY created_at DESC
             """).format(table_name))
 
@@ -1006,22 +1060,26 @@ class DatabaseManager:
 
             brand_voices = []
             for row in rows:
-                logger.info(f"Processing brand voice: {row['name']} (ID: {row['brand_voice_id']})")
-                brand_voices.append(BrandVoice(
-                    brand_voice_id=str(row['brand_voice_id']),
-                    name=row['name'],
-                    configuration=row['configuration'],
-                    markdown_content=row['markdown_content']
-                ))
+                logger.info(
+                    f"Processing brand voice: {row['name']} (ID: {row['brand_voice_id']})"
+                )
+                brand_voices.append(
+                    BrandVoice(brand_voice_id=str(row['brand_voice_id']),
+                               name=row['name'],
+                               configuration=row['configuration'],
+                               markdown_content=row['markdown_content']))
 
             logger.info(f"Returning {len(brand_voices)} brand voices")
             return brand_voices
 
         except Exception as e:
-            logger.error(f"Error getting company brand voices for tenant {tenant_id}: {e}")
+            logger.error(
+                f"Error getting company brand voices for tenant {tenant_id}: {e}"
+            )
             return []
 
-    def get_user_brand_voices(self, tenant_id: str, user_id: str) -> List[BrandVoice]:
+    def get_user_brand_voices(self, tenant_id: str,
+                              user_id: str) -> List[BrandVoice]:
         """Get user brand voices"""
         try:
             # Validate tenant_id to prevent SQL injection
@@ -1032,10 +1090,12 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
-            cursor.execute(sql.SQL("""
+            table_name = sql.Identifier(
+                f"user_brand_voices_{tenant_id.replace('-', '_')}")
+            cursor.execute(
+                sql.SQL("""
                 SELECT * FROM {} WHERE user_id = %s ORDER BY name
-            """).format(table_name), (user_id,))
+            """).format(table_name), (user_id, ))
 
             rows = cursor.fetchall()
             cursor.close()
@@ -1043,13 +1103,12 @@ class DatabaseManager:
 
             brand_voices = []
             for row in rows:
-                brand_voices.append(BrandVoice(
-                    brand_voice_id=str(row['brand_voice_id']),
-                    name=row['name'],
-                    configuration=row['configuration'],
-                    markdown_content=row['markdown_content'],
-                    user_id=str(row['user_id'])
-                ))
+                brand_voices.append(
+                    BrandVoice(brand_voice_id=str(row['brand_voice_id']),
+                               name=row['name'],
+                               configuration=row['configuration'],
+                               markdown_content=row['markdown_content'],
+                               user_id=str(row['user_id'])))
 
             return brand_voices
 
@@ -1057,8 +1116,12 @@ class DatabaseManager:
             logger.error(f"Error getting user brand voices: {e}")
             return []
 
-    def create_brand_voice(self, tenant_id: str, name: str, configuration: Dict[str, Any], 
-                          markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
+    def create_brand_voice(self,
+                           tenant_id: str,
+                           name: str,
+                           configuration: Dict[str, Any],
+                           markdown_content: str,
+                           user_id: Optional[str] = None) -> BrandVoice:
         """Create a new brand voice"""
         try:
             # Validate tenant_id to prevent SQL injection
@@ -1073,9 +1136,11 @@ class DatabaseManager:
 
             if user_id:
                 # User brand voice
-                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
+                table_name = sql.Identifier(
+                    f"user_brand_voices_{tenant_id.replace('-', '_')}")
                 # Ensure table exists
-                cursor.execute(sql.SQL("""
+                cursor.execute(
+                    sql.SQL("""
                     CREATE TABLE IF NOT EXISTS {} (
                         brand_voice_id UUID PRIMARY KEY,
                         user_id UUID NOT NULL,
@@ -1085,15 +1150,20 @@ class DatabaseManager:
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
                 """).format(table_name))
-                cursor.execute(sql.SQL("""
+                cursor.execute(
+                    sql.SQL("""
                     INSERT INTO {} (brand_voice_id, user_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s, %s)
-                """).format(table_name), (brand_voice_id, user_id, name, json.dumps(configuration), markdown_content))
+                """).format(table_name),
+                    (brand_voice_id, user_id, name, json.dumps(configuration),
+                     markdown_content))
             else:
                 # Company brand voice
-                table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
+                table_name = sql.Identifier(
+                    f"company_brand_voices_{tenant_id.replace('-', '_')}")
                 # Ensure table exists
-                cursor.execute(sql.SQL("""
+                cursor.execute(
+                    sql.SQL("""
                     CREATE TABLE IF NOT EXISTS {} (
                         brand_voice_id UUID PRIMARY KEY,
                         name VARCHAR(255) NOT NULL,
@@ -1102,29 +1172,34 @@ class DatabaseManager:
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
                 """).format(table_name))
-                cursor.execute(sql.SQL("""
+                cursor.execute(
+                    sql.SQL("""
                     INSERT INTO {} (brand_voice_id, name, configuration, markdown_content)
                     VALUES (%s, %s, %s, %s)
-                """).format(table_name), (brand_voice_id, name, json.dumps(configuration), markdown_content))
+                """).format(table_name),
+                    (brand_voice_id, name, json.dumps(configuration),
+                     markdown_content))
 
             conn.commit()
             cursor.close()
             conn.close()
 
-            return BrandVoice(
-                brand_voice_id=brand_voice_id,
-                name=name,
-                configuration=configuration,
-                markdown_content=markdown_content,
-                user_id=user_id
-            )
+            return BrandVoice(brand_voice_id=brand_voice_id,
+                              name=name,
+                              configuration=configuration,
+                              markdown_content=markdown_content,
+                              user_id=user_id)
 
         except Exception as e:
             logger.error(f"Error creating brand voice: {e}")
             raise
 
-    def update_brand_voice(self, tenant_id: str, brand_voice_id: str, wizard_data: Dict[str, Any], 
-                          markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
+    def update_brand_voice(self,
+                           tenant_id: str,
+                           brand_voice_id: str,
+                           wizard_data: Dict[str, Any],
+                           markdown_content: str,
+                           user_id: Optional[str] = None) -> BrandVoice:
         """Update an existing brand voice with new wizard data"""
         try:
             # Validate tenant_id to prevent SQL injection
@@ -1140,20 +1215,27 @@ class DatabaseManager:
 
             if user_id:
                 # User brand voice
-                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
-                cursor.execute(sql.SQL("""
+                table_name = sql.Identifier(
+                    f"user_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(
+                    sql.SQL("""
                     UPDATE {} 
                     SET name = %s, configuration = %s, markdown_content = %s
                     WHERE brand_voice_id = %s AND user_id = %s
-                """).format(table_name), (name, json.dumps(configuration), markdown_content, brand_voice_id, user_id))
+                """).format(table_name),
+                    (name, json.dumps(configuration), markdown_content,
+                     brand_voice_id, user_id))
             else:
                 # Company brand voice
-                table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
-                cursor.execute(sql.SQL("""
+                table_name = sql.Identifier(
+                    f"company_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(
+                    sql.SQL("""
                     UPDATE {} 
                     SET name = %s, configuration = %s, markdown_content = %s
                     WHERE brand_voice_id = %s
-                """).format(table_name), (name, json.dumps(configuration), markdown_content, brand_voice_id))
+                """).format(table_name), (name, json.dumps(configuration),
+                                          markdown_content, brand_voice_id))
 
             if cursor.rowcount == 0:
                 raise Exception("Brand voice not found or permission denied")
@@ -1162,20 +1244,22 @@ class DatabaseManager:
             cursor.close()
             conn.close()
 
-            return BrandVoice(
-                brand_voice_id=brand_voice_id,
-                name=name,
-                configuration=configuration,
-                markdown_content=markdown_content,
-                user_id=user_id
-            )
+            return BrandVoice(brand_voice_id=brand_voice_id,
+                              name=name,
+                              configuration=configuration,
+                              markdown_content=markdown_content,
+                              user_id=user_id)
 
         except Exception as e:
             logger.error(f"Error updating brand voice: {e}")
             raise
 
-    def create_comprehensive_brand_voice(self, tenant_id: str, wizard_data: Dict[str, Any], 
-                                       markdown_content: str, user_id: Optional[str] = None) -> BrandVoice:
+    def create_comprehensive_brand_voice(
+            self,
+            tenant_id: str,
+            wizard_data: Dict[str, Any],
+            markdown_content: str,
+            user_id: Optional[str] = None) -> BrandVoice:
         """Create a comprehensive brand voice with full wizard data - now always creates as company voice"""
         try:
             # Validate tenant_id to prevent SQL injection
@@ -1193,10 +1277,12 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             # Always create as company brand voice now (ignoring user_id parameter)
-            table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
+            table_name = sql.Identifier(
+                f"company_brand_voices_{tenant_id.replace('-', '_')}")
 
             # Ensure table exists
-            cursor.execute(sql.SQL("""
+            cursor.execute(
+                sql.SQL("""
                 CREATE TABLE IF NOT EXISTS {} (
                     brand_voice_id UUID PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
@@ -1206,16 +1292,21 @@ class DatabaseManager:
                 );
             """).format(table_name))
 
-            cursor.execute(sql.SQL("""
+            cursor.execute(
+                sql.SQL("""
                 INSERT INTO {} (brand_voice_id, name, configuration, markdown_content)
                 VALUES (%s, %s, %s, %s)
-            """).format(table_name), (brand_voice_id, name, json.dumps(configuration), markdown_content))
+            """).format(table_name),
+                (brand_voice_id, name, json.dumps(configuration),
+                 markdown_content))
 
             conn.commit()
             cursor.close()
             conn.close()
 
-            logger.info(f"Successfully created brand voice '{name}' with ID {brand_voice_id} in tenant {tenant_id}")
+            logger.info(
+                f"Successfully created brand voice '{name}' with ID {brand_voice_id} in tenant {tenant_id}"
+            )
 
             return BrandVoice(
                 brand_voice_id=brand_voice_id,
@@ -1229,7 +1320,10 @@ class DatabaseManager:
             logger.error(f"Error creating comprehensive brand voice: {e}")
             raise
 
-    def delete_brand_voice(self, tenant_id: str, brand_voice_id: str, user_id: Optional[str] = None) -> bool:
+    def delete_brand_voice(self,
+                           tenant_id: str,
+                           brand_voice_id: str,
+                           user_id: Optional[str] = None) -> bool:
         """Delete a brand voice"""
         try:
             # Validate tenant_id to prevent SQL injection
@@ -1242,16 +1336,20 @@ class DatabaseManager:
 
             if user_id:
                 # User brand voice
-                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
-                cursor.execute(sql.SQL("""
+                table_name = sql.Identifier(
+                    f"user_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(
+                    sql.SQL("""
                     DELETE FROM {} WHERE brand_voice_id = %s AND user_id = %s
                 """).format(table_name), (brand_voice_id, user_id))
             else:
                 # Company brand voice
-                table_name = sql.Identifier(f"company_brand_voices_{tenant_id.replace('-', '_')}")
-                cursor.execute(sql.SQL("""
+                table_name = sql.Identifier(
+                    f"company_brand_voices_{tenant_id.replace('-', '_')}")
+                cursor.execute(
+                    sql.SQL("""
                     DELETE FROM {} WHERE brand_voice_id = %s
-                """).format(table_name), (brand_voice_id,))
+                """).format(table_name), (brand_voice_id, ))
 
             success = cursor.rowcount > 0
             conn.commit()
@@ -1259,9 +1357,13 @@ class DatabaseManager:
             conn.close()
 
             if success:
-                logger.info(f"Successfully deleted brand voice {brand_voice_id} from tenant {tenant_id}")
+                logger.info(
+                    f"Successfully deleted brand voice {brand_voice_id} from tenant {tenant_id}"
+                )
             else:
-                logger.warning(f"No brand voice found with ID {brand_voice_id} in tenant {tenant_id}")
+                logger.warning(
+                    f"No brand voice found with ID {brand_voice_id} in tenant {tenant_id}"
+                )
 
             return success
 
@@ -1283,13 +1385,12 @@ class DatabaseManager:
 
             tenants = []
             for row in cursor.fetchall():
-                tenants.append(Tenant(
-                    tenant_id=str(row[0]),
-                    tenant_type=TenantType(row[1]),
-                    name=row[2],
-                    database_name=row[3],
-                    max_brand_voices=row[4]
-                ))
+                tenants.append(
+                    Tenant(tenant_id=str(row[0]),
+                           tenant_type=TenantType(row[1]),
+                           name=row[2],
+                           database_name=row[3],
+                           max_brand_voices=row[4]))
 
             cursor.close()
             conn.close()
@@ -1304,30 +1405,29 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT u.user_id, u.tenant_id, u.first_name, u.last_name, u.email, 
                        u.subscription_level, u.is_admin, u.email_verified, u.created_at,
                        u.password_hash, u.last_login
                 FROM users u
                 WHERE u.tenant_id = %s
                 ORDER BY u.is_admin DESC, u.created_at ASC
-            """, (tenant_id,))
+            """, (tenant_id, ))
 
             users = []
             for row in cursor.fetchall():
-                user = User(
-                    user_id=str(row[0]),
-                    tenant_id=str(row[1]),
-                    first_name=row[2],
-                    last_name=row[3],
-                    email=row[4],
-                    subscription_level=SubscriptionLevel(row[5]),
-                    is_admin=row[6],
-                    email_verified=row[7],
-                    created_at=row[8],
-                    password_hash=row[9],
-                    last_login=row[10]
-                )
+                user = User(user_id=str(row[0]),
+                            tenant_id=str(row[1]),
+                            first_name=row[2],
+                            last_name=row[3],
+                            email=row[4],
+                            subscription_level=SubscriptionLevel(row[5]),
+                            is_admin=row[6],
+                            email_verified=row[7],
+                            created_at=row[8],
+                            password_hash=row[9],
+                            last_login=row[10])
                 users.append(user)
 
             cursor.close()
@@ -1364,8 +1464,7 @@ class DatabaseManager:
                     subscription_level=SubscriptionLevel(row[5]),
                     is_admin=row[6],
                     email_verified=row[7],
-                    created_at=str(row[8]) if row[8] else None
-                )
+                    created_at=str(row[8]) if row[8] else None)
                 tenant_name = row[9]
                 tenant_type = row[10]
                 users.append((user, tenant_name, tenant_type))
@@ -1384,7 +1483,8 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             # Get user's tenant_id first
-            cursor.execute("SELECT tenant_id FROM users WHERE user_id = %s", (user_id,))
+            cursor.execute("SELECT tenant_id FROM users WHERE user_id = %s",
+                           (user_id, ))
             result = cursor.fetchone()
             if result:
                 tenant_id = str(result[0])
@@ -1395,29 +1495,40 @@ class DatabaseManager:
                     return False
 
                 # Delete user's brand voices from tenant-specific table
-                table_name = sql.Identifier(f"user_brand_voices_{tenant_id.replace('-', '_')}")
+                table_name = sql.Identifier(
+                    f"user_brand_voices_{tenant_id.replace('-', '_')}")
                 try:
-                    cursor.execute(sql.SQL("DELETE FROM {} WHERE user_id = %s").format(table_name), (user_id,))
+                    cursor.execute(
+                        sql.SQL("DELETE FROM {} WHERE user_id = %s").format(
+                            table_name), (user_id, ))
                 except Exception:
                     # Table might not exist, continue
                     pass
 
             # Delete verification tokens
-            cursor.execute("DELETE FROM email_verification_tokens WHERE user_id = %s", (user_id,))
+            cursor.execute(
+                "DELETE FROM email_verification_tokens WHERE user_id = %s",
+                (user_id, ))
 
             # Delete password reset tokens
-            cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+            cursor.execute(
+                "DELETE FROM password_reset_tokens WHERE user_id = %s",
+                (user_id, ))
 
             # Delete organization invite tokens sent by this user (if table exists)
             try:
-                cursor.execute("DELETE FROM organization_invite_tokens WHERE invited_by_user_id = %s", (user_id,))
+                cursor.execute(
+                    "DELETE FROM organization_invite_tokens WHERE invited_by_user_id = %s",
+                    (user_id, ))
             except Exception as e:
                 # Table might not exist, continue
-                logger.warning(f"Could not delete organization invite tokens for user {user_id}: {e}")
+                logger.warning(
+                    f"Could not delete organization invite tokens for user {user_id}: {e}"
+                )
                 pass
 
             # Delete the user
-            cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+            cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id, ))
 
             conn.commit()
             cursor.close()
@@ -1439,37 +1550,50 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             # Get all users in this tenant
-            cursor.execute("SELECT user_id FROM users WHERE tenant_id = %s", (tenant_id,))
+            cursor.execute("SELECT user_id FROM users WHERE tenant_id = %s",
+                           (tenant_id, ))
             user_ids = [row[0] for row in cursor.fetchall()]
 
             # Delete all user data
             for user_id in user_ids:
-                cursor.execute("DELETE FROM email_verification_tokens WHERE user_id = %s", (user_id,))
-                cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+                cursor.execute(
+                    "DELETE FROM email_verification_tokens WHERE user_id = %s",
+                    (user_id, ))
+                cursor.execute(
+                    "DELETE FROM password_reset_tokens WHERE user_id = %s",
+                    (user_id, ))
 
             # Delete tenant-specific brand voice tables
             table_prefix = tenant_id.replace('-', '_')
             try:
-                company_table = sql.Identifier(f"company_brand_voices_{table_prefix}")
-                user_table = sql.Identifier(f"user_brand_voices_{table_prefix}")
-                cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(company_table))
-                cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(user_table))
+                company_table = sql.Identifier(
+                    f"company_brand_voices_{table_prefix}")
+                user_table = sql.Identifier(
+                    f"user_brand_voices_{table_prefix}")
+                cursor.execute(
+                    sql.SQL("DROP TABLE IF EXISTS {}").format(company_table))
+                cursor.execute(
+                    sql.SQL("DROP TABLE IF EXISTS {}").format(user_table))
             except Exception:
                 # Tables might not exist, continue
                 pass
 
             # Delete organization invite tokens for this tenant
             try:
-                cursor.execute("DELETE FROM organization_invite_tokens WHERE tenant_id = %s", (tenant_id,))
+                cursor.execute(
+                    "DELETE FROM organization_invite_tokens WHERE tenant_id = %s",
+                    (tenant_id, ))
             except Exception:
                 # Table might not exist, continue
                 pass
 
             # Delete all users
-            cursor.execute("DELETE FROM users WHERE tenant_id = %s", (tenant_id,))
+            cursor.execute("DELETE FROM users WHERE tenant_id = %s",
+                           (tenant_id, ))
 
             # Delete the tenant
-            cursor.execute("DELETE FROM tenants WHERE tenant_id = %s", (tenant_id,))
+            cursor.execute("DELETE FROM tenants WHERE tenant_id = %s",
+                           (tenant_id, ))
 
             conn.commit()
             cursor.close()
@@ -1479,13 +1603,15 @@ class DatabaseManager:
             logger.error(f"Error deleting tenant: {e}")
             return False
 
-    def update_user_subscription(self, user_id: str, subscription_level: str) -> bool:
+    def update_user_subscription(self, user_id: str,
+                                 subscription_level: str) -> bool:
         """Update user's subscription level"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE users 
                 SET subscription_level = %s
                 WHERE user_id = %s
@@ -1500,9 +1626,12 @@ class DatabaseManager:
             logger.error(f"Error updating user subscription: {e}")
             return False
 
-    def update_user_stripe_info(self, user_id: str, stripe_customer_id: str = None, 
-                               stripe_subscription_id: str = None, subscription_status: str = None,
-                               current_period_end: datetime = None) -> bool:
+    def update_user_stripe_info(self,
+                                user_id: str,
+                                stripe_customer_id: str = None,
+                                stripe_subscription_id: str = None,
+                                subscription_status: str = None,
+                                current_period_end: datetime = None) -> bool:
         """Update user's Stripe information"""
         try:
             conn = self.get_connection()
@@ -1544,39 +1673,43 @@ class DatabaseManager:
             logger.error(f"Error updating user Stripe info: {e}")
             return False
 
-    def get_user_by_stripe_customer_id(self, stripe_customer_id: str) -> Optional[User]:
+    def get_user_by_stripe_customer_id(
+            self, stripe_customer_id: str) -> Optional[User]:
         """Get user by Stripe customer ID"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM users WHERE stripe_customer_id = %s
-            """, (stripe_customer_id,))
+            """, (stripe_customer_id, ))
 
             row = cursor.fetchone()
             cursor.close()
             conn.close()
 
             if row:
-                user = User(
-                    user_id=str(row['user_id']),
-                    tenant_id=str(row['tenant_id']),
-                    first_name=row['first_name'],
-                    last_name=row['last_name'],
-                    email=row['email'],
-                    password_hash=row['password_hash'],
-                    subscription_level=SubscriptionLevel(row['subscription_level']),
-                    is_admin=row['is_admin']
-                )
+                user = User(user_id=str(row['user_id']),
+                            tenant_id=str(row['tenant_id']),
+                            first_name=row['first_name'],
+                            last_name=row['last_name'],
+                            email=row['email'],
+                            password_hash=row['password_hash'],
+                            subscription_level=SubscriptionLevel(
+                                row['subscription_level']),
+                            is_admin=row['is_admin'])
                 user.email_verified = row.get('email_verified', False)
                 user.created_at = row.get('created_at')
                 user.last_login = row.get('last_login')
                 user.stripe_customer_id = row.get('stripe_customer_id')
                 user.stripe_subscription_id = row.get('stripe_subscription_id')
-                user.subscription_status = row.get('subscription_status', 'free')
+                user.subscription_status = row.get('subscription_status',
+                                                   'free')
                 user.current_period_end = row.get('current_period_end')
-                user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
+                user.plan_id = row.get(
+                    'plan_id', row['subscription_level']
+                )  # Ensure plan_id matches subscription_level
                 return user
             return None
 
@@ -1647,14 +1780,23 @@ class DatabaseManager:
 
             # Insert default pricing plans with the correct column structure
             plans = [
-                ('free', 'The Companion', 'Ideal for trying out the service with basic features.', 0, 0, 20000, 10, 0, 'none'),
-                ('solo', 'The Practitioner', 'Perfect for individual professionals needing advanced features.', 29, 290, 200000, -1, 1, 'email'),
-                ('team', 'The Organization', 'Built for small teams to collaborate and manage AI usage.', 39, 390, 250000, -1, 10, 'priority'),
-                ('professional', 'The Powerhouse', 'For businesses requiring extensive AI capabilities and dedicated support.', 82, 820, 1000000, -1, 10, 'top_priority')
+                ('free', 'The Companion',
+                 'Ideal for trying out the service with basic features.', 0, 0,
+                 20000, 10, 0, 'none'),
+                ('solo', 'The Practitioner',
+                 'Perfect for individual professionals needing advanced features.',
+                 29, 290, 200000, -1, 1, 'email'),
+                ('team', 'The Organization',
+                 'Built for small teams to collaborate and manage AI usage.',
+                 39, 390, 250000, -1, 10, 'priority'),
+                ('professional', 'The Powerhouse',
+                 'For businesses requiring extensive AI capabilities and dedicated support.',
+                 82, 820, 1000000, -1, 10, 'top_priority')
             ]
 
             for plan in plans:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO pricing_plans 
                     (plan_id, name, core_value, price_monthly, price_annual, token_limit, chat_history_limit, brand_voices, support_level)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -1672,7 +1814,6 @@ class DatabaseManager:
                 conn.rollback()
                 cursor.close()
                 conn.close()
-
 
     def get_all_pricing_plans(self) -> List[Dict]:
         """Get all pricing plans"""
@@ -1703,13 +1844,14 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT u.subscription_level, p.name as plan_name, p.display_name, p.core_value, p.price_monthly, p.token_limit, 
                        p.chat_history_limit, p.brand_voices, p.support_level
                 FROM users u
                 LEFT JOIN pricing_plans p ON u.subscription_level::text = p.plan_id
                 WHERE u.user_id = %s
-            """, (user_id,))
+            """, (user_id, ))
 
             result = cursor.fetchone()
             cursor.close()
@@ -1731,22 +1873,26 @@ class DatabaseManager:
             current_month = datetime.now().month
             current_year = datetime.now().year
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE user_token_usage 
                 SET tokens_used_month = 0, current_month = %s, current_year = %s, last_reset = CURRENT_TIMESTAMP
                 WHERE user_id = %s AND (current_month != %s OR current_year != %s)
-            """, (current_month, current_year, user_id, current_month, current_year))
+            """, (current_month, current_year, user_id, current_month,
+                  current_year))
 
             # Get or create usage record
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO user_token_usage (user_id, current_month, current_year)
                 VALUES (%s, %s, %s)
                 ON CONFLICT (user_id) DO NOTHING
             """, (user_id, current_month, current_year))
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM user_token_usage WHERE user_id = %s
-            """, (user_id,))
+            """, (user_id, ))
 
             result = cursor.fetchone()
             conn.commit()
@@ -1761,7 +1907,8 @@ class DatabaseManager:
             logger.error(f"Error getting user token usage: {e}")
             return None
 
-    def check_user_limits(self, user_id: str, content_mode: str, estimated_tokens: int) -> Dict:
+    def check_user_limits(self, user_id: str, content_mode: str,
+                          estimated_tokens: int) -> Dict:
         """Check if user can perform the requested action within their limits"""
         try:
             plan = self.get_user_plan(user_id)
@@ -1769,11 +1916,14 @@ class DatabaseManager:
 
             # If we can't get plan/usage data, allow the request to proceed (fail open for better UX)
             if not plan:
-                logger.warning(f"Could not get plan for user {user_id}, allowing request")
+                logger.warning(
+                    f"Could not get plan for user {user_id}, allowing request")
                 return {'allowed': True}
 
             if not usage:
-                logger.warning(f"Could not get usage for user {user_id}, allowing request")
+                logger.warning(
+                    f"Could not get usage for user {user_id}, allowing request"
+                )
                 return {'allowed': True}
 
             # Check token limits
@@ -1781,14 +1931,21 @@ class DatabaseManager:
             if token_limit != -1:  # -1 means unlimited
                 current_usage = usage.get('tokens_used_month', 0)
                 if current_usage + estimated_tokens > token_limit:
-                    return {'allowed': False, 'error': f'Monthly token limit exceeded ({current_usage}/{token_limit})'}
+                    return {
+                        'allowed':
+                        False,
+                        'error':
+                        f'Monthly token limit exceeded ({current_usage}/{token_limit})'
+                    }
 
             return {'allowed': True}
 
         except Exception as e:
             logger.error(f"Error checking user limits for user {user_id}: {e}")
             # Fail open - allow the request to proceed rather than blocking users
-            logger.warning(f"Allowing request for user {user_id} due to limits check error")
+            logger.warning(
+                f"Allowing request for user {user_id} due to limits check error"
+            )
             return {'allowed': True}
 
     def update_user_token_usage(self, user_id: str, tokens_used: int) -> bool:
@@ -1797,7 +1954,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE user_token_usage 
                 SET tokens_used_month = tokens_used_month + %s,
                     tokens_used_total = tokens_used_total + %s
@@ -1814,7 +1972,9 @@ class DatabaseManager:
             logger.error(f"Error updating user token usage: {e}")
             return False
 
-    def create_chat_session(self, user_id: str, title: str = "New Chat") -> Optional[str]:
+    def create_chat_session(self,
+                            user_id: str,
+                            title: str = "New Chat") -> Optional[str]:
         """Create a new chat session"""
         try:
             import uuid
@@ -1823,7 +1983,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO chat_sessions (session_id, user_id, title)
                 VALUES (%s, %s, %s)
             """, (session_id, user_id, title))
@@ -1843,7 +2004,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT cs.session_id, cs.title, cs.created_at, cs.updated_at,
                        COUNT(cm.message_id) as message_count
                 FROM chat_sessions cs
@@ -1851,7 +2013,7 @@ class DatabaseManager:
                 WHERE cs.user_id = %s
                 GROUP BY cs.session_id, cs.title, cs.created_at, cs.updated_at
                 ORDER BY cs.updated_at DESC
-            """, (user_id,))
+            """, (user_id, ))
 
             sessions = [dict(row) for row in cursor.fetchall()]
             cursor.close()
@@ -1868,11 +2030,12 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM chat_messages 
                 WHERE session_id = %s 
                 ORDER BY created_at ASC
-            """, (session_id,))
+            """, (session_id, ))
 
             messages = [dict(row) for row in cursor.fetchall()]
             cursor.close()
@@ -1883,7 +2046,12 @@ class DatabaseManager:
             logger.error(f"Error getting chat messages: {e}")
             return []
 
-    def add_chat_message(self, session_id: str, message_type: str, content: str, content_mode: str = None, brand_voice_id: str = None) -> bool:
+    def add_chat_message(self,
+                         session_id: str,
+                         message_type: str,
+                         content: str,
+                         content_mode: str = None,
+                         brand_voice_id: str = None) -> bool:
         """Add a message to a chat session"""
         try:
             import uuid
@@ -1892,17 +2060,20 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO chat_messages (message_id, session_id, message_type, content, content_mode, brand_voice_id)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (message_id, session_id, message_type, content, content_mode, brand_voice_id))
+            """, (message_id, session_id, message_type, content, content_mode,
+                  brand_voice_id))
 
             # Update session's updated_at timestamp
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE chat_sessions 
                 SET updated_at = CURRENT_TIMESTAMP 
                 WHERE session_id = %s
-            """, (session_id,))
+            """, (session_id, ))
 
             conn.commit()
             cursor.close()
@@ -1919,7 +2090,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE chat_sessions 
                 SET title = %s, updated_at = CURRENT_TIMESTAMP 
                 WHERE session_id = %s
@@ -1942,7 +2114,8 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             # Verify session belongs to user
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM chat_sessions 
                 WHERE session_id = %s AND user_id = %s
             """, (session_id, user_id))
@@ -1957,18 +2130,23 @@ class DatabaseManager:
             logger.error(f"Error deleting chat session: {e}")
             return False
 
-    def create_organization_invite(self, tenant_id: str, invited_by_user_id: str, email: str, token_hash: str) -> bool:
+    def create_organization_invite(self, tenant_id: str,
+                                   invited_by_user_id: str, email: str,
+                                   token_hash: str) -> bool:
         """Create an organization invite"""
         try:
-            expires_at = datetime.utcnow() + timedelta(days=7)  # 7 days to accept
+            expires_at = datetime.utcnow() + timedelta(
+                days=7)  # 7 days to accept
 
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO organization_invite_tokens (tenant_id, invited_by_user_id, email, token_hash, expires_at)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (tenant_id, invited_by_user_id, email, token_hash, expires_at))
+            """,
+                (tenant_id, invited_by_user_id, email, token_hash, expires_at))
 
             conn.commit()
             cursor.close()
@@ -1979,13 +2157,15 @@ class DatabaseManager:
             logger.error(f"Error creating organization invite: {e}")
             return False
 
-    def verify_organization_invite_token(self, token_hash: str) -> Optional[tuple]:
+    def verify_organization_invite_token(self,
+                                         token_hash: str) -> Optional[tuple]:
         """Verify organization invite token and return tenant_id and email"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tenant_id, email FROM organization_invite_tokens 
                 WHERE token_hash = %s AND expires_at > %s AND used = FALSE
             """, (token_hash, datetime.utcnow()))
@@ -2008,11 +2188,12 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE organization_invite_tokens 
                 SET used = TRUE 
                 WHERE token_hash = %s
-            """, (token_hash,))
+            """, (token_hash, ))
 
             success = cursor.rowcount > 0
             conn.commit()
@@ -2021,7 +2202,8 @@ class DatabaseManager:
             return success
 
         except Exception as e:
-            logger.error(f"Error marking organization invite token as used: {e}")
+            logger.error(
+                f"Error marking organization invite token as used: {e}")
             return False
 
     def get_pending_invites(self, tenant_id: str) -> List[Dict]:
@@ -2030,7 +2212,8 @@ class DatabaseManager:
             conn = self.get_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT email, created_at, expires_at
                 FROM organization_invite_tokens
                 WHERE tenant_id = %s AND used = FALSE AND expires_at > %s
@@ -2114,9 +2297,11 @@ class DatabaseManager:
 # Global database manager instance
 db_manager = DatabaseManager()
 
+
 def init_databases():
     """Initialize all databases"""
     db_manager.init_main_database()
+
 
 # Initialize databases on import
 try:

@@ -6,8 +6,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # Configure detailed logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Create the app
@@ -33,20 +32,21 @@ from database import init_databases
 from auth import get_current_user
 from analytics_service import analytics_service
 
+
 # AUTOMATIC PAGE VIEW TRACKING FOR DAU/WAU
 @app.before_request
 def track_page_views():
     """Automatically track every page view for DAU/WAU metrics"""
     # Skip tracking for static files, favicons, etc.
-    if (request.path.startswith('/static') or 
-        request.path.startswith('/favicon') or 
-        request.path.endswith('.css') or 
-        request.path.endswith('.js') or
-        request.path.endswith('.ico')):
+    if (request.path.startswith('/static')
+            or request.path.startswith('/favicon')
+            or request.path.endswith('.css') or request.path.endswith('.js')
+            or request.path.endswith('.ico')):
         return
 
     # This creates your DAU/WAU data automatically
     analytics_service.track_page_view()
+
 
 # Add security headers
 @app.after_request
@@ -60,14 +60,15 @@ def add_security_headers(response):
         "font-src 'self' https: data:; "
         "connect-src 'self' https: wss: ws:; "
         "frame-src 'self' https:; "
-        "worker-src 'self' blob:;"
-    )
+        "worker-src 'self' blob:;")
     return response
+
 
 # Make get_current_user available in all templates
 @app.context_processor
 def inject_user():
     return dict(get_current_user=get_current_user)
+
 
 if __name__ == '__main__':
     with app.app_context():

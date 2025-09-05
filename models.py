@@ -12,6 +12,7 @@ class SubscriptionLevel(Enum):
     SOLO = 'solo'
     TEAM = 'team'
     PROFESSIONAL = 'professional'
+    ENTERPRISE = 'enterprise'
 
 @dataclass
 class Tenant:

@@ -585,8 +585,9 @@ class DatabaseManager:
                 is_admin=user_row[7],  # is_admin
                 email_verified=user_row[8],  # email_verified
                 created_at=user_row[9].isoformat() if user_row[9] else None,  # created_at
-                plan_id=user_row[10] if len(user_row) > 10 else 'free'  # plan_id
+                plan_id=user_row[10] if len(user_row) > 10 else subscription_level.value  # plan_id
             )
+            user_obj.plan_id = subscription_level.value
 
             logger.error(f"🔍 DB DEBUG: Created User object type: {type(user_obj)}")
             logger.error(f"🔍 DB DEBUG: Created User object user_id: {repr(user_obj.user_id)}")

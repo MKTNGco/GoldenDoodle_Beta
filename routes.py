@@ -75,8 +75,8 @@ def register():
     """User registration"""
     # Check if this is an organization invite
     is_organization_invite = request.args.get('invite') == 'organization'
-    organization_invite = session.get(
-        'organization_invite') if is_organization_invite else None
+    organization_invite = session.get('organization_invite')
+
 
     # Check for invitation codes via URL parameters
     invitation_code = request.args.get('ref') or request.args.get('invite')
@@ -119,10 +119,23 @@ def register():
             last_name = request.form.get('last_name', '').strip()
             email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '')
-            organization_name = request.form.get('organization_name',
-                                                 '').strip()
-            user_type = request.form.get('user_type', 'independent')
-            subscription_level = request.form.get('subscription_level', 'free')
+            
+            # Try to get organization invite data again if it's None
+            if not organization_invite:
+                organization_invite = session.get('organization_invite')
+                logger.info(f"POST handler - retried organization_invite: {organization_invite}")
+            
+            # For organization invites, get values from session, otherwise from form
+            if organization_invite:
+                organization_name = organization_invite.get('organization_name', '')
+                user_type = 'company'  # Organization members are company users
+                subscription_level = 'team'  # Organization members get team subscription
+                logger.info(f"Organization invite registration - Name: {organization_name}, Type: {user_type}, Level: {subscription_level}")
+            else:
+                organization_name = request.form.get('organization_name', '').strip()
+                user_type = request.form.get('user_type', 'independent')
+                subscription_level = request.form.get('subscription_level', 'free')
+                logger.info(f"Regular registration - Name: {organization_name}, Type: {user_type}, Level: {subscription_level}")
 
             # Validation
             if not all([first_name, last_name, email, password]):
@@ -203,7 +216,7 @@ def register():
                 member_subscription_level = SubscriptionLevel.TEAM
 
                 # Create user as organization member with team subscription
-                user_id = db_manager.create_user(
+                user_obj = db_manager.create_user(
                     tenant_id=organization_invite['tenant_id'],
                     first_name=first_name,
                     last_name=last_name,
@@ -212,6 +225,7 @@ def register():
                     subscription_level=member_subscription_level,
                     is_admin=False  # Regular team member, not admin
                 )
+                user_id = user_obj.user_id 
 
                 # Track user registration event
                 analytics_service.track_user_event(
@@ -2607,7 +2621,7 @@ def send_organization_invite():
             invite_url = f"{request.url_root}register?token={invite_token}"
 
             if email_service.send_organization_invite_email(
-                email, invite_url, tenant.name, user.first_name):
+                email, token_hash, tenant.name, user.first_name):
                 logger.info(f"Organization invitation sent to {email}")
                 return jsonify({
                     'success': True,
@@ -2638,12 +2652,12 @@ def join_organization():
         return redirect(url_for('login'))
 
     from email_service import hash_token
-    token_hash = hash_token(token)
-    invite_data = db_manager.verify_organization_invite_token(token_hash)
-
+    # token_hash = hash_token(token)
+    # print("token_hash", token_hash)
+    invite_data = db_manager.verify_organization_invite_token(token)
     if not invite_data:
         logger.warning(
-            f"Join organization failed: Invalid or expired token hash: {token_hash}"
+            f"Join organization failed: Invalid or expired token hash: {token}"
         )
         flash('Invalid or expired invitation link.', 'error')
         return redirect(url_for('login'))
@@ -2653,7 +2667,7 @@ def join_organization():
 
     if not tenant:
         logger.error(
-            f"Join organization failed: Tenant {tenant_id} not found for token hash {token_hash}."
+            f"Join organization failed: Tenant {tenant_id} not found for token hash {token}."
         )
         flash('Organization not found.', 'error')
         return redirect(url_for('login'))
@@ -2682,13 +2696,15 @@ def join_organization():
             return redirect(url_for('login'))
 
     # Store invite info in session for registration
+    from email_service import hash_token
+    token_hash = hash_token(token)
     session['organization_invite'] = {
         'token_hash': token_hash,
         'tenant_id': tenant_id,
         'email': email,
         'organization_name': tenant.name
     }
-    logger.info(f"Storing organization invite details in session for {email}.")
+    logger.info(f"Storing organization invite details in session for {email}: {session['organization_invite']}")
 
     # Track organization invite accepted
     analytics_service.track_user_event(

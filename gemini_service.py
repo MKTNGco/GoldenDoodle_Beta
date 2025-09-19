@@ -12,8 +12,11 @@ logger = logging.getLogger(__name__)
 class GeminiService:
     def __init__(self):
         api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is required")
+        if not api_key or api_key == "your-gemini-api-key-here":
+            logger.warning("GEMINI_API_KEY not configured - running in local development mode")
+            self.client = None
+            self.model_name = 'gemini-2.5-flash'
+            return
         
         logger.info(f"Initializing Gemini service with API key: {api_key[:10]}...")
         self.client = genai.Client(api_key=api_key)
@@ -41,6 +44,9 @@ class GeminiService:
                         brand_voice_context: Optional[str] = None,
                         trauma_informed_context: Optional[str] = None) -> str:
         """Generate content using Gemini with trauma-informed and brand voice context"""
+        if self.client is None:
+            return "AI service is not configured. Please add your GEMINI_API_KEY to the .env file to enable AI features."
+        
         try:
             # Get temperature based on content mode
             temperature = CONTENT_MODE_TEMPERATURES.get(content_mode or 'general', 0.7)
@@ -78,6 +84,9 @@ class GeminiService:
                                     content_mode: str = None, brand_voice_context: str = None, 
                                     trauma_informed_context: str = None) -> str:
         """Generate content using Gemini with conversation history for context"""
+        if self.client is None:
+            return "AI service is not configured. Please add your GEMINI_API_KEY to the .env file to enable AI features."
+        
         try:
             # Build conversation history string
             history_context = ""

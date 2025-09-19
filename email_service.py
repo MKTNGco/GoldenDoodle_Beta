@@ -24,14 +24,15 @@ class EmailService:
 
     def send_verification_email(self, to_email: str, verification_token: str, first_name: str) -> bool:
         """Send email verification email"""
-        if not self.client:
-            logger.error("SendGrid client not configured")
-            return False
+        # if not self.client:
+        #     logger.error("SendGrid client not configured")
+        #     return False
 
         try:
             # Get the base URL for verification link
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
             verification_link = f"{base_url}/verify-email?token={verification_token}"
+            print("verification_link", verification_link)
 
             # Email content
             subject = "Verify Your GoldenDoodleLM Account"
@@ -187,6 +188,7 @@ The GoldenDoodleLM Team
         """Send organization invite email"""
         try:
             invite_url = f"{self.base_url}/join-organization?token={invite_token}"
+            print("invite_url2", invite_url)
 
             subject = f"You're invited to join {organization_name} on GoldenDoodleLM"
 

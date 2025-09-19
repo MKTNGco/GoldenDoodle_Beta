@@ -3,6 +3,12 @@ import logging
 from flask import Flask, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Configure detailed logging
 logging.basicConfig(
     level=logging.DEBUG,
@@ -27,11 +33,10 @@ app.config['CRISP_API_KEY'] = os.environ.get('CRISP_API_KEY')
 app.config['CRISP_MARKETPLACE_ID'] = os.environ.get('CRISP_MARKETPLACE_ID')
 app.config['CRISP_MARKETPLACE_KEY'] = os.environ.get('CRISP_MARKETPLACE_KEY')
 
-# Import routes after app creation to avoid circular imports
-from routes import *
 from database import init_databases
 from auth import get_current_user
 from analytics_service import analytics_service
+from routes import *
 
 # AUTOMATIC PAGE VIEW TRACKING FOR DAU/WAU
 @app.before_request
@@ -72,4 +77,4 @@ def inject_user():
 if __name__ == '__main__':
     with app.app_context():
         init_databases()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

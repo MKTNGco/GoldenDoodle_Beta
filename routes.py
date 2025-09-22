@@ -2708,11 +2708,11 @@ def send_organization_invite():
             logger.info(
                 f"Organization invite created for {email} to tenant {tenant.name}.")
             # Send invite email
-            invite_url = f"{request.url_root}register?token={invite_token}"
-            print("invite_url in send_organization_invite: ", f"{request.url_root}/join-organization?token={invite_token}")
+            invite_url = f"{request.url_root}join-organization?token={invite_token}"
+            print("invite_url in send_organization_invite: ", invite_url)
 
             if email_service.send_organization_invite_email(
-                email, token_hash, tenant.name, user.first_name):
+                email, invite_token, tenant.name, user.first_name):
                 logger.info(f"Organization invitation sent to {email}")
                 return jsonify({
                     'success': True,
@@ -4424,7 +4424,8 @@ def admin_beta_invites():
                         email_sent = email_service.send_beta_invitation_email(
                             to_email=email,
                             invite_code=invite_code,
-                            organization_name=organization)
+                            organization_name=organization,
+                            invite_link=invite_link)
                         if not email_sent:
                             email_error = "Failed to send email"
                     except Exception as email_ex:

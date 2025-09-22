@@ -242,15 +242,17 @@ The GoldenDoodleLM Team
             logger.error(f"Error sending organization invite email: {e}")
             return False
 
-    def send_beta_invitation_email(self, to_email: str, invite_code: str, organization_name: str) -> bool:
+    def send_beta_invitation_email(self, to_email: str, invite_code: str, organization_name: str, invite_link: str = None) -> bool:
         """Send beta invitation email"""
         if not self.client:
             logger.error("SendGrid client not configured")
             return False
 
         try:
-            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
-            invite_link = f"{base_url}/register?ref={invite_code}"
+            # Use provided invite_link or generate one
+            if not invite_link:
+                base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+                invite_link = f"{base_url}/register?ref={invite_code}"
 
             subject = f"You're invited to try GoldenDoodleLM Beta for {organization_name}"
 

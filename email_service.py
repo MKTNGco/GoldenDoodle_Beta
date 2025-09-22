@@ -14,11 +14,7 @@ class EmailService:
         self.api_key = os.environ.get('SENDGRID_API_KEY')
         self.from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@goldendoodlelm.com')
         self.from_name = os.environ.get('SENDGRID_FROM_NAME', 'GoldenDoodleLM')
-        base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
-        # Ensure BASE_URL has protocol
-        if not base_url.startswith(('http://', 'https://')):
-            base_url = f"https://{base_url}"
-        self.base_url = base_url
+        self.base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
 
         if not self.api_key:
             logger.warning("SendGrid API key not configured")

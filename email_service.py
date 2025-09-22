@@ -14,7 +14,11 @@ class EmailService:
         self.api_key = os.environ.get('SENDGRID_API_KEY')
         self.from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@goldendoodlelm.com')
         self.from_name = os.environ.get('SENDGRID_FROM_NAME', 'GoldenDoodleLM')
-        self.base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+        base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+        # Ensure BASE_URL has protocol
+        if not base_url.startswith(('http://', 'https://')):
+            base_url = f"https://{base_url}"
+        self.base_url = base_url
 
         if not self.api_key:
             logger.warning("SendGrid API key not configured")
@@ -31,6 +35,9 @@ class EmailService:
         try:
             # Get the base URL for verification link
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            # Ensure BASE_URL has protocol
+            if not base_url.startswith(('http://', 'https://')):
+                base_url = f"https://{base_url}"
             verification_link = f"{base_url}/verify-email?token={verification_token}"
 
             # Email content
@@ -111,6 +118,9 @@ The GoldenDoodleLM Team
 
         try:
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            # Ensure BASE_URL has protocol
+            if not base_url.startswith(('http://', 'https://')):
+                base_url = f"https://{base_url}"
             reset_link = f"{base_url}/reset-password?token={reset_token}"
 
             subject = "Reset Your GoldenDoodleLM Password"
@@ -252,6 +262,9 @@ The GoldenDoodleLM Team
             # Use provided invite_link or generate one
             if not invite_link:
                 base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            # Ensure BASE_URL has protocol
+            if not base_url.startswith(('http://', 'https://')):
+                base_url = f"https://{base_url}"
                 invite_link = f"{base_url}/register?ref={invite_code}"
 
             subject = f"You're invited to try GoldenDoodleLM Beta for {organization_name}"
@@ -374,6 +387,9 @@ Questions? Reply to this email or visit our support page.
 
         try:
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            # Ensure BASE_URL has protocol
+            if not base_url.startswith(('http://', 'https://')):
+                base_url = f"https://{base_url}"
             invite_link = f"{base_url}/register?ref={invite_code}"
 
             # Format invitation type for display
@@ -638,6 +654,9 @@ The GoldenDoodleLM Team
 
         try:
             base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
+            # Ensure BASE_URL has protocol
+            if not base_url.startswith(('http://', 'https://')):
+                base_url = f"https://{base_url}"
             verify_link = f"{base_url}/verify-email?token={verification_token}"
 
             subject = f"Welcome to GoldenDoodleLM, {first_name}!"

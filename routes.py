@@ -89,6 +89,9 @@ def register():
 
         if invitation_data and invitation_data['status'] == 'pending':
             logger.info(f"Valid invitation found for code: {invitation_code}")
+            if invitation_data.get('invitation_type')=='beta':
+                session[f'invitation_data_{invitation_code}'] = invitation_data
+                session[f'invitation_code_{invitation_code}'] = invitation_code
         elif invitation_data:
             logger.warning(
                 f"Invitation {invitation_code} found but status is: {invitation_data['status']}"
@@ -124,6 +127,34 @@ def register():
             if not organization_invite:
                 organization_invite = session.get('organization_invite')
                 logger.info(f"POST handler - retried organization_invite: {organization_invite}")
+            
+            # Get invitation code from form or URL parameters for POST request
+            post_invitation_code = request.form.get('invitation_code') or request.args.get('ref') or request.args.get('invite')
+            
+            # If we still don't have an invitation code, try to get it from the original GET request
+            if not post_invitation_code and invitation_code:
+                post_invitation_code = invitation_code
+            
+            if not invitation_data and post_invitation_code:
+                # Retrieve invitation data using the invitation code as session key
+                invitation_data = session.get(f'invitation_data_{post_invitation_code}')
+                if invitation_data:
+                    invitation_type = invitation_data.get('invitation_type')
+                    if invitation_type != 'beta':
+                        invitation_data = None
+                        session.pop(f'invitation_data_{post_invitation_code}', None)
+                        session.pop(f'invitation_code_{post_invitation_code}', None)
+                    else:
+                        # Additional security: Verify the email matches the invitation
+                        invited_email = invitation_data.get('invitee_email', '').lower().strip()
+                        if invited_email and email != invited_email:
+                            logger.warning(f"Email mismatch for invitation {post_invitation_code}: expected {invited_email}, got {email}")
+                            invitation_data = None
+                            session.pop(f'invitation_data_{post_invitation_code}', None)
+                            session.pop(f'invitation_code_{post_invitation_code}', None)
+                    logger.info(f"POST handler - retried invitation_data for code {post_invitation_code}: {invitation_data}")
+                else:
+                    logger.warning(f"POST handler - No invitation data found in session for code: {post_invitation_code}")
             
             # For organization invites, get values from session, otherwise from form
             if organization_invite:
@@ -309,6 +340,9 @@ def register():
                 subscription_level = 'team'
                 subscription_enum = SubscriptionLevel.TEAM
                 organization_name = organization_name if organization_name else f"{first_name} {last_name}'s Beta Organization"
+                if invitation_code:
+                    session.pop(f'invitation_data_{invitation_code}', None)
+                    session.pop(f'invitation_code_{invitation_code}', None)
                 logger.info(f"🎯 BETA USER DETECTED: {email} - forcing company/team settings")
             else:
                 # For non-beta users, use existing logic
@@ -323,17 +357,66 @@ def register():
                     logger.info(f"Creating BETA organization for {email} with 10 brand voices")
                 elif subscription_enum == SubscriptionLevel.TEAM:
                     max_brand_voices = 10  # Team accounts get 10 voices
-                elif subscription_enum == SubscriptionLevel.ENTERPRISE:
+                elif subscription_enum == SubscriptionLevel.PROFESSIONAL:
                     max_brand_voices = 10
                 else:
                     max_brand_voices = 10  # Default for company accounts
 
-                tenant = db_manager.create_tenant(
-                    name=organization_name,
-                    tenant_type=TenantType.COMPANY,
-                    max_brand_voices=max_brand_voices)
-                is_admin = True  # First user in company is admin
-                logger.info(f"Created company tenant for {email}: {tenant.tenant_id}, max_voices: {max_brand_voices}")
+                # Check if a tenant with this organization name already exists
+                existing_tenant = None
+                try:
+                    conn = db_manager.get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT * FROM tenants WHERE name = %s AND tenant_type = %s", 
+                                 (organization_name, TenantType.COMPANY.value))
+                    result = cursor.fetchone()
+                    cursor.close()
+                    conn.close()
+                    
+                    if result:
+                        existing_tenant = db_manager.get_tenant_by_id(str(result[0]))
+                        logger.info(f"Found existing tenant for organization '{organization_name}': {existing_tenant.tenant_id}")
+                except Exception as e:
+                    logger.error(f"Error checking for existing tenant: {e}")
+
+                if existing_tenant:
+                    # Use existing tenant
+                    tenant = existing_tenant
+                    is_admin = False  # Not the first user, so not admin unless it's a beta user
+                    if is_beta_user:
+                        is_admin = True  # Beta users are always admins
+                        # For beta users joining existing tenants, inherit the tenant's subscription level
+                        # Get the subscription level of existing admin users in this tenant
+                        try:
+                            results = db_manager.execute_query("""
+                                SELECT subscription_level 
+                                FROM users 
+                                WHERE tenant_id = %s AND is_admin = TRUE 
+                                LIMIT 1
+                            """, (tenant.tenant_id,))
+                            print(f"results: {results}")
+                            if results:
+                                # Use the existing admin's subscription level for the beta user
+                                existing_subscription = results[0]['subscription_level']
+                                subscription_enum = SubscriptionLevel(existing_subscription)
+                                logger.info(f"Beta user {email} inheriting subscription level '{existing_subscription}' from existing tenant admin")
+                            else:
+                                # Fallback to team if no admin found
+                                subscription_enum = SubscriptionLevel.TEAM
+                                logger.info(f"No existing admin found, defaulting beta user {email} to team subscription")
+                        except Exception as e:
+                            logger.error(f"Error getting existing subscription level: {e}")
+                            subscription_enum = SubscriptionLevel.TEAM
+                            logger.info(f"Error occurred, defaulting beta user {email} to team subscription")
+                    logger.info(f"Using existing company tenant for {email}: {tenant.tenant_id}, admin: {is_admin}")
+                else:
+                    # Create new tenant
+                    tenant = db_manager.create_tenant(
+                        name=organization_name,
+                        tenant_type=TenantType.COMPANY,
+                        max_brand_voices=max_brand_voices)
+                    is_admin = True  # First user in company is admin
+                    logger.info(f"Created new company tenant for {email}: {tenant.tenant_id}, max_voices: {max_brand_voices}")
             else:
                 # Individual plans (Solo/Pro)
                 if subscription_enum == SubscriptionLevel.SOLO:
@@ -369,6 +452,13 @@ def register():
                 password=password,
                 subscription_level=final_subscription_level,
                 is_admin=is_admin)
+
+            # Clean up session data after successful registration
+            session.pop('organization_invite', None)
+            # Clean up invitation data for the specific invitation code used
+            if 'post_invitation_code' in locals() and post_invitation_code:
+                session.pop(f'invitation_data_{post_invitation_code}', None)
+                session.pop(f'invitation_code_{post_invitation_code}', None)
 
             # CRITICAL DEBUG: Check what create_user returns
             logger.error(f"🔍 DEBUG: create_user returned type: {type(user_obj)}")
@@ -2619,6 +2709,7 @@ def send_organization_invite():
                 f"Organization invite created for {email} to tenant {tenant.name}.")
             # Send invite email
             invite_url = f"{request.url_root}register?token={invite_token}"
+            print("invite_url in send_organization_invite: ", f"{request.url_root}/join-organization?token={invite_token}")
 
             if email_service.send_organization_invite_email(
                 email, token_hash, tenant.name, user.first_name):

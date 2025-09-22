@@ -318,6 +318,16 @@ def register():
             # Check if user already exists
             existing_user = db_manager.get_user_by_email(email)
             if existing_user:
+                # Log detailed information about the existing user for debugging
+                logger.error(f"🔍 EXISTING USER DEBUG:")
+                logger.error(f"  Email: {email}")
+                logger.error(f"  User ID: {existing_user.user_id}")
+                logger.error(f"  Tenant ID: {existing_user.tenant_id}")
+                logger.error(f"  Is Admin: {existing_user.is_admin}")
+                logger.error(f"  Subscription: {existing_user.subscription_level}")
+                logger.error(f"  Invitation Data: {invitation_data}")
+                logger.error(f"  Invitation Code: {invitation_code}")
+                
                 if expects_json:
                     return jsonify({'error': 'An account with this email already exists.', 'retry': True}), 400
                 flash('An account with this email already exists.', 'error')

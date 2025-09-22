@@ -102,9 +102,16 @@ The GoldenDoodleLM Team
                 html_content=HtmlContent(html_content)
             )
 
-            response = self.client.send(message)
-            logger.info(f"Verification email sent to {to_email}, status: {response.status_code}")
-            return response.status_code == 202
+                   # Disable click tracking for verification emails
+                   message.tracking_settings = {
+                       'click_tracking': {
+                           'enable': False
+                       }
+                   }
+                   
+                   response = self.client.send(message)
+                   logger.info(f"Verification email sent to {to_email}, status: {response.status_code}")
+                   return response.status_code == 202
 
         except Exception as e:
             logger.error(f"Failed to send verification email to {to_email}: {e}")
@@ -185,9 +192,16 @@ The GoldenDoodleLM Team
                 html_content=HtmlContent(html_content)
             )
 
-            response = self.client.send(message)
-            logger.info(f"Password reset email sent to {to_email}, status: {response.status_code}")
-            return response.status_code == 202
+                   # Disable click tracking for password reset emails
+                   message.tracking_settings = {
+                       'click_tracking': {
+                           'enable': False
+                       }
+                   }
+                   
+                   response = self.client.send(message)
+                   logger.info(f"Password reset email sent to {to_email}, status: {response.status_code}")
+                   return response.status_code == 202
 
         except Exception as e:
             logger.error(f"Error sending password reset email: {e}")

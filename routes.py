@@ -650,8 +650,7 @@ def register():
                     base_url = request.url_root.rstrip('/')
 
                     # Ensure we're using the correct host for Replit
-                    if 'replit.dev' in base_url and not base_url.startswith(
-                            'https://'):
+                    if 'replit.app' in base_url and base_url.startswith('http://'):
                         base_url = base_url.replace('http://', 'https://')
 
                     success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}&new_user={user_id}"
@@ -2708,7 +2707,11 @@ def send_organization_invite():
             logger.info(
                 f"Organization invite created for {email} to tenant {tenant.name}.")
             # Send invite email
-            invite_url = f"{request.url_root}join-organization?token={invite_token}"
+            base_url = request.url_root.rstrip('/')
+            # Ensure HTTPS for production
+            if base_url.startswith('http://') and 'replit.app' in base_url:
+                base_url = base_url.replace('http://', 'https://')
+            invite_url = f"{base_url}/join-organization?token={invite_token}"
             print("invite_url in send_organization_invite: ", invite_url)
 
             if email_service.send_organization_invite_email(
@@ -3280,6 +3283,9 @@ def create_checkout_session():
 
         # Create checkout session
         base_url = request.url_root.rstrip('/')
+        # Ensure HTTPS for production
+        if base_url.startswith('http://') and 'replit.app' in base_url:
+            base_url = base_url.replace('http://', 'https://')
         success_url = f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}"
         cancel_url = f"{base_url}/pricing"
 
@@ -3596,7 +3602,11 @@ def create_billing_portal():
         if not stripe_customer_id:
             return jsonify({'error': 'No billing account found'}), 400
 
-        return_url = f"{request.url_root}account"
+        base_url = request.url_root.rstrip('/')
+        # Ensure HTTPS for production
+        if base_url.startswith('http://') and 'replit.app' in base_url:
+            base_url = base_url.replace('http://', 'https://')
+        return_url = f"{base_url}/account"
         portal_url = stripe_service.create_billing_portal_session(
             customer_id=stripe_customer_id, return_url=return_url)
 
@@ -3800,6 +3810,11 @@ def not_found_error(error):
 def test_stripe():
     """Test Stripe configuration"""
     try:
+        # Get base URL with HTTPS
+        base_url = request.url_root.rstrip('/')
+        if base_url.startswith('http://') and 'replit.app' in base_url:
+            base_url = base_url.replace('http://', 'https://')
+        
         # Test if Stripe keys are configured
         test_mode = stripe_service.test_mode
         api_key_configured = bool(stripe_service.get_publishable_key())
@@ -3828,8 +3843,8 @@ def test_stripe():
                 test_checkout = stripe_service.create_checkout_session(
                     customer_email="test@example.com",
                     price_id='price_1RvL44Hynku0jyEH12IrEJuI',  # Solo plan
-                    success_url=f"{request.url_root.rstrip('/')}/test-success",
-                    cancel_url=f"{request.url_root.rstrip('/')}/test-cancel",
+                    success_url=f"{base_url}/test-success",
+                    cancel_url=f"{base_url}/test-cancel",
                     customer_id=test_customer['id'],
                     metadata={'test': 'true'})
                 if test_checkout:
@@ -4413,6 +4428,9 @@ def admin_beta_invites():
 
                 # Create the invitation link
                 base_url = request.url_root.rstrip('/')
+                # Ensure HTTPS for production
+                if base_url.startswith('http://') and 'replit.app' in base_url:
+                    base_url = base_url.replace('http://', 'https://')
                 invite_link = f"{base_url}/register?ref={invite_code}"
 
                 # Try to send email if requested and available

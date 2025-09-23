@@ -821,9 +821,11 @@ def register():
                 else:
                     if expects_json:
                         return jsonify({
-                            'error': 'Account created, but we couldn\'t send the verification email. Please contact support.',
-                            'retry': False
-                        }), 500
+                            'success': True,
+                            'message': 'Account created successfully! However, we couldn\'t send the verification email. Please contact support or try logging in.',
+                            'redirect': '/login',
+                            'warning': True
+                        })
                     else:
                         flash(
                             'Account created, but we couldn\'t send the verification email. Please contact support.',
@@ -832,9 +834,11 @@ def register():
             else:
                 if expects_json:
                     return jsonify({
-                        'error': 'Account created, but there was an issue with email verification. Please contact support.',
-                        'retry': False
-                    }), 500
+                        'success': True,
+                        'message': 'Account created successfully! However, there was an issue with email verification. Please contact support or try logging in.',
+                        'redirect': '/login',
+                        'warning': True
+                    })
                 else:
                     flash(
                         'Account created, but there was an issue with email verification. Please contact support.',

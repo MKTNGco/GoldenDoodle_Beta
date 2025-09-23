@@ -293,6 +293,9 @@ def register():
                         value  # Team level for organization members
                     })
 
+                # Store organization name before clearing from session
+                organization_name = organization_invite['organization_name']
+                
                 # Mark invite as used
                 db_manager.use_organization_invite_token(
                     organization_invite['token_hash'])
@@ -310,11 +313,11 @@ def register():
                         if expects_json:
                             return jsonify({
                                 'success': True,
-                                'message': f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.',
+                                'message': f'Welcome to {organization_name}! Your account has been created successfully. Please check your email to verify your account before signing in.',
                                 'redirect': url_for('login')
                             })
                         flash(
-                            f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.',
+                            f'Welcome to {organization_name}! Your account has been created successfully. Please check your email to verify your account before signing in.',
                             'success')
                         return redirect(url_for('login'))
                     else:

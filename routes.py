@@ -117,6 +117,13 @@ def register():
                         or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
                         or request.headers.get('Content-Type') == 'application/x-www-form-urlencoded')
 
+        logger.info(f"🔍 REGISTRATION DEBUG:")
+        logger.info(f"  Method: POST")
+        logger.info(f"  Expects JSON: {expects_json}")
+        logger.info(f"  Content-Type: {request.headers.get('Content-Type')}")
+        logger.info(f"  Accept: {request.headers.get('Accept')}")
+        logger.info(f"  X-Requested-With: {request.headers.get('X-Requested-With')}")
+
         try:
             first_name = request.form.get('first_name', '').strip()
             last_name = request.form.get('last_name', '').strip()
@@ -823,25 +830,36 @@ def register():
                     return redirect(url_for('login'))
 
         except Exception as e:
-            logger.error(f"Registration error: {e}")
+            logger.error(f"🚨 REGISTRATION ERROR: {e}")
+            logger.error(f"🚨 ERROR TYPE: {type(e)}")
             import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            logger.error(f"🚨 FULL TRACEBACK: {traceback.format_exc()}")
+            
+            # Log form data for debugging
+            logger.error(f"🚨 FORM DATA DEBUG:")
+            logger.error(f"  first_name: {first_name if 'first_name' in locals() else 'NOT SET'}")
+            logger.error(f"  last_name: {last_name if 'last_name' in locals() else 'NOT SET'}")
+            logger.error(f"  email: {email if 'email' in locals() else 'NOT SET'}")
+            logger.error(f"  organization_invite: {organization_invite if 'organization_invite' in locals() else 'NOT SET'}")
+            logger.error(f"  invitation_data: {invitation_data if 'invitation_data' in locals() else 'NOT SET'}")
 
             # Clean up any partially created user/tenant on error
             try:
                 if 'user_id' in locals() and user_id:
+                    logger.error(f"🚨 CLEANUP: Deleting user {user_id}")
                     db_manager.delete_user(user_id)
                 if 'tenant' in locals() and tenant:
+                    logger.error(f"🚨 CLEANUP: Deleting tenant {tenant.tenant_id}")
                     db_manager.delete_tenant(tenant.tenant_id)
             except Exception as cleanup_error:
-                logger.error(f"Error during cleanup: {cleanup_error}")
+                logger.error(f"🚨 CLEANUP ERROR: {cleanup_error}")
 
             # Always return JSON for AJAX requests
             if expects_json:
                 return jsonify({
-                    'error':
-                    'An error occurred during registration. Please try again.',
-                    'retry': True
+                    'error': f'Registration failed: {str(e)}',
+                    'retry': True,
+                    'debug': 'Check server logs for details'
                 }), 500
             else:
                 flash(

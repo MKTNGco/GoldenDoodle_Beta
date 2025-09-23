@@ -24,8 +24,17 @@ class EmailService:
 
     def send_verification_email(self, to_email: str, verification_token: str, first_name: str) -> bool:
         """Send email verification email"""
+        logger.info(f"🔍 SEND VERIFICATION EMAIL DEBUG:")
+        logger.info(f"  To email: {to_email}")
+        logger.info(f"  First name: {first_name}")
+        logger.info(f"  API key present: {bool(self.api_key)}")
+        logger.info(f"  API key length: {len(self.api_key) if self.api_key else 0}")
+        logger.info(f"  Client configured: {self.client is not None}")
+        logger.info(f"  From email: {self.from_email}")
+        logger.info(f"  Base URL: {self.base_url}")
+        
         if not self.client:
-            logger.error("SendGrid client not configured")
+            logger.error("🚨 SendGrid client not configured - API key missing or invalid")
             return False
 
         try:
@@ -91,11 +100,11 @@ The GoldenDoodleLM Team
             """
 
             message = Mail(
-                from_email=From(self.from_email, self.from_name),
-                to_emails=To(to_email),
-                subject=Subject(subject),
-                plain_text_content=PlainTextContent(plain_content),
-                html_content=HtmlContent(html_content)
+                from_email=self.from_email,
+                to_emails=to_email,
+                subject=subject,
+                plain_text_content=plain_content,
+                html_content=html_content
             )
 
             # Disable click tracking for verification emails
@@ -107,10 +116,29 @@ The GoldenDoodleLM Team
             
             response = self.client.send(message)
             logger.info(f"Verification email sent to {to_email}, status: {response.status_code}")
+            
+            # Log response details for debugging
+            if hasattr(response, 'body'):
+                logger.info(f"SendGrid response body: {response.body}")
+            if hasattr(response, 'headers'):
+                logger.info(f"SendGrid response headers: {response.headers}")
+                
             return response.status_code == 202
 
         except Exception as e:
-            logger.error(f"Failed to send verification email to {to_email}: {e}")
+            logger.error(f"🚨 Failed to send verification email to {to_email}: {e}")
+            logger.error(f"🚨 Error type: {type(e).__name__}")
+            
+            # Log more details about the error
+            if hasattr(e, 'status_code'):
+                logger.error(f"🚨 SendGrid status code: {e.status_code}")
+            if hasattr(e, 'body'):
+                logger.error(f"🚨 SendGrid error body: {e.body}")
+            if hasattr(e, 'headers'):
+                logger.error(f"🚨 SendGrid error headers: {e.headers}")
+                
+            import traceback
+            logger.error(f"🚨 Full traceback: {traceback.format_exc()}")
             return False
 
     def send_password_reset_email(self, to_email: str, reset_token: str, first_name: str) -> bool:

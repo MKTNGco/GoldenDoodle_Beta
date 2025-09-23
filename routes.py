@@ -1010,47 +1010,77 @@ def verify_email():
 def resend_verification():
     """Resend verification email"""
     try:
+        logger.info(f"🔍 RESEND VERIFICATION DEBUG:")
+        logger.info(f"  Request method: {request.method}")
+        logger.info(f"  Content-Type: {request.headers.get('Content-Type')}")
+        logger.info(f"  Request data: {request.get_data()}")
+        
         data = request.get_json()
+        logger.info(f"  Parsed JSON data: {data}")
+        
         email = data.get('email', '').strip().lower()
+        logger.info(f"  Email: {email}")
 
         if not email:
+            logger.warning("Resend verification failed: No email provided")
             return jsonify({'error': 'Email is required'}), 400
 
         user = db_manager.get_user_by_email(email)
+        logger.info(f"  User found: {user is not None}")
         if not user:
+            logger.warning(f"Resend verification failed: User not found for email {email}")
             return jsonify({'error': 'User not found'}), 404
 
+        logger.info(f"  User email verified: {user.email_verified}")
         if user.email_verified:
+            logger.warning(f"Resend verification failed: Email {email} already verified")
             return jsonify({'error': 'Email is already verified'}), 400
 
         # Delete existing tokens and create new one
-        db_manager.resend_verification_email(user.user_id)
+        logger.info(f"  Deleting existing tokens for user {user.user_id}")
+        delete_result = db_manager.resend_verification_email(user.user_id)
+        logger.info(f"  Delete tokens result: {delete_result}")
 
         verification_token = generate_verification_token()
         token_hash = hash_token(verification_token)
+        logger.info(f"  Generated token: {verification_token[:10]}...")
+        logger.info(f"  Token hash: {token_hash[:10]}...")
 
-        if db_manager.create_verification_token(user.user_id, token_hash):
-            if email_service.send_verification_email(email, verification_token,
-                                                     user.first_name):
+        logger.info(f"  Creating verification token in database")
+        create_result = db_manager.create_verification_token(user.user_id, token_hash)
+        logger.info(f"  Create token result: {create_result}")
+
+        if create_result:
+            # Use first_name if available, otherwise use email prefix or "there"
+            display_name = user.first_name if user.first_name and user.first_name.strip() else "there"
+            logger.info(f"  Display name: {display_name}")
+            logger.info(f"  Sending verification email to {email}")
+            
+            email_result = email_service.send_verification_email(email, verification_token, display_name)
+            logger.info(f"  Email send result: {email_result}")
+            
+            if email_result:
                 # Track resend verification email event
                 analytics_service.track_user_event(
                     user_id=str(user.user_id),
                     event_name='Verification Email Resent',
                     properties={'email': user.email})
+                logger.info(f"  Resend verification successful for {email}")
                 return jsonify({
-                    'success':
-                    True,
-                    'message':
-                    'Verification email sent successfully'
+                    'success': True,
+                    'message': 'Verification email sent successfully'
                 })
             else:
-                return jsonify({'error':
-                                'Failed to send verification email'}), 500
+                logger.error(f"  Failed to send verification email to {email}")
+                return jsonify({'error': 'Failed to send verification email'}), 500
         else:
+            logger.error(f"  Failed to create verification token for user {user.user_id}")
             return jsonify({'error': 'Failed to create verification token'}), 500
 
     except Exception as e:
-        logger.error(f"Error resending verification: {e}")
+        logger.error(f"🚨 Error resending verification: {e}")
+        import traceback
+        logger.error(f"🚨 RESEND VERIFICATION ERROR TRACEBACK: {traceback.format_exc()}")
         return jsonify({'error': 'An error occurred'}), 500
 
 

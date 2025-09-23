@@ -135,6 +135,9 @@ def register():
         logger.info(f"  Content-Type: {request.headers.get('Content-Type')}")
         logger.info(f"  Accept: {request.headers.get('Accept')}")
         logger.info(f"  X-Requested-With: {request.headers.get('X-Requested-With')}")
+        logger.info(f"  is_json: {request.is_json}")
+        logger.info(f"  Sec-Fetch-Dest: {request.headers.get('Sec-Fetch-Dest')}")
+        logger.info(f"  Sec-Fetch-Mode: {request.headers.get('Sec-Fetch-Mode')}")
 
         try:
             first_name = request.form.get('first_name', '').strip()
@@ -304,16 +307,34 @@ def register():
                 if db_manager.create_verification_token(user_id, token_hash):
                     if email_service.send_verification_email(
                             email, verification_token, first_name):
+                        if expects_json:
+                            return jsonify({
+                                'success': True,
+                                'message': f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.',
+                                'redirect': url_for('login')
+                            })
                         flash(
                             f'Welcome to {organization_invite["organization_name"]}! Your account has been created successfully. Please check your email to verify your account before signing in.',
                             'success')
                         return redirect(url_for('login'))
                     else:
+                        if expects_json:
+                            return jsonify({
+                                'success': True,
+                                'message': 'Account created, but we couldn\'t send the verification email. Please contact support.',
+                                'redirect': url_for('login')
+                            })
                         flash(
                             'Account created, but we couldn\'t send the verification email. Please contact support.',
                             'warning')
                         return redirect(url_for('login'))
                 else:
+                    if expects_json:
+                        return jsonify({
+                            'success': True,
+                            'message': 'Account created, but there was an issue with email verification. Please contact support.',
+                            'redirect': url_for('login')
+                        })
                     flash(
                         'Account created, but there was an issue with email verification. Please contact support.',
                         'warning')

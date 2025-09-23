@@ -300,9 +300,9 @@ The GoldenDoodleLM Team
             # Use provided invite_link or generate one
             if not invite_link:
                 base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.replit.app')
-            # Ensure BASE_URL has protocol
-            if not base_url.startswith(('http://', 'https://')):
-                base_url = f"https://{base_url}"
+                # Ensure BASE_URL has protocol
+                if not base_url.startswith(('http://', 'https://')):
+                    base_url = f"https://{base_url}"
                 invite_link = f"{base_url}/register?ref={invite_code}"
 
             subject = f"You're invited to try GoldenDoodleLM Beta for {organization_name}"

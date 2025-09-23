@@ -100,19 +100,12 @@ The GoldenDoodleLM Team
             """
 
             message = Mail(
-                from_email=self.from_email,
-                to_emails=to_email,
-                subject=subject,
-                plain_text_content=plain_content,
-                html_content=html_content
+                from_email=From(self.from_email, self.from_name),
+                to_emails=To(to_email),
+                subject=Subject(subject),
+                plain_text_content=PlainTextContent(plain_content),
+                html_content=HtmlContent(html_content)
             )
-
-            # Disable click tracking for verification emails
-            message.tracking_settings = {
-                'click_tracking': {
-                    'enable': False
-                }
-            }
             
             response = self.client.send(message)
             logger.info(f"Verification email sent to {to_email}, status: {response.status_code}")
@@ -216,13 +209,6 @@ The GoldenDoodleLM Team
                 html_content=HtmlContent(html_content)
             )
 
-            # Disable click tracking for password reset emails
-            message.tracking_settings = {
-                'click_tracking': {
-                    'enable': False
-                }
-            }
-            
             response = self.client.send(message)
             logger.info(f"Password reset email sent to {to_email}, status: {response.status_code}")
             return response.status_code == 202

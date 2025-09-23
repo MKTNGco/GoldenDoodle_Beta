@@ -112,10 +112,22 @@ def register():
 
     if request.method == 'POST':
         # Check if this is an AJAX request expecting JSON
-        expects_json = (request.is_json
-                        or 'application/json' in request.headers.get('Accept', '')
-                        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-                        or request.headers.get('Content-Type') == 'application/x-www-form-urlencoded')
+        # Check for specific headers that indicate AJAX requests
+        user_agent = request.headers.get('User-Agent', '')
+        accept_header = request.headers.get('Accept', '')
+        content_type = request.headers.get('Content-Type', '')
+        
+        expects_json = (
+            request.is_json or
+            'application/json' in accept_header or
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            content_type == 'application/json' or
+            # Check for modern fetch API requests
+            request.headers.get('Sec-Fetch-Dest') == 'empty' or
+            request.headers.get('Sec-Fetch-Mode') == 'cors' or
+            # Check if it's a form submission that should return JSON
+            'text/html' not in accept_header and 'application/json' in accept_header
+        )
 
         logger.info(f"🔍 REGISTRATION DEBUG:")
         logger.info(f"  Method: POST")

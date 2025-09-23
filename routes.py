@@ -2787,12 +2787,20 @@ def join_organization():
 
     from email_service import hash_token
     token_hash = hash_token(token)
-    logger.info(f"Verifying organization invite token: {token} -> {token_hash}")
+    logger.info(f"🔍 TOKEN VERIFICATION DEBUG:")
+    logger.info(f"  Raw token: {token}")
+    logger.info(f"  Hashed token: {token_hash}")
+    logger.info(f"  Token length: {len(token)}")
+    logger.info(f"  Hash length: {len(token_hash)}")
+    
     invite_data = db_manager.verify_organization_invite_token(token_hash)
+    logger.info(f"  Verification result: {invite_data}")
+    
     if not invite_data:
-        logger.warning(
-            f"Join organization failed: Invalid or expired token hash: {token}"
-        )
+        logger.warning(f"🚨 TOKEN VERIFICATION FAILED:")
+        logger.warning(f"  Token: {token}")
+        logger.warning(f"  Hash: {token_hash}")
+        logger.warning(f"  Result: {invite_data}")
         flash('Invalid or expired invitation link.', 'error')
         return redirect(url_for('login'))
 

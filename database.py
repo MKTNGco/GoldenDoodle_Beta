@@ -1983,9 +1983,23 @@ class DatabaseManager:
     def verify_organization_invite_token(self, token_hash: str) -> Optional[tuple]:
         """Verify organization invite token and return tenant_id and email"""
         try:
+            logger.info(f"🔍 DATABASE VERIFICATION DEBUG:")
+            logger.info(f"  Token hash: {token_hash}")
+            logger.info(f"  Current time: {datetime.utcnow()}")
+            
             conn = self.get_connection()
             cursor = conn.cursor()
 
+            # First, let's check if the token exists at all
+            cursor.execute("""
+                SELECT tenant_id, email, expires_at, used FROM organization_invite_tokens 
+                WHERE token_hash = %s
+            """, (token_hash,))
+            
+            all_rows = cursor.fetchall()
+            logger.info(f"  All matching tokens: {all_rows}")
+            
+            # Now check for valid tokens
             cursor.execute("""
                 SELECT tenant_id, email FROM organization_invite_tokens 
                 WHERE token_hash = %s AND expires_at > %s AND used = FALSE
@@ -1994,13 +2008,17 @@ class DatabaseManager:
             row = cursor.fetchone()
             cursor.close()
             conn.close()
+            
+            logger.info(f"  Valid token result: {row}")
 
             if row:
                 return (str(row[0]), row[1])
             return None
 
         except Exception as e:
-            logger.error(f"Error verifying organization invite token: {e}")
+            logger.error(f"🚨 DATABASE VERIFICATION ERROR: {e}")
+            import traceback
+            logger.error(f"🚨 DATABASE ERROR TRACEBACK: {traceback.format_exc()}")
             return None
 
     def use_organization_invite_token(self, token_hash: str) -> bool:

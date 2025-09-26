@@ -173,5 +173,43 @@
         }]);
         {% endif %}
     </script>
+
+    <!-- Page Load Performance Tracking -->
+    <script type="text/javascript">
+        // Track page load performance
+        window.addEventListener('load', function() {
+            // Calculate page load time
+            const loadTime = performance.now();
+            
+            // Get page name from current URL
+            const path = window.location.pathname;
+            let pageName = 'unknown';
+            
+            // Map routes to page names
+            if (path === '/' || path === '/index') pageName = 'home';
+            else if (path === '/login') pageName = 'login';
+            else if (path === '/register') pageName = 'register';
+            else if (path === '/chat') pageName = 'chat';
+            else if (path === '/brand-voices') pageName = 'brand_voices';
+            else if (path === '/pricing') pageName = 'pricing';
+            else if (path === '/account') pageName = 'account';
+            else if (path.startsWith('/admin')) pageName = 'admin';
+            else pageName = path.replace('/', '').replace('-', '_') || 'home';
+            
+            // Send page load event to backend for PostHog tracking
+            fetch('/track-page-load', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    page_name: pageName,
+                    load_time_ms: Math.round(loadTime)
+                })
+            }).catch(function(error) {
+                console.log('Page load tracking failed:', error);
+            });
+        });
+    </script>
 </body>
 </html>

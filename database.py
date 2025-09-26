@@ -130,6 +130,32 @@ class DatabaseManager:
                 END $$;
             """)
 
+            # Add session_count column if it doesn't exist
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'session_count'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN session_count INTEGER DEFAULT 0;
+                    END IF;
+                END $$;
+            """)
+
+            # Add content_modes_used column if it doesn't exist
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'content_modes_used'
+                    ) THEN
+                        ALTER TABLE users ADD COLUMN content_modes_used JSONB DEFAULT '[]'::jsonb;
+                    END IF;
+                END $$;
+            """)
+
             # Create email verification tokens table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS email_verification_tokens (
@@ -627,6 +653,8 @@ class DatabaseManager:
                 user.email_verified = row.get('email_verified', False)
                 user.created_at = row.get('created_at')
                 user.last_login = row.get('last_login')
+                user.session_count = row.get('session_count', 0)
+                user.content_modes_used = row.get('content_modes_used', []) or []
                 user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
                 return user
             return None
@@ -663,6 +691,8 @@ class DatabaseManager:
                 user.email_verified = row.get('email_verified', False)
                 user.created_at = row.get('created_at')
                 user.last_login = row.get('last_login')
+                user.session_count = row.get('session_count', 0)
+                user.content_modes_used = row.get('content_modes_used', []) or []
                 user.plan_id = row.get('plan_id', row['subscription_level'])  # Ensure plan_id matches subscription_level
                 return user
             return None
@@ -691,6 +721,52 @@ class DatabaseManager:
 
         except Exception as e:
             logger.error(f"Error updating user last login: {e}")
+            return False
+
+    def update_user_session_count(self, user_id: str) -> bool:
+        """Increment user's session count"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users 
+                SET session_count = session_count + 1 
+                WHERE user_id = %s
+            """, (user_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating user session count: {e}")
+            return False
+
+    def update_user_content_modes_used(self, user_id: str, content_mode: str) -> bool:
+        """Add a content mode to user's used modes list"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Use PostgreSQL JSONB array functions to add the content mode if not already present
+            cursor.execute("""
+                UPDATE users 
+                SET content_modes_used = content_modes_used || %s::jsonb
+                WHERE user_id = %s 
+                AND NOT (content_modes_used ? %s)
+            """, (f'["{content_mode}"]', user_id, content_mode))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating user content modes used: {e}")
             return False
 
     def mark_email_verified(self, user_id: str) -> bool:
@@ -1308,7 +1384,7 @@ class DatabaseManager:
             cursor.execute("""
                 SELECT u.user_id, u.tenant_id, u.first_name, u.last_name, u.email, 
                        u.subscription_level, u.is_admin, u.email_verified, u.created_at,
-                       u.password_hash, u.last_login
+                       u.password_hash, u.last_login, u.session_count, u.content_modes_used
                 FROM users u
                 WHERE u.tenant_id = %s
                 ORDER BY u.is_admin DESC, u.created_at ASC
@@ -1327,7 +1403,9 @@ class DatabaseManager:
                     email_verified=row[7],
                     created_at=row[8],
                     password_hash=row[9],
-                    last_login=row[10]
+                    last_login=row[10],
+                    session_count=row[11],
+                    content_modes_used=row[12] or []
                 )
                 users.append(user)
 
@@ -1697,6 +1775,35 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting pricing plans: {e}")
             return []
+
+    def get_organization_token_usage(self, tenant_id: str) -> Optional[Dict]:
+        """Get organization's total token usage for the current month"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cursor.execute("""
+                SELECT 
+                    COALESCE(SUM(utu.tokens_used_month), 0) as org_monthly_total,
+                    COALESCE(SUM(utu.tokens_used_total), 0) as org_total_usage,
+                    COUNT(DISTINCT u.user_id) as total_users,
+                    COUNT(DISTINCT CASE WHEN utu.tokens_used_month > 0 THEN u.user_id END) as active_users
+                FROM users u
+                LEFT JOIN user_token_usage utu ON u.user_id = utu.user_id
+                WHERE u.tenant_id = %s
+            """, (tenant_id,))
+
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if result:
+                return dict(result)
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting organization token usage: {e}")
+            return None
 
     def get_user_plan(self, user_id: str) -> Optional[Dict]:
         """Get user's current plan and limits"""

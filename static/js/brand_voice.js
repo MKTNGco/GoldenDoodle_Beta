@@ -449,8 +449,8 @@ class BrandVoiceWizard {
         try {
             const formData = this.collectFormData();
             
-            // Don't set profile_id for creation, only for editing
-            if (this.isEditing && this.profileId) {
+            // Always use profileId if it exists (from auto-save) to avoid duplication
+            if (this.profileId) {
                 formData.brand_voice_id = this.profileId;
             }
 

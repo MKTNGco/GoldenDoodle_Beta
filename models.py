@@ -34,6 +34,8 @@ class User:
     email_verified: bool = False
     created_at: Optional[str] = None
     last_login: Optional[str] = None
+    session_count: int = 0
+    content_modes_used: Optional[List[str]] = None
     plan_id: str = 'free'  # Default to free plan
 
     @property

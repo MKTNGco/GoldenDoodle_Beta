@@ -1,4 +1,11 @@
 // GoldenDoodleLM Modern Chat Interface
+console.log('ChatInterface script loaded');
+
+// Prevent duplicate class declaration
+if (typeof ChatInterface !== 'undefined') {
+    console.warn('ChatInterface already defined, skipping redefinition');
+} else {
+
 class ChatInterface {
     constructor() {
         this.currentMode = null;
@@ -11,6 +18,10 @@ class ChatInterface {
         this.isLoggedIn = window.isLoggedIn || false;
         this.currentSessionId = null;
         this.isInitialized = false; // Prevent double initialization
+        
+        setTimeout(() => {
+            this.checkLibraries();
+        }, 1000);
 
         this.placeholders = [
             "Message GoldenDoodleLM...",
@@ -816,6 +827,7 @@ class ChatInterface {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.txt,.pdf,.doc,.docx,.md';
+        fileInput.title = 'Supported formats: .txt, .md, .pdf, .doc, .docx (Note: .docx format is recommended for Word documents)';
         fileInput.style.display = 'none';
 
         fileInput.addEventListener('change', (e) => {
@@ -836,8 +848,10 @@ class ChatInterface {
             return;
         }
 
+        this.showFileProcessingIndicator(file.name);
+
         try {
-            const text = await this.readFileAsText(file);
+            const text = await this.extractTextFromFile(file);
             const truncatedText = text.substring(0, 2000);
 
             const currentText = this.chatInput.value;
@@ -849,9 +863,300 @@ class ChatInterface {
             this.updateSendButton();
             this.chatInput.focus();
 
+            // Show success indicator
+            this.showFileSuccessIndicator(file.name);
+
         } catch (error) {
             console.error('Error reading file:', error);
-            alert('Error reading file. Please try again.');
+            
+            if (error.message.includes('Unsupported file type')) {
+                alert(`Error: ${error.message}. Please use .txt, .md, .pdf, .doc, or .docx files.`);
+            } else {
+                alert('Error reading file. Please try again or use a different file.');
+            }
+        }
+    }
+
+    showFileProcessingIndicator(fileName) {
+        const indicator = document.createElement('div');
+        indicator.id = 'file-processing-indicator';
+        indicator.innerHTML = `
+            <div style="position: fixed; top: 20px; right: 20px; background: var(--charcoal); color: var(--cloud-white); padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                Processing ${fileName}...
+            </div>
+        `;
+        document.body.appendChild(indicator);
+    }
+
+    updateFileProcessingIndicator(fileName, message) {
+        const indicator = document.getElementById('file-processing-indicator');
+        if (indicator) {
+            indicator.innerHTML = `
+                <div style="position: fixed; top: 20px; right: 20px; background: var(--charcoal); color: var(--cloud-white); padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                    <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                    ${message}
+                </div>
+            `;
+        }
+    }
+
+    showFileSuccessIndicator(fileName) {
+        const processingIndicator = document.getElementById('file-processing-indicator');
+        if (processingIndicator) {
+            processingIndicator.remove();
+        }
+
+        const indicator = document.createElement('div');
+        indicator.innerHTML = `
+            <div style="position: fixed; top: 20px; right: 20px; background: var(--success-green); color: black; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                <i class="fas fa-check" style="margin-right: 8px;"></i>
+                ${fileName} attached successfully!
+            </div>
+        `;
+        document.body.appendChild(indicator);
+
+        setTimeout(() => {
+            if (indicator.parentNode) {
+                indicator.parentNode.removeChild(indicator);
+            }
+        }, 3000);
+    }
+
+    checkLibraries() {
+        
+        if (typeof pdfjsLib === 'undefined') {
+            console.warn('PDF.js library not loaded - PDF extraction will not work');
+        }
+        if (typeof mammoth === 'undefined') {
+            console.warn('Mammoth library not loaded - Word extraction will not work');
+        }
+        console.log('=== END LIBRARY CHECK ===');
+    }
+
+    async loadPDFJS() {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+            script.onload = () => {
+                console.log('PDF.js loaded dynamically');
+                resolve();
+            };
+            script.onerror = () => {
+                console.error('Failed to load PDF.js dynamically');
+                reject(new Error('Failed to load PDF.js'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    async loadMammoth() {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js';
+            script.onload = () => {
+                console.log('Mammoth loaded dynamically');
+                resolve();
+            };
+            script.onerror = () => {
+                console.error('Failed to load Mammoth dynamically');
+                reject(new Error('Failed to load Mammoth'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    async extractTextFromFile(file) {
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        switch (fileExtension) {
+            case 'txt':
+            case 'md':
+                console.log('Using readFileAsText for text file');
+                return await this.readFileAsText(file);
+            
+            case 'pdf':
+                console.log('Using extractTextFromPDF for PDF file');
+                return await this.extractTextFromPDF(file);
+            
+            case 'doc':
+            case 'docx':
+                console.log('Using extractTextFromWord for Word file');
+                return await this.extractTextFromWord(file);
+            
+            default:
+                throw new Error(`Unsupported file type: ${fileExtension}. Supported types: .txt, .md, .pdf, .doc, .docx`);
+        }
+    }
+
+    async extractTextFromPDF(file) {
+        try {
+            // Wait for PDF.js to load if it's not available yet
+            let attempts = 0;
+            while (typeof pdfjsLib === 'undefined' && attempts < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            // Check if PDF.js is available
+            if (typeof pdfjsLib === 'undefined') {
+                
+                // Try to load PDF.js dynamically
+                try {
+                    await this.loadPDFJS();
+                    if (typeof pdfjsLib === 'undefined') {
+                        throw new Error('Failed to load PDF.js library');
+                    }
+                } catch (loadError) {
+                    console.error('Failed to load PDF.js:', loadError);
+                    throw new Error('PDF.js library not available. Please refresh the page and try again.');
+                }
+            }
+
+            if (pdfjsLib.GlobalWorkerOptions) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            
+            this.updateFileProcessingIndicator(file.name, 'Loading PDF document...');
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            
+            let fullText = '';
+            
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                this.updateFileProcessingIndicator(file.name, `Extracting text from page ${pageNum} of ${pdf.numPages}...`);
+                
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                
+                const pageText = textContent.items
+                    .map(item => item.str)
+                    .join(' ');
+                
+                fullText += pageText + '\n';
+            }
+            
+            if (fullText.trim().length === 0) {
+                return `[PDF file: ${file.name}]\n\nNote: This PDF appears to contain only images or non-extractable text. Please copy and paste the text content manually.`;
+            }
+            
+            return fullText.trim();
+            
+        } catch (error) {
+            console.error('PDF extraction error:', error);
+            return `[PDF file: ${file.name}]\n\nError extracting text from PDF: ${error.message}. Please copy and paste the text content manually, or save the PDF as a text file and try again.`;
+        }
+    }
+
+    async extractTextFromWord(file) {
+        try {
+            
+            let attempts = 0;
+            while (typeof mammoth === 'undefined' && attempts < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (typeof mammoth === 'undefined') {
+                console.error('Mammoth library not loaded after waiting');
+                
+                try {
+                    await this.loadMammoth();
+                    if (typeof mammoth === 'undefined') {
+                        throw new Error('Failed to load Mammoth library');
+                    }
+                } catch (loadError) {
+                    console.error('Failed to load Mammoth:', loadError);
+                    throw new Error('Mammoth library not available. Please refresh the page and try again.');
+                }
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            
+            this.updateFileProcessingIndicator(file.name, 'Extracting text from Word document...');
+            
+            try {
+                const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                
+                if (!result.value || result.value.trim().length === 0) {
+                    return `[Word document: ${file.name}]\n\nNote: This document appears to contain only images or non-extractable content. Please copy and paste the text content manually.`;
+                }
+                
+                let extractedText = result.value.trim();
+                if (result.messages && result.messages.length > 0) {
+                    const warnings = result.messages
+                        .filter(msg => msg.type === 'warning')
+                        .map(msg => msg.message)
+                        .join(', ');
+                    if (warnings) {
+                        extractedText += `\n\n[Note: Some formatting may have been lost during extraction: ${warnings}]`;
+                    }
+                }
+                
+                return extractedText;
+                
+            } catch (mammothError) {
+                console.log('Mammoth extraction failed:', mammothError.message);
+                
+                // Check if this is a binary .doc file that can't be processed
+                if (mammothError.message.includes('unexpected signature') || 
+                    mammothError.message.includes('zip file') || 
+                    mammothError.message.includes('central directory') ||
+                    mammothError.message.includes('Invalid data')) {
+                    
+                    // For "Invalid data" errors, try plain text fallback first
+                    if (mammothError.message.includes('Invalid data')) {
+                        console.log('Invalid data error detected, trying plain text fallback...');
+                        this.updateFileProcessingIndicator(file.name, 'Trying alternative extraction method...');
+                        
+                        try {
+                            const textContent = await this.readFileAsText(file);
+                            const isReadableText = this.isReadableText(textContent);
+                            
+                            if (textContent && textContent.trim().length > 0 && isReadableText) {
+                                return `[Word document: ${file.name}]\n\n${textContent}\n\nNote: Extracted using fallback method. Some formatting may be lost.`;
+                            }
+                        } catch (textError) {
+                            console.log('Plain text fallback also failed for invalid data');
+                        }
+                    }
+                    
+                    // Don't try plain text fallback for other binary .doc files
+                    throw new Error(`This .doc file appears to be in an older binary format that cannot be processed. Please convert it to .docx format or copy and paste the text content manually.`);
+                }
+                
+                // For other errors, try plain text fallback only if it's likely to be a text-based file
+                console.log('Trying plain text fallback...');
+                this.updateFileProcessingIndicator(file.name, 'Trying alternative extraction method...');
+                
+                try {
+                    const textContent = await this.readFileAsText(file);
+                    
+                    // Check if the content looks like readable text (not binary garbage)
+                    const isReadableText = this.isReadableText(textContent);
+                    
+                    if (textContent && textContent.trim().length > 0 && isReadableText) {
+                        return `[Word document: ${file.name}]\n\n${textContent}\n\nNote: Extracted using fallback method. Some formatting may be lost.`;
+                    } else {
+                        console.log('Plain text fallback produced unreadable content');
+                    }
+                } catch (textError) {
+                    console.log('Plain text fallback also failed');
+                }
+                
+                // Re-throw the original Mammoth error
+                throw mammothError;
+            }
+            
+        } catch (error) {
+            console.error('Word extraction error:', error);
+            
+            if (error.message.includes('zip file') || error.message.includes('central directory') || error.message.includes('unexpected signature') || error.message.includes('binary format') || error.message.includes('Invalid data')) {
+                return `[Word document: ${file.name}]\n\nThis document could not be processed by our text extraction system. This may be due to:\n1. The file being in an older binary format (.doc)\n2. The file being corrupted or damaged\n3. The file containing unsupported content\n\nPlease try:\n1. Opening the document in Microsoft Word and saving it as .docx format\n2. Copying and pasting the text content manually\n3. Converting the file using an online .doc to .docx converter\n\nNote: Modern .docx files work much better with our system.`;
+            }
+            
+            return `[Word document: ${file.name}]\n\nError extracting text from Word document: ${error.message}. Please copy and paste the text content manually, or save the document as a text file and try again.`;
         }
     }
 
@@ -862,6 +1167,33 @@ class ChatInterface {
             reader.onerror = (e) => reject(e);
             reader.readAsText(file);
         });
+    }
+
+    isReadableText(text) {
+        // Check if text contains too many non-printable characters
+        const nonPrintableCount = (text.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g) || []).length;
+        const totalLength = text.length;
+        const nonPrintableRatio = nonPrintableCount / totalLength;
+        
+        // If more than 10% of characters are non-printable, it's likely binary data
+        if (nonPrintableRatio > 0.1) {
+            return false;
+        }
+        
+        // Check for common binary file signatures
+        const binarySignatures = [
+            '\x00\x00\x00\x00', // Common in binary files
+            'Root Entry', // OLE compound document
+            '\xFF\xFF\xFF\xFF' // Another common binary pattern
+        ];
+        
+        for (const signature of binarySignatures) {
+            if (text.includes(signature)) {
+                return false;
+            }
+        }
+        
+        return true;
     }
 
     formatMessage(content) {
@@ -1313,3 +1645,4 @@ document.addEventListener('DOMContentLoaded', function() {
 window.addEventListener('load', function() {
     console.log('Window loaded, chat interface should be ready');
 });
+}

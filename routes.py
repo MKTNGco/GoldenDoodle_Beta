@@ -280,7 +280,11 @@ def register():
                 )
                 user_id = user_obj.user_id 
 
-                # Track user registration event
+                # Track user signup event with enhanced analytics
+                tenant = db_manager.get_tenant_by_id(user_obj.tenant_id)
+                analytics_service.track_user_signup(user_obj, tenant, signup_method='invitation')
+                
+                # Also track the legacy event for backward compatibility
                 analytics_service.track_user_event(
                     user_id=str(user_id),
                     event_name='User Registered',
@@ -525,7 +529,12 @@ def register():
             logger.error(f"🔍 DEBUG: Final user_id value: {repr(user_id)}")
             logger.error(f"🔍 DEBUG: Final user_id length: {len(user_id)}")
 
-            # Track user registration event
+            # Track user signup event with enhanced analytics
+            tenant = db_manager.get_tenant_by_id(user_obj.tenant_id)
+            signup_method = 'invitation' if invitation_data else 'direct'
+            analytics_service.track_user_signup(user_obj, tenant, signup_method)
+            
+            # Also track the legacy event for backward compatibility
             analytics_service.track_user_event(user_id=str(user_id),
                                                event_name='User Registered',
                                                properties={
@@ -659,8 +668,8 @@ def register():
                     # Create Stripe customer
                     print(f"🔥 DEBUG USER ID TYPE: {type(user_id)}")
                     print(f"🔥 DEBUG USER ID VALUE: {repr(user_id)}")
-                    print(f"🔥 DEBUG USER OBJECT TYPE: {type(user)}")
-                    print(f"🔥 DEBUG USER OBJECT: {repr(user)}")
+                    print(f"🔥 DEBUG USER_ID FINAL TYPE: {type(user_id)}")
+                    print(f"🔥 DEBUG USER_ID FINAL VALUE: {repr(user_id)}")
                     print(f"🔥 DEBUG METADATA BEFORE STRIPE: {customer_metadata}")
 
                     # Double check all values being passed to Stripe
@@ -779,6 +788,23 @@ def register():
 
                 except Exception as stripe_error:
                     logger.error(f"❌ Stripe error: {stripe_error}")
+                    
+                    # Track Stripe API error for analytics
+                    try:
+                        analytics_service.track_api_error(
+                            error_type='stripe_api_failure',
+                            error_code=getattr(stripe_error, 'status_code', None),
+                            user=None,  # User not created yet
+                            additional_properties={
+                                'error_message': str(stripe_error),
+                                'subscription_level': subscription_level,
+                                'user_email': email,
+                                'operation': 'checkout_session_creation'
+                            }
+                        )
+                    except Exception as tracking_error:
+                        logger.error(f"Failed to track Stripe API error: {tracking_error}")
+                    
                     # Clean up user and tenant on failure
                     try:
                         db_manager.delete_user(user_id)
@@ -871,6 +897,22 @@ def register():
             import traceback
             logger.error(f"🚨 FULL TRACEBACK: {traceback.format_exc()}")
             
+            # Track application error for analytics
+            try:
+                analytics_service.track_application_error(
+                    error_type='registration_failure',
+                    error_message=str(e),
+                    user=None,  # User creation failed
+                    additional_properties={
+                        'error_type': str(type(e)),
+                        'user_email': email if 'email' in locals() else 'unknown',
+                        'operation': 'user_registration',
+                        'form_data_available': all(key in locals() for key in ['first_name', 'last_name', 'email'])
+                    }
+                )
+            except Exception as tracking_error:
+                logger.error(f"Failed to track registration error: {tracking_error}")
+            
             # Log form data for debugging
             logger.error(f"🚨 FORM DATA DEBUG:")
             logger.error(f"  first_name: {first_name if 'first_name' in locals() else 'NOT SET'}")
@@ -936,9 +978,38 @@ def login():
                                        show_resend=True,
                                        email=email)
 
-            # Update last login timestamp
+            # Update last login timestamp and session count
             db_manager.update_user_last_login(user.user_id)
+            db_manager.update_user_session_count(user.user_id)
 
+            # Get tenant/organization information for user identification
+            tenant = db_manager.get_tenant_by_id(user.tenant_id)
+            
+            # Calculate days since last visit for retention tracking
+            days_since_last_visit = 0
+            if user.last_login:
+                try:
+                    from datetime import datetime
+                    last_login_date = datetime.fromisoformat(user.last_login.replace('Z', '+00:00'))
+                    days_since_last_visit = (datetime.utcnow() - last_login_date).days
+                except Exception as e:
+                    logger.warning(f"Could not calculate days since last visit: {e}")
+                    days_since_last_visit = 0
+            
+            # Track user return for retention analytics
+            analytics_service.track_user_return(
+                user=user,
+                days_since_last_visit=days_since_last_visit,
+                session_number=user.session_count + 1,  # +1 because we just incremented it
+                tenant=tenant
+            )
+            
+            # Track user session start for DAU/WAU and tenant activity metrics
+            analytics_service.track_user_session_start(user, tenant)
+            
+            # Identify user with organization details (PostHog requirement)
+            analytics_service.identify_user_with_org(user, tenant)
+            
             # Track user login event
             analytics_service.track_user_event(user_id=str(user.user_id),
                                                event_name='User Login',
@@ -1351,6 +1422,9 @@ def generate():
             f"Trauma informed context length: {len(trauma_informed_context) if trauma_informed_context else 0}"
         )
 
+        # Start timing for content generation performance tracking
+        generation_start_time = datetime.utcnow()
+
         try:
             response = gemini_service.generate_content_with_history(
                 prompt=prompt,
@@ -1359,20 +1433,82 @@ def generate():
                 brand_voice_context=brand_voice_context,
                 trauma_informed_context=trauma_informed_context)
 
+            # Calculate response time for performance tracking
+            generation_end_time = datetime.utcnow()
+            response_time_ms = int((generation_end_time - generation_start_time).total_seconds() * 1000)
+
             logger.info(
                 f"✓ Gemini service returned response of length: {len(response) if response else 0}"
             )
             logger.info(
                 f"Response preview: {response[:100] if response else 'No response'}"
             )
+            logger.info(f"✓ Content generation completed in {response_time_ms}ms")
         except Exception as gemini_error:
             logger.error(f"❌ Error in Gemini service call: {gemini_error}")
+            
+            # Track Gemini API error for analytics
+            if user and not is_demo:
+                try:
+                    tenant = db_manager.get_tenant_by_id(user.tenant_id)
+                    analytics_service.track_api_error(
+                        error_type='gemini_api_failure',
+                        error_code=getattr(gemini_error, 'status_code', None),
+                        user=user,
+                        content_mode=content_mode,
+                        tenant=tenant,
+                        additional_properties={
+                            'error_message': str(gemini_error),
+                            'prompt_length': len(prompt),
+                            'has_brand_voice': bool(brand_voice_id)
+                        }
+                    )
+                except Exception as tracking_error:
+                    logger.error(f"Failed to track Gemini API error: {tracking_error}")
+            
             raise
+
+        # Check for retry attempt tracking
+        retry_attempt = 0
+        if user and not is_demo:
+            # Use session to track retry attempts for the same prompt/content mode
+            retry_key = f"retry_attempt_{user.user_id}_{hash(prompt)}_{content_mode}"
+            retry_attempt = session.get(retry_key, 0)
+            if retry_attempt > 0:
+                session[retry_key] = retry_attempt + 1
+            else:
+                session[retry_key] = 1
+
+        # Check if this is the first content generation before updating token usage
+        user_usage_before = db_manager.get_user_token_usage(user.user_id)
+        is_first_content = user_usage_before and user_usage_before.get('tokens_used_total', 0) == 0
 
         # Update token usage (rough calculation: input + output tokens)
         response_tokens = len(response) // 4  # Rough estimate
         total_tokens_used = estimated_tokens + response_tokens
         db_manager.update_user_token_usage(user.user_id, total_tokens_used)
+        
+        # Track first content generation if this is the first time
+        if is_first_content:
+            tenant = db_manager.get_tenant_by_id(user.tenant_id)
+            analytics_service.track_first_content_generated(user, content_mode, tenant)
+        
+        # Track token usage for analytics
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        user_usage = db_manager.get_user_token_usage(user.user_id)
+        org_usage = db_manager.get_organization_token_usage(user.tenant_id)
+        
+        user_monthly_total = user_usage.get('tokens_used_month', 0) if user_usage else 0
+        org_monthly_total = org_usage.get('org_monthly_total', 0) if org_usage else 0
+        
+        analytics_service.track_token_usage(
+            user=user,
+            tokens_consumed=total_tokens_used,
+            content_mode=content_mode,
+            user_monthly_total=user_monthly_total,
+            org_monthly_total=org_monthly_total,
+            tenant=tenant
+        )
 
         # Save to chat history if user is logged in
         if session_id:  # Use session_id from request data
@@ -1432,7 +1568,58 @@ def generate():
                     title = prompt[:50] + "..." if len(prompt) > 50 else prompt
                     db_manager.update_chat_session_title(session_id, title)
 
-        # Track chat generation event
+        # Track content generation performance for analytics
+        if user and not is_demo:
+            try:
+                tenant = db_manager.get_tenant_by_id(user.tenant_id)
+                tokens_generated = len(response) // 4  # Rough estimate of tokens generated
+                analytics_service.track_content_generation_performance(
+                    user=user,
+                    content_mode=content_mode,
+                    response_time_ms=response_time_ms,
+                    tokens_generated=tokens_generated,
+                    tenant=tenant
+                )
+            except Exception as performance_tracking_error:
+                logger.error(f"Failed to track content generation performance: {performance_tracking_error}")
+
+        # Track content generation activity for analytics
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        analytics_service.track_content_generated(
+            user=user,
+            content_mode=content_mode,
+            tokens_used=total_tokens_used,
+            generation_successful=True,
+            retry_attempt=retry_attempt,
+            tenant=tenant
+        )
+
+        # Track content mode usage for feature adoption analytics
+        try:
+            # Check if this is first time using this content mode
+            is_first_time_using_mode = content_mode not in (user.content_modes_used or [])
+            
+            # Update user's content modes used list
+            if is_first_time_using_mode:
+                db_manager.update_user_content_modes_used(user.user_id, content_mode)
+                # Refresh user object to get updated content_modes_used
+                user = db_manager.get_user_by_id(user.user_id)
+            
+            # Calculate total modes used by user
+            total_modes_used_by_user = len(user.content_modes_used or [])
+            
+            # Track content mode usage
+            analytics_service.track_content_mode_used(
+                user=user,
+                content_mode=content_mode,
+                is_first_time_using_mode=is_first_time_using_mode,
+                total_modes_used_by_user=total_modes_used_by_user,
+                tenant=tenant
+            )
+        except Exception as tracking_error:
+            logger.error(f"Failed to track content mode usage: {tracking_error}")
+        
+        # Track chat generation event (legacy)
         analytics_service.track_user_event(user_id=str(user.user_id),
                                            event_name='Chat Message Generated',
                                            properties={
@@ -1461,10 +1648,77 @@ def generate():
         logger.error(f"User: {user.user_id if user else 'None'}")
         logger.error(f"Is demo: {is_demo}")
 
+        # Track failed content generation for analytics (only for logged-in users)
+        if user and not is_demo:
+            try:
+                # Check for retry attempt tracking for failed generation
+                retry_attempt = 0
+                retry_key = f"retry_attempt_{user.user_id}_{hash(prompt)}_{content_mode}"
+                retry_attempt = session.get(retry_key, 0)
+                if retry_attempt > 0:
+                    session[retry_key] = retry_attempt + 1
+                else:
+                    session[retry_key] = 1
+                
+                tenant = db_manager.get_tenant_by_id(user.tenant_id)
+                analytics_service.track_content_generated(
+                    user=user,
+                    content_mode=content_mode,
+                    tokens_used=0,  # No tokens used for failed generation
+                    generation_successful=False,
+                    retry_attempt=retry_attempt,
+                    tenant=tenant
+                )
+                
+                # Track application error for analytics
+                analytics_service.track_application_error(
+                    error_type='content_generation_failure',
+                    error_message=str(e),
+                    user=user,
+                    additional_properties={
+                        'error_type': str(type(e)),
+                        'content_mode': content_mode,
+                        'prompt_length': len(prompt) if 'prompt' in locals() else 0,
+                        'has_brand_voice': bool(brand_voice_id) if 'brand_voice_id' in locals() else False,
+                        'operation': 'content_generation'
+                    }
+                )
+            except Exception as tracking_error:
+                logger.error(f"Failed to track failed content generation: {tracking_error}")
+
         return jsonify({
             'error': 'An error occurred while generating content. Please try again.',
             'debug_info': str(e) if app.debug else None
         }), 500
+
+
+@app.route('/track-page-load', methods=['POST'])
+def track_page_load():
+    """Track page load performance"""
+    try:
+        data = request.get_json()
+        page_name = data.get('page_name', 'unknown')
+        load_time_ms = data.get('load_time_ms', 0)
+        
+        # Get current user if logged in
+        user = get_current_user()
+        tenant = None
+        if user:
+            tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        
+        # Track page load performance
+        analytics_service.track_page_load(
+            page_name=page_name,
+            load_time_ms=load_time_ms,
+            user=user,
+            tenant=tenant
+        )
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error tracking page load: {e}")
+        return jsonify({'success': False}), 500
 
 
 @app.route('/how-to')
@@ -2058,6 +2312,18 @@ def create_brand_voice():
             return_message = f'Brand voice "{voice_short_name}" updated successfully!'
 
         else:
+            # Check for existing brand voice with same name to prevent duplicates
+            existing_voices = db_manager.get_company_brand_voices(tenant.tenant_id)
+            duplicate_voice = next(
+                (v for v in existing_voices if v.name == voice_short_name), None)
+            
+            if duplicate_voice:
+                logger.warning(f"Duplicate brand voice name detected: '{voice_short_name}' (ID: {duplicate_voice.brand_voice_id})")
+                return jsonify({
+                    'error': f'A brand voice with the name "{voice_short_name}" already exists. Please choose a different name.',
+                    'retry': True
+                }), 400
+            
             brand_voice = db_manager.create_comprehensive_brand_voice(
                 tenant_id=tenant.tenant_id,
                 wizard_data=wizard_data,
@@ -2078,7 +2344,11 @@ def create_brand_voice():
 
             return_message = f'Brand voice "{voice_short_name}" created successfully!'
 
-        # Track brand voice creation/update event
+        # Track brand voice creation with enhanced analytics
+        tenant = db_manager.get_tenant_by_id(user.tenant_id)
+        analytics_service.track_brand_voice_created(user, brand_voice.brand_voice_id, tenant)
+        
+        # Also track the legacy event for backward compatibility
         analytics_service.track_user_event(
             user_id=str(user.user_id),
             event_name='Brand Voice Created'
@@ -2089,6 +2359,10 @@ def create_brand_voice():
                 'is_company_voice': True,  # Always company voice now
                 'is_editing': is_editing
             })
+
+        # If this was created from an auto-saved draft, mark it as finalized
+        if not is_editing and brand_voice_id:
+            logger.info(f"Finalizing auto-saved draft: {brand_voice_id}")
 
         return jsonify({
             'success': True,
@@ -2271,16 +2545,14 @@ def auto_save_brand_voice():
                 logger.info(
                     f"Updated draft brand voice: {brand_voice.brand_voice_id}")
             except Exception as update_error:
-                logger.warning(
-                    f"Failed to update existing draft, creating new one: {update_error}"
+                logger.error(
+                    f"Failed to update existing draft {profile_id}: {update_error}"
                 )
-                # If update fails, create a new one
-                brand_voice = db_manager.create_comprehensive_brand_voice(
-                    tenant_id=tenant.tenant_id,
-                    wizard_data=data,
-                    markdown_content=markdown_content,
-                    user_id=None)
-                profile_id = brand_voice.brand_voice_id
+                # Don't create a new one - return error to prevent duplication
+                return jsonify({
+                    'error': 'Failed to update existing draft. Please try again.',
+                    'retry': True
+                }), 400
         else:
             # Check if a brand voice with this name already exists to avoid duplicates
             existing_voices = db_manager.get_company_brand_voices(

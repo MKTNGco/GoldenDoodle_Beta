@@ -107,6 +107,12 @@ The GoldenDoodleLM Team
                 html_content=HtmlContent(html_content)
             )
             
+            # Disable click tracking to prevent URL shortening (url9449.goldendoodlelm.ai issue)
+            from sendgrid.helpers.mail import TrackingSettings, ClickTracking
+            tracking_settings = TrackingSettings()
+            tracking_settings.click_tracking = ClickTracking(False, False)
+            message.tracking_settings = tracking_settings
+            
             response = self.client.send(message)
             logger.info(f"Verification email sent to {to_email}, status: {response.status_code}")
             
@@ -208,6 +214,12 @@ The GoldenDoodleLM Team
                 plain_text_content=PlainTextContent(plain_content),
                 html_content=HtmlContent(html_content)
             )
+            
+            # Disable click tracking to prevent URL shortening (url9449.goldendoodlelm.ai issue)
+            from sendgrid.helpers.mail import TrackingSettings, ClickTracking
+            tracking_settings = TrackingSettings()
+            tracking_settings.click_tracking = ClickTracking(False, False)
+            message.tracking_settings = tracking_settings
 
             response = self.client.send(message)
             logger.info(f"Password reset email sent to {to_email}, status: {response.status_code}")

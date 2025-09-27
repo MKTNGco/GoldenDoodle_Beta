@@ -255,18 +255,18 @@ class ChatInterface {
 
             if (!isCurrentlyShown) {
                 const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
-                // Fix positioning - position relative to button, not screen edges
+                // Simple positioning - just below the button
                 this.brandVoiceDropdown.style.position = 'fixed';
-                this.brandVoiceDropdown.style.left = (buttonRect.left) + 'px';
-                this.brandVoiceDropdown.style.top = (buttonRect.bottom + 8) + 'px';
+                this.brandVoiceDropdown.style.left = '50px';  // Fixed position for testing
+                this.brandVoiceDropdown.style.top = '200px';  // Fixed position for testing
                 this.brandVoiceDropdown.style.right = 'auto';
                 this.brandVoiceDropdown.style.bottom = 'auto';
+                this.brandVoiceDropdown.style.zIndex = '999999';
+                this.brandVoiceDropdown.style.backgroundColor = 'white';
+                this.brandVoiceDropdown.style.border = '2px solid red'; // Visible border for testing
                 this.brandVoiceDropdown.classList.add('show');
-                console.log('  Dropdown should now be visible at position:', buttonRect.left, buttonRect.bottom + 8);
-                console.log('  Dropdown element:', this.brandVoiceDropdown);
-                console.log('  Dropdown has show class:', this.brandVoiceDropdown.classList.contains('show'));
-                console.log('  Dropdown computed style display:', window.getComputedStyle(this.brandVoiceDropdown).display);
-                console.log('  Dropdown computed style position:', window.getComputedStyle(this.brandVoiceDropdown).position);
+                console.log('  Dropdown should now be visible at FIXED position: 50px, 200px');
+                console.log('  Button position:', buttonRect.left, buttonRect.bottom);
             } else {
                 console.log('  Dropdown was already shown, hiding it');
             }

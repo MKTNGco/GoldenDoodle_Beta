@@ -252,10 +252,14 @@ class ChatInterface {
 
             if (!isCurrentlyShown) {
                 const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
-                this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
-                this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
+                // Fix positioning - position relative to button, not screen edges
+                this.brandVoiceDropdown.style.position = 'fixed';
+                this.brandVoiceDropdown.style.left = (buttonRect.left) + 'px';
+                this.brandVoiceDropdown.style.top = (buttonRect.bottom + 8) + 'px';
+                this.brandVoiceDropdown.style.right = 'auto';
+                this.brandVoiceDropdown.style.bottom = 'auto';
                 this.brandVoiceDropdown.classList.add('show');
-                console.log('  Dropdown should now be visible');
+                console.log('  Dropdown should now be visible at position:', buttonRect.left, buttonRect.bottom + 8);
             } else {
                 console.log('  Dropdown was already shown, hiding it');
             }

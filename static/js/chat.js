@@ -19,8 +19,6 @@ class ChatInterface {
         this.currentSessionId = null;
         this.isInitialized = false; // Prevent double initialization
         
-        // Store bound functions to prevent duplicate event listeners
-        this.boundHandleBrandVoiceClick = this.handleBrandVoiceClick.bind(this);
         
         setTimeout(() => {
             this.checkLibraries();
@@ -101,17 +99,6 @@ class ChatInterface {
         this.secondaryModes = document.getElementById('secondaryModes');
         this.newChatBtn = document.getElementById('newChatBtn');
 
-        // Debug: Check if brand voice elements are found
-        console.log('🔍 BRAND VOICE ELEMENT DEBUG:');
-        console.log('  brandVoiceBtn found:', !!this.brandVoiceBtn);
-        console.log('  brandVoiceDropdown found:', !!this.brandVoiceDropdown);
-        console.log('  selectedVoiceNameElement found:', !!this.selectedVoiceNameElement);
-        if (this.brandVoiceBtn) {
-            console.log('  brandVoiceBtn element:', this.brandVoiceBtn);
-        }
-        if (this.brandVoiceDropdown) {
-            console.log('  brandVoiceDropdown element:', this.brandVoiceDropdown);
-        }
 
         // Check if we're on the chat page
         if (!this.chatInput || !this.sendBtn || !this.chatMessages) {
@@ -146,11 +133,7 @@ class ChatInterface {
 
         // Brand voice selector
         if (this.brandVoiceBtn) {
-            console.log('🔍 BINDING BRAND VOICE CLICK EVENT');
-            this.brandVoiceBtn.addEventListener('click', this.boundHandleBrandVoiceClick);
-            console.log('🔍 BRAND VOICE CLICK EVENT BOUND');
-        } else {
-            console.log('🔍 ERROR: brandVoiceBtn not found for event binding');
+            this.brandVoiceBtn.addEventListener('click', this.handleBrandVoiceClick.bind(this));
         }
 
         // Brand voice options - use event delegation to prevent duplicates
@@ -191,7 +174,7 @@ class ChatInterface {
         }
 
         if (this.brandVoiceBtn) {
-            this.brandVoiceBtn.removeEventListener('click', this.boundHandleBrandVoiceClick);
+            this.brandVoiceBtn.removeEventListener('click', this.handleBrandVoiceClick);
         }
 
         if (this.moreModesBtn) {
@@ -233,21 +216,14 @@ class ChatInterface {
     }
 
     handleBrandVoiceClick(e) {
-        console.log('🔍 BRAND VOICE CLICK DEBUG: Button clicked!');
-        console.log('  brandVoiceBtn exists:', !!this.brandVoiceBtn);
-        console.log('  brandVoiceDropdown exists:', !!this.brandVoiceDropdown);
         e.preventDefault();
         e.stopPropagation();
         this.toggleBrandVoiceDropdown();
     }
 
     toggleBrandVoiceDropdown() {
-        console.log('🔍 BRAND VOICE DROPDOWN DEBUG: Toggle called');
-        console.log('  brandVoiceDropdown exists:', !!this.brandVoiceDropdown);
-        
         if (this.brandVoiceDropdown) {
             const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
-            console.log('  Currently shown:', isCurrentlyShown);
 
             document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
@@ -255,23 +231,10 @@ class ChatInterface {
 
             if (!isCurrentlyShown) {
                 const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
-                // Simple positioning - just below the button
-                this.brandVoiceDropdown.style.position = 'fixed';
-                this.brandVoiceDropdown.style.left = '50px';  // Fixed position for testing
-                this.brandVoiceDropdown.style.top = '200px';  // Fixed position for testing
-                this.brandVoiceDropdown.style.right = 'auto';
-                this.brandVoiceDropdown.style.bottom = 'auto';
-                this.brandVoiceDropdown.style.zIndex = '999999';
-                this.brandVoiceDropdown.style.backgroundColor = 'white';
-                this.brandVoiceDropdown.style.border = '2px solid red'; // Visible border for testing
+                this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
+                this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
                 this.brandVoiceDropdown.classList.add('show');
-                console.log('  Dropdown should now be visible at FIXED position: 50px, 200px');
-                console.log('  Button position:', buttonRect.left, buttonRect.bottom);
-            } else {
-                console.log('  Dropdown was already shown, hiding it');
             }
-        } else {
-            console.log('  ERROR: brandVoiceDropdown not found!');
         }
     }
 

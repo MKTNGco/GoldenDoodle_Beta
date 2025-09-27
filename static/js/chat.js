@@ -260,6 +260,10 @@ class ChatInterface {
                 this.brandVoiceDropdown.style.bottom = 'auto';
                 this.brandVoiceDropdown.classList.add('show');
                 console.log('  Dropdown should now be visible at position:', buttonRect.left, buttonRect.bottom + 8);
+                console.log('  Dropdown element:', this.brandVoiceDropdown);
+                console.log('  Dropdown has show class:', this.brandVoiceDropdown.classList.contains('show'));
+                console.log('  Dropdown computed style display:', window.getComputedStyle(this.brandVoiceDropdown).display);
+                console.log('  Dropdown computed style position:', window.getComputedStyle(this.brandVoiceDropdown).position);
             } else {
                 console.log('  Dropdown was already shown, hiding it');
             }

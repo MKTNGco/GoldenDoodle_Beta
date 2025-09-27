@@ -226,14 +226,19 @@ class ChatInterface {
     }
 
     handleBrandVoiceClick(e) {
+        console.log('🔍 BRAND VOICE CLICK DEBUG: Button clicked!');
         e.preventDefault();
         e.stopPropagation();
         this.toggleBrandVoiceDropdown();
     }
 
     toggleBrandVoiceDropdown() {
+        console.log('🔍 BRAND VOICE DROPDOWN DEBUG: Toggle called');
+        console.log('  brandVoiceDropdown exists:', !!this.brandVoiceDropdown);
+        
         if (this.brandVoiceDropdown) {
             const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
+            console.log('  Currently shown:', isCurrentlyShown);
 
             document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
@@ -244,7 +249,12 @@ class ChatInterface {
                 this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
                 this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
                 this.brandVoiceDropdown.classList.add('show');
+                console.log('  Dropdown should now be visible');
+            } else {
+                console.log('  Dropdown was already shown, hiding it');
             }
+        } else {
+            console.log('  ERROR: brandVoiceDropdown not found!');
         }
     }
 

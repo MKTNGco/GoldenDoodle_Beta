@@ -143,7 +143,11 @@ class ChatInterface {
 
         // Brand voice selector
         if (this.brandVoiceBtn) {
+            console.log('🔍 BINDING BRAND VOICE CLICK EVENT');
             this.brandVoiceBtn.addEventListener('click', this.handleBrandVoiceClick.bind(this));
+            console.log('🔍 BRAND VOICE CLICK EVENT BOUND');
+        } else {
+            console.log('🔍 ERROR: brandVoiceBtn not found for event binding');
         }
 
         // Brand voice options - use event delegation to prevent duplicates

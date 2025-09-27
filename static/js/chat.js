@@ -226,10 +226,39 @@ class ChatInterface {
     }
 
     handleBrandVoiceClick(e) {
-        console.log('🔍 BRAND VOICE CLICK DEBUG: Button clicked!');
         e.preventDefault();
         e.stopPropagation();
         this.toggleBrandVoiceDropdown();
+    }
+
+    toggleBrandVoiceDropdown() {
+        if (this.brandVoiceDropdown) {
+            const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
+
+            document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+
+            if (!isCurrentlyShown) {
+                const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
+                this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
+                this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
+                this.brandVoiceDropdown.classList.add('show');
+            }
+        }
+    }
+
+    closeBrandVoiceDropdown() {
+        if (this.brandVoiceDropdown) {
+            this.brandVoiceDropdown.classList.remove('show');
+        }
+    }
+
+    selectBrandVoice(value, name) {
+        this.selectedBrandVoice = value;
+        this.selectedVoiceName = name;
+        this.selectedVoiceNameElement.textContent = name;
+        this.closeBrandVoiceDropdown();
     }
 
     handleBrandVoiceOptionClick(e) {

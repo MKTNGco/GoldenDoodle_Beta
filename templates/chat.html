@@ -431,7 +431,7 @@ body {
     max-height: 200px;
     overflow-y: auto;
     /* TEMPORARY: Make dropdown always visible for testing */
-    /* display: block !important; */
+    display: block !important;
 }
 
 .brand-voice-dropdown.show {
@@ -960,8 +960,6 @@ body {
                                     <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
                                     {% endfor %}
                                     {% endif %}
-                                    <!-- TEST: Add a hardcoded brand voice for testing -->
-                                    <div class="brand-voice-option" data-value="test-123">Test Brand Voice</div>
                                 </div>
                             </div>
                             {% else %}

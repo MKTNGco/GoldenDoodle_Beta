@@ -98,6 +98,18 @@ class ChatInterface {
         this.secondaryModes = document.getElementById('secondaryModes');
         this.newChatBtn = document.getElementById('newChatBtn');
 
+        // Debug: Check if brand voice elements are found
+        console.log('🔍 BRAND VOICE ELEMENT DEBUG:');
+        console.log('  brandVoiceBtn found:', !!this.brandVoiceBtn);
+        console.log('  brandVoiceDropdown found:', !!this.brandVoiceDropdown);
+        console.log('  selectedVoiceNameElement found:', !!this.selectedVoiceNameElement);
+        if (this.brandVoiceBtn) {
+            console.log('  brandVoiceBtn element:', this.brandVoiceBtn);
+        }
+        if (this.brandVoiceDropdown) {
+            console.log('  brandVoiceDropdown element:', this.brandVoiceDropdown);
+        }
+
         // Check if we're on the chat page
         if (!this.chatInput || !this.sendBtn || !this.chatMessages) {
             console.log('Chat elements not found - not on chat page');
@@ -214,6 +226,7 @@ class ChatInterface {
     }
 
     handleBrandVoiceClick(e) {
+        console.log('🔍 BRAND VOICE CLICK DEBUG: Button clicked!');
         e.preventDefault();
         e.stopPropagation();
         this.toggleBrandVoiceDropdown();
@@ -289,8 +302,12 @@ class ChatInterface {
     }
 
     toggleBrandVoiceDropdown() {
+        console.log('🔍 BRAND VOICE DROPDOWN DEBUG: Toggle called');
+        console.log('  brandVoiceDropdown exists:', !!this.brandVoiceDropdown);
+        
         if (this.brandVoiceDropdown) {
             const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
+            console.log('  Currently shown:', isCurrentlyShown);
 
             document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
                 dropdown.classList.remove('show');
@@ -301,7 +318,12 @@ class ChatInterface {
                 this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
                 this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
                 this.brandVoiceDropdown.classList.add('show');
+                console.log('  Dropdown should now be visible');
+            } else {
+                console.log('  Dropdown was already shown, hiding it');
             }
+        } else {
+            console.log('  ERROR: brandVoiceDropdown not found!');
         }
     }
 

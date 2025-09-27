@@ -19,6 +19,9 @@ class ChatInterface {
         this.currentSessionId = null;
         this.isInitialized = false; // Prevent double initialization
         
+        // Store bound functions to prevent duplicate event listeners
+        this.boundHandleBrandVoiceClick = this.handleBrandVoiceClick.bind(this);
+        
         setTimeout(() => {
             this.checkLibraries();
         }, 1000);
@@ -144,7 +147,7 @@ class ChatInterface {
         // Brand voice selector
         if (this.brandVoiceBtn) {
             console.log('🔍 BINDING BRAND VOICE CLICK EVENT');
-            this.brandVoiceBtn.addEventListener('click', this.handleBrandVoiceClick.bind(this));
+            this.brandVoiceBtn.addEventListener('click', this.boundHandleBrandVoiceClick);
             console.log('🔍 BRAND VOICE CLICK EVENT BOUND');
         } else {
             console.log('🔍 ERROR: brandVoiceBtn not found for event binding');
@@ -188,7 +191,7 @@ class ChatInterface {
         }
 
         if (this.brandVoiceBtn) {
-            this.brandVoiceBtn.removeEventListener('click', this.handleBrandVoiceClick);
+            this.brandVoiceBtn.removeEventListener('click', this.boundHandleBrandVoiceClick);
         }
 
         if (this.moreModesBtn) {

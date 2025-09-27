@@ -945,10 +945,13 @@ body {
                                 </button>
                                 <div class="brand-voice-dropdown" id="brandVoiceDropdown">
                                     <div class="brand-voice-option" data-value="">Neutral (No brand voice)</div>
+                                    <!-- DEBUG: Brand voices count: {{ company_brand_voices|length }} -->
                                     {% if company_brand_voices %}
                                     {% for voice in company_brand_voices %}
                                     <div class="brand-voice-option" data-value="{{ voice.brand_voice_id }}">{{ voice.name }}</div>
                                     {% endfor %}
+                                    {% else %}
+                                    <!-- DEBUG: No company brand voices found -->
                                     {% endif %}
                                     {% if user_brand_voices %}
                                     {% for voice in user_brand_voices %}

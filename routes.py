@@ -1294,10 +1294,16 @@ def chat():
         # Debug: Log brand voice information
         logger.info(f"🔍 BRAND VOICE DEBUG:")
         logger.info(f"  Tenant ID: {tenant.tenant_id}")
+        logger.info(f"  Tenant Name: {tenant.name}")
         logger.info(f"  Company brand voices count: {len(company_brand_voices)}")
         for i, voice in enumerate(company_brand_voices):
             logger.info(f"  Voice {i+1}: {voice.name} (ID: {voice.brand_voice_id})")
         logger.info(f"  User brand voices count: {len(user_brand_voices)}")
+        
+        # Additional debug - check if brand voices are being passed to template
+        logger.info(f"🔍 TEMPLATE DEBUG:")
+        logger.info(f"  company_brand_voices passed to template: {len(company_brand_voices)}")
+        logger.info(f"  user_brand_voices passed to template: {len(user_brand_voices)}")
 
         # Track user visit to chat page
         analytics_service.track_user_event(

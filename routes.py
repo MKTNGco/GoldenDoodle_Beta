@@ -2562,6 +2562,7 @@ def auto_save_brand_voice():
                     'retry': True
                 }), 400
         else:
+            # Auto-save should create temporary drafts, not permanent brand voices
             # Check if a brand voice with this name already exists to avoid duplicates
             existing_voices = db_manager.get_company_brand_voices(
                 tenant.tenant_id)
@@ -2580,27 +2581,26 @@ def auto_save_brand_voice():
                         user_id=None)
                     profile_id = brand_voice.brand_voice_id
                     logger.info(
-                        f"Updated existing brand voice instead of creating duplicate: {brand_voice.brand_voice_id}"
+                        f"Auto-save: Updated existing brand voice instead of creating duplicate: {brand_voice.brand_voice_id}"
                     )
                 except Exception as update_error:
                     logger.warning(
-                        f"Failed to update existing voice, creating new one: {update_error}"
+                        f"Auto-save: Failed to update existing voice: {update_error}"
                     )
-                    # If update fails, create a new one
-                    brand_voice = db_manager.create_comprehensive_brand_voice(
-                        tenant_id=tenant.tenant_id,
-                        wizard_data=data,
-                        markdown_content=markdown_content,
-                        user_id=None)
-                    profile_id = brand_voice.brand_voice_id
+                    return jsonify({
+                        'success': True,
+                        'message': 'Draft saved locally (update failed)',
+                        'profile_id': None
+                    }), 200
             else:
-                # Create new draft
+                # Create new draft for auto-save
                 brand_voice = db_manager.create_comprehensive_brand_voice(
                     tenant_id=tenant.tenant_id,
                     wizard_data=data,
                     markdown_content=markdown_content,
                     user_id=None)
                 profile_id = brand_voice.brand_voice_id
+                logger.info(f"Auto-save: Created new draft brand voice: {brand_voice.brand_voice_id}")
 
         # Track auto-save event
         analytics_service.track_user_event(user_id=str(user.user_id),
@@ -2621,6 +2621,7 @@ def auto_save_brand_voice():
             'profile_id': profile_id,
             'message': 'Progress saved'
         })
+
 
     except Exception as e:
         logger.error(f"Error auto-saving brand voice: {e}")

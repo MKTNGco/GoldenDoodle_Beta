@@ -346,8 +346,6 @@ class ChatInterface {
         }
     }
 
-    }
-
     selectMode(button) {
         const mode = button.dataset.mode;
 

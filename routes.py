@@ -1291,13 +1291,6 @@ def chat():
             tenant.tenant_id)
         user_brand_voices = []  # No longer using user-specific brand voices
         
-        # Debug: Log brand voice information
-        logger.info(f"🔍 BRAND VOICE DEBUG:")
-        logger.info(f"  Tenant ID: {tenant.tenant_id}")
-        logger.info(f"  Company brand voices count: {len(company_brand_voices)}")
-        for i, voice in enumerate(company_brand_voices):
-            logger.info(f"  Voice {i+1}: {voice.name} (ID: {voice.brand_voice_id})")
-        logger.info(f"  User brand voices count: {len(user_brand_voices)}")
 
         # Track user visit to chat page
         analytics_service.track_user_event(

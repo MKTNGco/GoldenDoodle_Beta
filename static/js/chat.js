@@ -376,6 +376,17 @@ class ChatInterface {
             return;
         }
 
+        console.log('📤 SEND MESSAGE CALLED:');
+        console.log('  Prompt:', prompt);
+        console.log('  Has attachment:', !!this.attachedFile);
+        if (this.attachedFile) {
+            console.log('  Attachment details:', {
+                name: this.attachedFile.name,
+                contentLength: this.attachedFile.content.length,
+                size: this.attachedFile.size
+            });
+        }
+
         try {
             // If no current session and logged in, start a new one
             if (!this.currentSessionId && this.isLoggedIn) {
@@ -416,18 +427,35 @@ class ChatInterface {
 
             // Include attachment data if present
             let finalPrompt = prompt;
+            let attachmentData = null;
+            
             if (this.attachedFile) {
                 // Use more content and better structure
-                const attachmentContent = this.attachedFile.content.substring(0, 10000); // Increased from 4000
+                const attachmentContent = this.attachedFile.content.substring(0, 15000); // Increased to 15000 characters
                 finalPrompt = `ATTACHED DOCUMENT: ${this.attachedFile.name}
 
 DOCUMENT CONTENT:
-${attachmentContent}${this.attachedFile.content.length > 10000 ? '\n\n[Document truncated - showing first 10,000 characters]' : ''}
+${attachmentContent}${this.attachedFile.content.length > 15000 ? '\n\n[Document truncated - showing first 15,000 characters]' : ''}
 
 USER REQUEST:
 ${prompt}
 
 Please analyze the attached document and respond to the user's request based on the document content above.`;
+                
+                // Also include attachment data separately in case the prompt approach fails
+                attachmentData = {
+                    filename: this.attachedFile.name,
+                    content: attachmentContent,
+                    size: this.attachedFile.size,
+                    truncated: this.attachedFile.content.length > 15000
+                };
+                
+                console.log('📎 Attachment data prepared:', {
+                    filename: this.attachedFile.name,
+                    contentLength: attachmentContent.length,
+                    originalLength: this.attachedFile.content.length,
+                    truncated: this.attachedFile.content.length > 15000
+                });
             }
 
             const requestData = {
@@ -436,7 +464,8 @@ Please analyze the attached document and respond to the user's request based on 
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
                 is_demo: this.isDemoMode,
-                session_id: this.currentSessionId
+                session_id: this.currentSessionId,
+                attachment: attachmentData
             };
 
             // Make the request with proper error handling
@@ -885,12 +914,24 @@ Please analyze the attached document and respond to the user's request based on 
         try {
             const text = await this.extractTextFromFile(file);
             
+            console.log('📎 ATTACHMENT PROCESSING COMPLETE:');
+            console.log('  File name:', file.name);
+            console.log('  File size:', file.size);
+            console.log('  Extracted text length:', text.length);
+            console.log('  First 200 characters:', text.substring(0, 200));
+            
             // Store the file data for sending with the message
             this.attachedFile = {
                 name: file.name,
                 content: text,
                 size: file.size
             };
+
+            console.log('📎 Attachment stored in this.attachedFile:', {
+                name: this.attachedFile.name,
+                contentLength: this.attachedFile.content.length,
+                size: this.attachedFile.size
+            });
 
             // Show file badge instead of adding text to input
             this.showAttachedFileBadge(file.name);

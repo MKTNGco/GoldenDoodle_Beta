@@ -1343,13 +1343,24 @@ def generate():
         brand_voice_id = data.get('brand_voice_id')
         is_demo = data.get('is_demo', False)
         session_id = data.get('session_id')  # Added for tracking
+        attachment_data = data.get('attachment')  # Get attachment data
 
         logger.info(f"Prompt length: {len(prompt)}")
         logger.info(f"Content mode: {content_mode}")
         logger.info(f"Brand voice ID: {brand_voice_id}")
         logger.info(f"Is demo: {is_demo}")
-        logger.info(
-            f"Conversation history length: {len(conversation_history)}")
+        logger.info(f"Conversation history length: {len(conversation_history)}")
+        
+        # Debug attachment data
+        if attachment_data:
+            logger.info(f"📎 ATTACHMENT DETECTED:")
+            logger.info(f"  Filename: {attachment_data.get('filename', 'Unknown')}")
+            logger.info(f"  Content length: {len(attachment_data.get('content', ''))}")
+            logger.info(f"  File size: {attachment_data.get('size', 'Unknown')}")
+            logger.info(f"  Truncated: {attachment_data.get('truncated', False)}")
+            logger.info(f"  Content preview: {attachment_data.get('content', '')[:200]}...")
+        else:
+            logger.info("📎 No attachment data found in request")
 
         if not prompt:
             logger.warning("No prompt provided")
@@ -1423,18 +1434,19 @@ def generate():
         trauma_informed_context = rag_service.get_trauma_informed_context()
 
         # Generate content with conversation history
-        logger.info(
-            f"=== CALLING GEMINI SERVICE ===")
-        logger.info(
-            f"About to call gemini_service.generate_content_with_history")
+        logger.info(f"=== CALLING GEMINI SERVICE ===")
+        logger.info(f"About to call gemini_service.generate_content_with_history")
         logger.info(f"Prompt: {prompt[:100]}...")
         logger.info(f"Content mode: {content_mode}")
-        logger.info(
-            f"Brand voice context length: {len(brand_voice_context) if brand_voice_context else 0}"
-        )
-        logger.info(
-            f"Trauma informed context length: {len(trauma_informed_context) if trauma_informed_context else 0}"
-        )
+        logger.info(f"Brand voice context length: {len(brand_voice_context) if brand_voice_context else 0}")
+        logger.info(f"Trauma informed context length: {len(trauma_informed_context) if trauma_informed_context else 0}")
+        
+        # Log the full prompt being sent to Gemini to verify attachment content is included
+        logger.info(f"📤 FULL PROMPT BEING SENT TO GEMINI:")
+        logger.info(f"First 500 characters: {prompt[:500]}")
+        if len(prompt) > 500:
+            logger.info(f"Last 500 characters: {prompt[-500:]}")
+        logger.info(f"Total prompt length: {len(prompt)} characters")
 
         # Start timing for content generation performance tracking
         generation_start_time = datetime.utcnow()

@@ -18,6 +18,7 @@ class ChatInterface {
         this.isLoggedIn = window.isLoggedIn || false;
         this.currentSessionId = null;
         this.isInitialized = false; // Prevent double initialization
+        this.attachedFile = null; // Store attached file data
         
         
         setTimeout(() => {
@@ -394,6 +395,13 @@ class ChatInterface {
             this.updateSendButton();
             this.updateSendButtonLoading(true);
 
+            // Clear attachment badge if present
+            const attachmentBadge = document.getElementById('attached-file-badge');
+            if (attachmentBadge) {
+                attachmentBadge.remove();
+            }
+            this.attachedFile = null;
+
             // Clear welcome screen if present
             this.clearWelcomeScreen();
 
@@ -406,8 +414,14 @@ class ChatInterface {
             // Get conversation history for context
             const conversationHistory = this.getConversationHistory();
 
+            // Include attachment data if present
+            let finalPrompt = prompt;
+            if (this.attachedFile) {
+                finalPrompt = `[Attached file: ${this.attachedFile.name}]\n\n${this.attachedFile.content.substring(0, 4000)}\n\n---\n\n${prompt}`;
+            }
+
             const requestData = {
-                prompt: prompt,
+                prompt: finalPrompt,
                 conversation_history: conversationHistory,
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
@@ -860,14 +874,16 @@ class ChatInterface {
 
         try {
             const text = await this.extractTextFromFile(file);
-            const truncatedText = text.substring(0, 2000);
+            
+            // Store the file data for sending with the message
+            this.attachedFile = {
+                name: file.name,
+                content: text,
+                size: file.size
+            };
 
-            const currentText = this.chatInput.value;
-            const newText = currentText + (currentText ? '\n\n' : '') +
-                           `[Attached file: ${file.name}]\n${truncatedText}${text.length > 2000 ? '\n...(truncated)' : ''}`;
-
-            this.chatInput.value = newText;
-            this.autoResizeTextarea();
+            // Show file badge instead of adding text to input
+            this.showAttachedFileBadge(file.name);
             this.updateSendButton();
             this.chatInput.focus();
 
@@ -929,6 +945,39 @@ class ChatInterface {
                 indicator.parentNode.removeChild(indicator);
             }
         }, 3000);
+    }
+
+    showAttachedFileBadge(fileName) {
+        // Remove any existing attachment badge
+        const existingBadge = document.getElementById('attached-file-badge');
+        if (existingBadge) {
+            existingBadge.remove();
+        }
+
+        // Create file badge
+        const badge = document.createElement('div');
+        badge.id = 'attached-file-badge';
+        badge.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px; background: var(--border-light); border: 1px solid var(--clearwater-teal); border-radius: 20px; padding: 6px 12px; margin-bottom: 8px; font-size: 0.875rem; color: var(--text-primary); max-width: fit-content;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color: var(--clearwater-teal);">
+                    <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.31 2.69 6 6 6s6-2.69 6-6V6h-2.5z"/>
+                </svg>
+                <span>${fileName}</span>
+                <button onclick="this.parentElement.parentElement.remove(); window.chat.removeAttachment();" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;">×</button>
+            </div>
+        `;
+
+        // Insert badge before the prompt input container
+        const promptContainer = document.querySelector('.prompt-input-container');
+        if (promptContainer) {
+            promptContainer.parentNode.insertBefore(badge, promptContainer);
+        }
+    }
+
+    removeAttachment() {
+        this.attachedFile = null;
+        this.updateSendButton();
+        this.chatInput.focus();
     }
 
     checkLibraries() {

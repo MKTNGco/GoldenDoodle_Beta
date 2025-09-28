@@ -233,6 +233,9 @@ class ChatInterface {
                 const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
                 this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
                 this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
+                this.brandVoiceDropdown.style.display = 'block';
+                this.brandVoiceDropdown.style.visibility = 'visible';
+                this.brandVoiceDropdown.style.opacity = '1';
                 this.brandVoiceDropdown.classList.add('show');
             }
         }
@@ -241,6 +244,9 @@ class ChatInterface {
     closeBrandVoiceDropdown() {
         if (this.brandVoiceDropdown) {
             this.brandVoiceDropdown.classList.remove('show');
+            this.brandVoiceDropdown.style.display = 'none';
+            this.brandVoiceDropdown.style.visibility = 'hidden';
+            this.brandVoiceDropdown.style.opacity = '0';
         }
     }
 

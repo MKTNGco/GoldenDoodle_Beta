@@ -427,8 +427,18 @@ class ChatInterface {
                 await this.startNewChat(false);
             }
 
-            // Store attachment data before clearing UI
-            const currentAttachment = this.attachedFile;
+            // CRITICAL: Store attachment data BEFORE any UI changes
+            const currentAttachment = this.attachedFile ? {
+                name: this.attachedFile.name,
+                content: this.attachedFile.content,
+                size: this.attachedFile.size
+            } : null;
+            
+            console.log('📎 Attachment preserved for request:', currentAttachment ? {
+                name: currentAttachment.name,
+                contentLength: currentAttachment.content.length,
+                size: currentAttachment.size
+            } : null);
             
             // Clear input and update UI
             this.chatInput.value = '';

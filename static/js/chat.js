@@ -197,7 +197,10 @@ class ChatInterface {
     handleKeydown(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            this.sendMessage();
+            // Prevent double submission if already generating
+            if (!this.isGenerating) {
+                this.sendMessage();
+            }
         }
     }
 
@@ -213,7 +216,10 @@ class ChatInterface {
     }
 
     handleSendClick() {
-        this.sendMessage();
+        // Prevent double submission if already generating
+        if (!this.isGenerating) {
+            this.sendMessage();
+        }
     }
 
     handleBrandVoiceClick(e) {
@@ -366,13 +372,30 @@ class ChatInterface {
         if (!this.chatInput || !this.sendBtn) return;
 
         const hasText = this.chatInput.value.trim().length > 0;
-        this.sendBtn.disabled = !hasText || this.isGenerating;
+        const shouldDisable = !hasText || this.isGenerating;
+        
+        this.sendBtn.disabled = shouldDisable;
+        
+        // Add visual feedback for disabled state
+        if (shouldDisable) {
+            this.sendBtn.style.opacity = '0.5';
+            this.sendBtn.style.cursor = 'not-allowed';
+        } else {
+            this.sendBtn.style.opacity = '1';
+            this.sendBtn.style.cursor = 'pointer';
+        }
     }
 
     async sendMessage() {
         const prompt = this.chatInput.value.trim();
 
         if (!prompt || this.isGenerating) {
+            return;
+        }
+
+        // Prevent multiple simultaneous submissions
+        if (this.isGenerating) {
+            console.log('❌ Request already in progress, ignoring duplicate submission');
             return;
         }
 
@@ -388,6 +411,11 @@ class ChatInterface {
         }
 
         try {
+            // Set generating state immediately to prevent double submissions
+            this.isGenerating = true;
+            this.updateSendButton();
+            this.updateSendButtonLoading(true);
+
             // If no current session and logged in, start a new one
             if (!this.currentSessionId && this.isLoggedIn) {
                 await this.startNewChat(false);
@@ -399,22 +427,18 @@ class ChatInterface {
                 await this.startNewChat(false);
             }
 
-            // Store attachment data before clearing
+            // Store attachment data before clearing UI
             const currentAttachment = this.attachedFile;
             
             // Clear input and update UI
             this.chatInput.value = '';
             this.autoResizeTextarea();
-            this.isGenerating = true;
-            this.updateSendButton();
-            this.updateSendButtonLoading(true);
 
-            // Clear attachment badge if present but keep attachment data for the request
+            // Clear attachment badge if present
             const attachmentBadge = document.getElementById('attached-file-badge');
             if (attachmentBadge) {
                 attachmentBadge.remove();
             }
-            // Don't clear this.attachedFile here - we need it for the request
 
             // Clear welcome screen if present
             this.clearWelcomeScreen();
@@ -425,8 +449,12 @@ class ChatInterface {
             // Add loading message
             const loadingId = this.addLoadingMessage();
 
-            // Get conversation history for context
+            // Get conversation history for context (excluding the message we just added)
             const conversationHistory = this.getConversationHistory();
+            // Remove the last message we just added to prevent duplication
+            if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].content === prompt) {
+                conversationHistory.pop();
+            }
 
             // Include attachment data if present
             let finalPrompt = prompt;
@@ -434,7 +462,7 @@ class ChatInterface {
             
             if (currentAttachment) {
                 // Use more content and better structure
-                const attachmentContent = currentAttachment.content.substring(0, 15000); // Increased to 15000 characters
+                const attachmentContent = currentAttachment.content.substring(0, 15000);
                 finalPrompt = `ATTACHED DOCUMENT: ${currentAttachment.name}
 
 DOCUMENT CONTENT:
@@ -445,7 +473,6 @@ ${prompt}
 
 Please analyze the attached document and respond to the user's request based on the document content above.`;
                 
-                // Also include attachment data separately in case the prompt approach fails
                 attachmentData = {
                     filename: currentAttachment.name,
                     content: attachmentContent,
@@ -474,12 +501,11 @@ Please analyze the attached document and respond to the user's request based on 
             };
 
             console.log('📤 Final request data:', {
-                ...requestData,
-                attachment: requestData.attachment ? {
-                    filename: requestData.attachment.filename,
-                    contentLength: requestData.attachment.content?.length || 0,
-                    size: requestData.attachment.size
-                } : null
+                prompt: finalPrompt.substring(0, 200) + '...',
+                conversation_history_length: conversationHistory.length,
+                content_mode: this.currentMode,
+                has_attachment: !!attachmentData,
+                session_id: this.currentSessionId
             });
 
             // Make the request with proper error handling

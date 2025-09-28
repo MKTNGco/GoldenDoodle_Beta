@@ -417,7 +417,17 @@ class ChatInterface {
             // Include attachment data if present
             let finalPrompt = prompt;
             if (this.attachedFile) {
-                finalPrompt = `[Attached file: ${this.attachedFile.name}]\n\n${this.attachedFile.content.substring(0, 4000)}\n\n---\n\n${prompt}`;
+                // Use more content and better structure
+                const attachmentContent = this.attachedFile.content.substring(0, 10000); // Increased from 4000
+                finalPrompt = `ATTACHED DOCUMENT: ${this.attachedFile.name}
+
+DOCUMENT CONTENT:
+${attachmentContent}${this.attachedFile.content.length > 10000 ? '\n\n[Document truncated - showing first 10,000 characters]' : ''}
+
+USER REQUEST:
+${prompt}
+
+Please analyze the attached document and respond to the user's request based on the document content above.`;
             }
 
             const requestData = {

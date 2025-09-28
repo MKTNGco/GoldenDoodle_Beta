@@ -1361,6 +1361,11 @@ def generate():
             logger.info(f"  Content preview: {attachment_data.get('content', '')[:200]}...")
         else:
             logger.info("📎 No attachment data found in request")
+            # Check if the prompt itself contains attachment content
+            if "ATTACHED DOCUMENT:" in prompt:
+                logger.info("📎 Attachment content found in prompt structure")
+            else:
+                logger.info("📎 No attachment content detected in prompt either")
 
         if not prompt:
             logger.warning("No prompt provided")

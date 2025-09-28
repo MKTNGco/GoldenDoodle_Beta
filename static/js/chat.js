@@ -399,6 +399,9 @@ class ChatInterface {
                 await this.startNewChat(false);
             }
 
+            // Store attachment data before clearing
+            const currentAttachment = this.attachedFile;
+            
             // Clear input and update UI
             this.chatInput.value = '';
             this.autoResizeTextarea();
@@ -429,13 +432,13 @@ class ChatInterface {
             let finalPrompt = prompt;
             let attachmentData = null;
             
-            if (this.attachedFile) {
+            if (currentAttachment) {
                 // Use more content and better structure
-                const attachmentContent = this.attachedFile.content.substring(0, 15000); // Increased to 15000 characters
-                finalPrompt = `ATTACHED DOCUMENT: ${this.attachedFile.name}
+                const attachmentContent = currentAttachment.content.substring(0, 15000); // Increased to 15000 characters
+                finalPrompt = `ATTACHED DOCUMENT: ${currentAttachment.name}
 
 DOCUMENT CONTENT:
-${attachmentContent}${this.attachedFile.content.length > 15000 ? '\n\n[Document truncated - showing first 15,000 characters]' : ''}
+${attachmentContent}${currentAttachment.content.length > 15000 ? '\n\n[Document truncated - showing first 15,000 characters]' : ''}
 
 USER REQUEST:
 ${prompt}
@@ -444,19 +447,21 @@ Please analyze the attached document and respond to the user's request based on 
                 
                 // Also include attachment data separately in case the prompt approach fails
                 attachmentData = {
-                    filename: this.attachedFile.name,
+                    filename: currentAttachment.name,
                     content: attachmentContent,
-                    size: this.attachedFile.size,
-                    truncated: this.attachedFile.content.length > 15000
+                    size: currentAttachment.size,
+                    truncated: currentAttachment.content.length > 15000
                 };
                 
                 console.log('📎 Attachment data prepared:', {
-                    filename: this.attachedFile.name,
+                    filename: currentAttachment.name,
                     contentLength: attachmentContent.length,
-                    originalLength: this.attachedFile.content.length,
-                    truncated: this.attachedFile.content.length > 15000
+                    originalLength: currentAttachment.content.length,
+                    truncated: currentAttachment.content.length > 15000
                 });
             }
+
+            console.log('📎 Final attachment data being sent:', attachmentData);
 
             const requestData = {
                 prompt: finalPrompt,
@@ -467,6 +472,15 @@ Please analyze the attached document and respond to the user's request based on 
                 session_id: this.currentSessionId,
                 attachment: attachmentData
             };
+
+            console.log('📤 Final request data:', {
+                ...requestData,
+                attachment: requestData.attachment ? {
+                    filename: requestData.attachment.filename,
+                    contentLength: requestData.attachment.content?.length || 0,
+                    size: requestData.attachment.size
+                } : null
+            });
 
             // Make the request with proper error handling
             const response = await this.makeRequest('/generate', requestData);

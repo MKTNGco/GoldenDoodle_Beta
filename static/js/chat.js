@@ -409,12 +409,12 @@ class ChatInterface {
             this.updateSendButton();
             this.updateSendButtonLoading(true);
 
-            // Clear attachment badge if present
+            // Clear attachment badge if present but keep attachment data for the request
             const attachmentBadge = document.getElementById('attached-file-badge');
             if (attachmentBadge) {
                 attachmentBadge.remove();
             }
-            this.attachedFile = null;
+            // Don't clear this.attachedFile here - we need it for the request
 
             // Clear welcome screen if present
             this.clearWelcomeScreen();
@@ -538,6 +538,9 @@ Please analyze the attached document and respond to the user's request based on 
             this.updateSendButton();
             this.updateSendButtonLoading(false);
             this.chatInput.focus();
+            
+            // Clear attachment data after request is complete
+            this.attachedFile = null;
         }
     }
 

@@ -1334,15 +1334,45 @@ def generate():
     """Generate AI content - supports both logged-in users and demo mode"""
     try:
         logger.info("=== /generate route called ===")
-        data = request.get_json()
-        logger.info(f"Request data received: {bool(data)}")
+        
+        if request.form:
+            logger.info("Processing form data with file upload")
+            prompt = request.form.get('prompt', '').strip()
+            conversation_history_str = request.form.get('conversation_history', '[]')
+            content_mode = request.form.get('content_mode')
+            brand_voice_id = request.form.get('brand_voice_id')
+            is_demo = request.form.get('is_demo', 'false').lower() == 'true'
+            session_id = request.form.get('session_id')
+            
+            try:
+                import json
+                conversation_history = json.loads(conversation_history_str)
+            except (json.JSONDecodeError, TypeError):
+                conversation_history = []
+            
+            uploaded_file = request.files.get('file')
+            filename = request.form.get('filename')
+            
+            if uploaded_file and filename:
+                logger.info(f"File uploaded: {filename}, size: {len(uploaded_file.read())} bytes")
+                uploaded_file.seek(0)
+            else:
+                uploaded_file = None
+                filename = None
+                
+        else:
+            logger.info("Processing JSON data")
+            data = request.get_json()
+            logger.info(f"Request data received: {bool(data)}")
 
-        prompt = data.get('prompt', '').strip()
-        conversation_history = data.get('conversation_history', [])
-        content_mode = data.get('content_mode')
-        brand_voice_id = data.get('brand_voice_id')
-        is_demo = data.get('is_demo', False)
-        session_id = data.get('session_id')  # Added for tracking
+            prompt = data.get('prompt', '').strip()
+            conversation_history = data.get('conversation_history', [])
+            content_mode = data.get('content_mode')
+            brand_voice_id = data.get('brand_voice_id')
+            is_demo = data.get('is_demo', False)
+            session_id = data.get('session_id')
+            uploaded_file = None
+            filename = None
 
         logger.info(f"Prompt length: {len(prompt)}")
         logger.info(f"Content mode: {content_mode}")
@@ -1354,6 +1384,27 @@ def generate():
         if not prompt:
             logger.warning("No prompt provided")
             return jsonify({'error': 'Prompt is required'}), 400
+
+        file_content = None
+        if uploaded_file and filename:
+            try:
+                if filename.lower().endswith('.txt') or filename.lower().endswith('.md'):
+                    file_content = uploaded_file.read().decode('utf-8')
+                elif filename.lower().endswith('.pdf'):
+                    file_content = uploaded_file.read().decode('utf-8', errors='ignore')
+                elif filename.lower().endswith(('.doc', '.docx')):
+                    file_content = uploaded_file.read().decode('utf-8', errors='ignore')
+                else:
+                    file_content = uploaded_file.read().decode('utf-8', errors='ignore')
+                
+                logger.info(f"File content extracted: {len(file_content)} characters")
+                
+                if file_content:
+                    prompt = f"{prompt}\n\nFile content ({filename}):\n{file_content}"
+                    
+            except Exception as e:
+                logger.error(f"Error processing uploaded file: {e}")
+                return jsonify({'error': 'Error processing uploaded file'}), 400
 
         user = get_current_user()
         logger.info(f"Current user: {user.user_id if user else 'None'}")

@@ -378,6 +378,19 @@ class ChatInterface {
             // Clear welcome screen if present
             this.clearWelcomeScreen();
 
+            // Check for attached file
+            let attachmentData = null;
+            if (this.attachedFile) {
+                attachmentData = {
+                    filename: this.attachedFile.name,
+                    file: this.attachedFile
+                };
+                
+                // Clear attached file
+                this.attachedFile = null;
+                this.hideAttachmentIndicator();
+            }
+
             // Add user message
             this.addMessage(prompt, 'user');
 
@@ -393,11 +406,12 @@ class ChatInterface {
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
                 is_demo: this.isDemoMode,
-                session_id: this.currentSessionId
+                session_id: this.currentSessionId,
+                attachment_data: attachmentData
             };
 
             // Make the request with proper error handling
-            const response = await this.makeRequest('/generate', requestData);
+            const response = await this.makeRequestWithFile('/generate', requestData);
 
             this.removeLoadingMessage(loadingId);
 
@@ -471,6 +485,82 @@ class ChatInterface {
                         body: JSON.stringify(data),
                         signal: controller.signal
                     });
+                } catch (fetchError) {
+                    console.error('Fetch request failed:', fetchError);
+                    throw new Error(`Network request failed: ${fetchError.message}`);
+                }
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+
+                let responseData;
+                try {
+                    responseData = await response.json();
+                } catch (jsonError) {
+                    console.error('Failed to parse JSON response:', jsonError);
+                    throw new Error('Invalid response format from server');
+                }
+
+                return responseData;
+
+            } catch (error) {
+                console.error(`Attempt ${attempt} failed:`, error);
+
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            }
+        }
+    }
+
+    async makeRequestWithFile(url, data, maxRetries = 3) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+                let response;
+                try {
+                    // Use FormData if there's an attachment
+                    if (data.attachment_data && data.attachment_data.file) {
+                        const formData = new FormData();
+                        
+                        // Add all non-file data
+                        formData.append('prompt', data.prompt);
+                        formData.append('conversation_history', JSON.stringify(data.conversation_history));
+                        formData.append('content_mode', data.content_mode || '');
+                        formData.append('brand_voice_id', data.brand_voice_id || '');
+                        formData.append('is_demo', data.is_demo);
+                        formData.append('session_id', data.session_id);
+                        
+                        // Add the file
+                        formData.append('file', data.attachment_data.file);
+                        formData.append('filename', data.attachment_data.filename);
+
+                        response = await fetch(url, {
+                            method: 'POST',
+                            body: formData,
+                            signal: controller.signal
+                        });
+                    } else {
+                        // Use JSON for requests without files
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(data),
+                            signal: controller.signal
+                        });
+                    }
                 } catch (fetchError) {
                     console.error('Fetch request failed:', fetchError);
                     throw new Error(`Network request failed: ${fetchError.message}`);
@@ -837,22 +927,36 @@ class ChatInterface {
         }
 
         try {
-            const text = await this.readFileAsText(file);
-            const truncatedText = text.substring(0, 2000);
-
-            const currentText = this.chatInput.value;
-            const newText = currentText + (currentText ? '\n\n' : '') +
-                           `[Attached file: ${file.name}]\n${truncatedText}${text.length > 2000 ? '\n...(truncated)' : ''}`;
-
-            this.chatInput.value = newText;
-            this.autoResizeTextarea();
-            this.updateSendButton();
-            this.chatInput.focus();
+            // Store file info for backend processing
+            this.attachedFile = file;
+            
+            // Show attachment indicator
+            this.showAttachmentIndicator(file.name);
 
         } catch (error) {
-            console.error('Error reading file:', error);
-            alert('Error reading file. Please try again.');
+            console.error('Error processing file:', error);
+            alert('Error processing file. Please try again.');
         }
+    }
+
+    showAttachmentIndicator(filename) {
+        const indicator = document.getElementById('attachmentIndicator');
+        const filenameSpan = indicator.querySelector('.attachment-filename');
+        const removeBtn = indicator.querySelector('.attachment-remove');
+        
+        filenameSpan.textContent = filename;
+        indicator.style.display = 'block';
+        
+        // Add remove functionality
+        removeBtn.onclick = () => {
+            this.attachedFile = null;
+            this.hideAttachmentIndicator();
+        };
+    }
+
+    hideAttachmentIndicator() {
+        const indicator = document.getElementById('attachmentIndicator');
+        indicator.style.display = 'none';
     }
 
     readFileAsText(file) {

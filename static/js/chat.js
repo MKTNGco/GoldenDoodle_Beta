@@ -1,11 +1,4 @@
 // GoldenDoodleLM Modern Chat Interface
-console.log('ChatInterface script loaded');
-
-// Prevent duplicate class declaration
-if (typeof ChatInterface !== 'undefined') {
-    console.warn('ChatInterface already defined, skipping redefinition');
-} else {
-
 class ChatInterface {
     constructor() {
         this.currentMode = null;
@@ -18,13 +11,6 @@ class ChatInterface {
         this.isLoggedIn = window.isLoggedIn || false;
         this.currentSessionId = null;
         this.isInitialized = false; // Prevent double initialization
-        this.attachedFile = null; // Store attached file data
-        this._sendInProgress = false; // Track if a send operation is in progress
-
-
-        setTimeout(() => {
-            this.checkLibraries();
-        }, 1000);
 
         this.placeholders = [
             "Message GoldenDoodleLM...",
@@ -100,7 +86,6 @@ class ChatInterface {
         this.moreModesBtn = document.getElementById('moreModesBtn');
         this.secondaryModes = document.getElementById('secondaryModes');
         this.newChatBtn = document.getElementById('newChatBtn');
-
 
         // Check if we're on the chat page
         if (!this.chatInput || !this.sendBtn || !this.chatMessages) {
@@ -198,10 +183,7 @@ class ChatInterface {
     handleKeydown(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            // Prevent double submission if already generating
-            if (!this.isGenerating) {
-                this.sendMessage();
-            }
+            this.sendMessage();
         }
     }
 
@@ -217,52 +199,13 @@ class ChatInterface {
     }
 
     handleSendClick() {
-        // Prevent double submission if already generating
-        if (!this.isGenerating) {
-            this.sendMessage();
-        }
+        this.sendMessage();
     }
 
     handleBrandVoiceClick(e) {
         e.preventDefault();
         e.stopPropagation();
         this.toggleBrandVoiceDropdown();
-    }
-
-    toggleBrandVoiceDropdown() {
-        if (this.brandVoiceDropdown) {
-            const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
-
-            document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
-                dropdown.classList.remove('show');
-            });
-
-            if (!isCurrentlyShown) {
-                const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
-                this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
-                this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
-                this.brandVoiceDropdown.style.display = 'block';
-                this.brandVoiceDropdown.style.visibility = 'visible';
-                this.brandVoiceDropdown.style.opacity = '1';
-                this.brandVoiceDropdown.classList.add('show');
-            }
-        }
-    }
-
-    closeBrandVoiceDropdown() {
-        if (this.brandVoiceDropdown) {
-            this.brandVoiceDropdown.classList.remove('show');
-            this.brandVoiceDropdown.style.display = 'none';
-            this.brandVoiceDropdown.style.visibility = 'hidden';
-            this.brandVoiceDropdown.style.opacity = '0';
-        }
-    }
-
-    selectBrandVoice(value, name) {
-        this.selectedBrandVoice = value;
-        this.selectedVoiceName = name;
-        this.selectedVoiceNameElement.textContent = name;
-        this.closeBrandVoiceDropdown();
     }
 
     handleBrandVoiceOptionClick(e) {
@@ -334,6 +277,36 @@ class ChatInterface {
         }
     }
 
+    toggleBrandVoiceDropdown() {
+        if (this.brandVoiceDropdown) {
+            const isCurrentlyShown = this.brandVoiceDropdown.classList.contains('show');
+
+            document.querySelectorAll('.brand-voice-dropdown.show').forEach(dropdown => {
+                dropdown.classList.remove('show');
+            });
+
+            if (!isCurrentlyShown) {
+                const buttonRect = this.brandVoiceBtn.getBoundingClientRect();
+                this.brandVoiceDropdown.style.right = (window.innerWidth - buttonRect.right) + 'px';
+                this.brandVoiceDropdown.style.bottom = (window.innerHeight - buttonRect.top + 8) + 'px';
+                this.brandVoiceDropdown.classList.add('show');
+            }
+        }
+    }
+
+    closeBrandVoiceDropdown() {
+        if (this.brandVoiceDropdown) {
+            this.brandVoiceDropdown.classList.remove('show');
+        }
+    }
+
+    selectBrandVoice(value, name) {
+        this.selectedBrandVoice = value;
+        this.selectedVoiceName = name;
+        this.selectedVoiceNameElement.textContent = name;
+        this.closeBrandVoiceDropdown();
+    }
+
     selectMode(button) {
         const mode = button.dataset.mode;
 
@@ -373,88 +346,50 @@ class ChatInterface {
         if (!this.chatInput || !this.sendBtn) return;
 
         const hasText = this.chatInput.value.trim().length > 0;
-        const shouldDisable = !hasText || this.isGenerating || this._sendInProgress;
-
-        this.sendBtn.disabled = shouldDisable;
-
-        // Add visual feedback for disabled state
-        if (shouldDisable) {
-            this.sendBtn.style.opacity = '0.5';
-            this.sendBtn.style.cursor = 'not-allowed';
-        } else {
-            this.sendBtn.style.opacity = '1';
-            this.sendBtn.style.cursor = 'pointer';
-        }
+        this.sendBtn.disabled = !hasText || this.isGenerating;
     }
 
     async sendMessage() {
         const prompt = this.chatInput.value.trim();
 
-        if (!prompt || this.isGenerating || this._sendInProgress) {
+        if (!prompt || this.isGenerating) {
             return;
         }
 
-        // Prevent multiple simultaneous submissions
-        if (this.isGenerating || this._sendInProgress) {
-            console.log('❌ Request already in progress, ignoring duplicate submission');
-            return;
-        }
-
-        console.log('📤 SEND MESSAGE CALLED:');
-        console.log('  Prompt:', prompt);
-        console.log('  Has attachment:', !!this.attachedFile);
-        if (this.attachedFile) {
-            console.log('  Attachment details:', {
-                name: this.attachedFile.name,
-                contentLength: this.attachedFile.content.length,
-                size: this.attachedFile.size
-            });
-        }
-
-        let error = null; // To capture errors in the finally block
         try {
-            // Set generating state immediately to prevent double submissions
-            this.isGenerating = true;
-            this._sendInProgress = true;
-            this.updateSendButton();
-            this.updateSendButtonLoading(true);
-
             // If no current session and logged in, start a new one
             if (!this.currentSessionId && this.isLoggedIn) {
-                await this.startNewChat(false); // Don't clear UI yet
+                await this.startNewChat(false);
             }
 
             // Validate session ID
             if (this.isLoggedIn && !this.currentSessionId) {
                 console.error('No valid session ID for logged-in user!');
-                await this.startNewChat(false); // Don't clear UI yet
+                await this.startNewChat(false);
             }
-
-            // CRITICAL: Store attachment data BEFORE any UI changes
-            const currentAttachment = this.attachedFile ? {
-                name: this.attachedFile.name,
-                content: this.attachedFile.content,
-                size: this.attachedFile.size
-            } : null;
-
-            console.log('📎 Attachment preserved for request:', currentAttachment ? {
-                name: currentAttachment.name,
-                contentLength: currentAttachment.content.length,
-                size: currentAttachment.size
-            } : null);
 
             // Clear input and update UI
             this.chatInput.value = '';
             this.autoResizeTextarea();
-
-            // Clear attachment badge if present
-            const attachmentBadge = document.getElementById('attached-file-badge');
-            if (attachmentBadge) {
-                attachmentBadge.remove();
-            }
+            this.isGenerating = true;
+            this.updateSendButton();
+            this.updateSendButtonLoading(true);
 
             // Clear welcome screen if present
             this.clearWelcomeScreen();
+
+            // Check for attached file
+            let attachmentData = null;
+            if (this.attachedFile) {
+                attachmentData = {
+                    filename: this.attachedFile.name,
+                    file: this.attachedFile
+                };
+
+                // Clear attached file
+                this.attachedFile = null;
+                this.hideAttachmentIndicator();
+            }
 
             // Add user message
             this.addMessage(prompt, 'user');
@@ -462,67 +397,21 @@ class ChatInterface {
             // Add loading message
             const loadingId = this.addLoadingMessage();
 
-            // Get conversation history for context (excluding the message we just added)
+            // Get conversation history for context
             const conversationHistory = this.getConversationHistory();
-            // Remove the last message we just added to prevent duplication
-            if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].content === prompt) {
-                conversationHistory.pop();
-            }
-
-            // Include attachment data if present
-            let finalPrompt = prompt;
-            let attachmentData = null;
-
-            if (currentAttachment) {
-                // Use more content and better structure
-                const attachmentContent = currentAttachment.content.substring(0, 15000);
-                finalPrompt = `ATTACHED DOCUMENT: ${currentAttachment.name}
-
-DOCUMENT CONTENT:
-${attachmentContent}${currentAttachment.content.length > 15000 ? '\n\n[Document truncated - showing first 15,000 characters]' : ''}
-
-USER REQUEST:
-${prompt}
-
-Please analyze the attached document and respond to the user's request based on the document content above.`;
-
-                attachmentData = {
-                    filename: currentAttachment.name,
-                    content: attachmentContent,
-                    size: currentAttachment.size,
-                    truncated: currentAttachment.content.length > 15000
-                };
-
-                console.log('📎 Attachment data prepared:', {
-                    filename: currentAttachment.name,
-                    contentLength: attachmentContent.length,
-                    originalLength: currentAttachment.content.length,
-                    truncated: currentAttachment.content.length > 15000
-                });
-            }
-
-            console.log('📎 Final attachment data being sent:', attachmentData);
 
             const requestData = {
-                prompt: finalPrompt,
+                prompt: prompt,
                 conversation_history: conversationHistory,
                 content_mode: this.currentMode,
                 brand_voice_id: this.isDemoMode ? null : (this.selectedBrandVoice || null),
                 is_demo: this.isDemoMode,
                 session_id: this.currentSessionId,
-                attachment: attachmentData
+                attachment_data: attachmentData
             };
 
-            console.log('📤 Final request data:', {
-                prompt: finalPrompt.substring(0, 200) + '...',
-                conversation_history_length: conversationHistory.length,
-                content_mode: this.currentMode,
-                has_attachment: !!attachmentData,
-                session_id: this.currentSessionId
-            });
-
             // Make the request with proper error handling
-            const response = await this.makeRequest('/generate', requestData);
+            const response = await this.makeRequestWithFile('/generate', requestData);
 
             this.removeLoadingMessage(loadingId);
 
@@ -534,13 +423,10 @@ Please analyze the attached document and respond to the user's request based on 
                     this.updateChatTitleInSidebar(this.currentSessionId, prompt);
                 }
             } else {
-                const errorMessage = response?.error || 'Sorry, I encountered an error. Please try again.';
-                this.addMessage(errorMessage, 'ai', true);
-                error = new Error(errorMessage); // Set error for finally block
+                this.addMessage(response?.error || 'Sorry, I encountered an error. Please try again.', 'ai', true);
             }
 
-        } catch (catchError) {
-            error = catchError; // Capture error
+        } catch (error) {
             console.error('❌ Generation error:', error);
 
             // Remove any loading messages first
@@ -577,16 +463,9 @@ Please analyze the attached document and respond to the user's request based on 
         } finally {
             // Always reset UI state
             this.isGenerating = false;
-            this._sendInProgress = false;
             this.updateSendButton();
             this.updateSendButtonLoading(false);
             this.chatInput.focus();
-
-            // Only clear attachment data if the request was successful
-            // (Don't clear on error so user can retry)
-            if (!error) {
-                this.attachedFile = null;
-            }
         }
     }
 
@@ -606,6 +485,82 @@ Please analyze the attached document and respond to the user's request based on 
                         body: JSON.stringify(data),
                         signal: controller.signal
                     });
+                } catch (fetchError) {
+                    console.error('Fetch request failed:', fetchError);
+                    throw new Error(`Network request failed: ${fetchError.message}`);
+                }
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+
+                let responseData;
+                try {
+                    responseData = await response.json();
+                } catch (jsonError) {
+                    console.error('Failed to parse JSON response:', jsonError);
+                    throw new Error('Invalid response format from server');
+                }
+
+                return responseData;
+
+            } catch (error) {
+                console.error(`Attempt ${attempt} failed:`, error);
+
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            }
+        }
+    }
+
+    async makeRequestWithFile(url, data, maxRetries = 3) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+                let response;
+                try {
+                    // Use FormData if there's an attachment
+                    if (data.attachment_data && data.attachment_data.file) {
+                        const formData = new FormData();
+
+                        // Add all non-file data
+                        formData.append('prompt', data.prompt);
+                        formData.append('conversation_history', JSON.stringify(data.conversation_history));
+                        formData.append('content_mode', data.content_mode || '');
+                        formData.append('brand_voice_id', data.brand_voice_id || '');
+                        formData.append('is_demo', data.is_demo);
+                        formData.append('session_id', data.session_id);
+
+                        // Add the file
+                        formData.append('file', data.attachment_data.file);
+                        formData.append('filename', data.attachment_data.filename);
+
+                        response = await fetch(url, {
+                            method: 'POST',
+                            body: formData,
+                            signal: controller.signal
+                        });
+                    } else {
+                        // Use JSON for requests without files
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(data),
+                            signal: controller.signal
+                        });
+                    }
                 } catch (fetchError) {
                     console.error('Fetch request failed:', fetchError);
                     throw new Error(`Network request failed: ${fetchError.message}`);
@@ -951,7 +906,6 @@ Please analyze the attached document and respond to the user's request based on 
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = '.txt,.pdf,.doc,.docx,.md';
-        fileInput.title = 'Supported formats: .txt, .md, .pdf, .doc, .docx (Note: .docx format is recommended for Word documents)';
         fileInput.style.display = 'none';
 
         fileInput.addEventListener('change', (e) => {
@@ -972,363 +926,37 @@ Please analyze the attached document and respond to the user's request based on 
             return;
         }
 
-        this.showFileProcessingIndicator(file.name);
-
         try {
-            const text = await this.extractTextFromFile(file);
+            // Store file info for backend processing
+            this.attachedFile = file;
 
-            console.log('📎 ATTACHMENT PROCESSING COMPLETE:');
-            console.log('  File name:', file.name);
-            console.log('  File size:', file.size);
-            console.log('  Extracted text length:', text.length);
-            console.log('  First 200 characters:', text.substring(0, 200));
-
-            // Store the file data for sending with the message
-            this.attachedFile = {
-                name: file.name,
-                content: text,
-                size: file.size
-            };
-
-            console.log('📎 Attachment stored in this.attachedFile:', {
-                name: this.attachedFile.name,
-                contentLength: this.attachedFile.content.length,
-                size: this.attachedFile.size
-            });
-
-            // Show file badge instead of adding text to input
-            this.showAttachedFileBadge(file.name);
-            this.updateSendButton();
-            this.chatInput.focus();
-
-            // Show success indicator
-            this.showFileSuccessIndicator(file.name);
+            // Show attachment indicator
+            this.showAttachmentIndicator(file.name);
 
         } catch (error) {
-            console.error('Error reading file:', error);
-
-            if (error.message.includes('Unsupported file type')) {
-                alert(`Error: ${error.message}. Please use .txt, .md, .pdf, .doc, or .docx files.`);
-            } else {
-                alert('Error reading file. Please try again or use a different file.');
-            }
+            console.error('Error processing file:', error);
+            alert('Error processing file. Please try again.');
         }
     }
 
-    showFileProcessingIndicator(fileName) {
-        const indicator = document.createElement('div');
-        indicator.id = 'file-processing-indicator';
-        indicator.innerHTML = `
-            <div style="position: fixed; top: 20px; right: 20px; background: var(--charcoal); color: var(--cloud-white); padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
-                Processing ${fileName}...
-            </div>
-        `;
-        document.body.appendChild(indicator);
+    showAttachmentIndicator(filename) {
+        const indicator = document.getElementById('attachmentIndicator');
+        const filenameSpan = indicator.querySelector('.attachment-filename');
+        const removeBtn = indicator.querySelector('.attachment-remove');
+
+        filenameSpan.textContent = filename;
+        indicator.style.display = 'block';
+
+        // Add remove functionality
+        removeBtn.onclick = () => {
+            this.attachedFile = null;
+            this.hideAttachmentIndicator();
+        };
     }
 
-    updateFileProcessingIndicator(fileName, message) {
-        const indicator = document.getElementById('file-processing-indicator');
-        if (indicator) {
-            indicator.innerHTML = `
-                <div style="position: fixed; top: 20px; right: 20px; background: var(--charcoal); color: var(--cloud-white); padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                    <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
-                    ${message}
-                </div>
-            `;
-        }
-    }
-
-    showFileSuccessIndicator(fileName) {
-        const processingIndicator = document.getElementById('file-processing-indicator');
-        if (processingIndicator) {
-            processingIndicator.remove();
-        }
-
-        const indicator = document.createElement('div');
-        indicator.innerHTML = `
-            <div style="position: fixed; top: 20px; right: 20px; background: var(--success-green); color: black; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                <i class="fas fa-check" style="margin-right: 8px;"></i>
-                ${fileName} attached successfully!
-            </div>
-        `;
-        document.body.appendChild(indicator);
-
-        setTimeout(() => {
-            if (indicator.parentNode) {
-                indicator.parentNode.removeChild(indicator);
-            }
-        }, 3000);
-    }
-
-    showAttachedFileBadge(fileName) {
-        // Remove any existing attachment badge
-        const existingBadge = document.getElementById('attached-file-badge');
-        if (existingBadge) {
-            existingBadge.remove();
-        }
-
-        // Create file badge
-        const badge = document.createElement('div');
-        badge.id = 'attached-file-badge';
-        badge.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; background: var(--border-light); border: 1px solid var(--clearwater-teal); border-radius: 20px; padding: 6px 12px; margin-bottom: 8px; font-size: 0.875rem; color: var(--text-primary); max-width: fit-content;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color: var(--clearwater-teal);">
-                    <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.31 2.69 6 6 6s6-2.69 6-6V6h-2.5z"/>
-                </svg>
-                <span>${fileName}</span>
-                <button onclick="this.parentElement.parentElement.remove(); window.chat.removeAttachment();" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;">×</button>
-            </div>
-        `;
-
-        // Insert badge before the prompt input container
-        const promptContainer = document.querySelector('.prompt-input-container');
-        if (promptContainer) {
-            promptContainer.parentNode.insertBefore(badge, promptContainer);
-        }
-    }
-
-    removeAttachment() {
-        this.attachedFile = null;
-        this.updateSendButton();
-        this.chatInput.focus();
-    }
-
-    checkLibraries() {
-
-        if (typeof pdfjsLib === 'undefined') {
-            console.warn('PDF.js library not loaded - PDF extraction will not work');
-        }
-        if (typeof mammoth === 'undefined') {
-            console.warn('Mammoth library not loaded - Word extraction will not work');
-        }
-        console.log('=== END LIBRARY CHECK ===');
-    }
-
-    async loadPDFJS() {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
-            script.onload = () => {
-                console.log('PDF.js loaded dynamically');
-                resolve();
-            };
-            script.onerror = () => {
-                console.error('Failed to load PDF.js dynamically');
-                reject(new Error('Failed to load PDF.js'));
-            };
-            document.head.appendChild(script);
-        });
-    }
-
-    async loadMammoth() {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js';
-            script.onload = () => {
-                console.log('Mammoth loaded dynamically');
-                resolve();
-            };
-            script.onerror = () => {
-                console.error('Failed to load Mammoth dynamically');
-                reject(new Error('Failed to load Mammoth'));
-            };
-            document.head.appendChild(script);
-        });
-    }
-
-    async extractTextFromFile(file) {
-        const fileExtension = file.name.split('.').pop().toLowerCase();
-
-        switch (fileExtension) {
-            case 'txt':
-            case 'md':
-                console.log('Using readFileAsText for text file');
-                return await this.readFileAsText(file);
-
-            case 'pdf':
-                console.log('Using extractTextFromPDF for PDF file');
-                return await this.extractTextFromPDF(file);
-
-            case 'doc':
-            case 'docx':
-                console.log('Using extractTextFromWord for Word file');
-                return await this.extractTextFromWord(file);
-
-            default:
-                throw new Error(`Unsupported file type: ${fileExtension}. Supported types: .txt, .md, .pdf, .doc, .docx`);
-        }
-    }
-
-    async extractTextFromPDF(file) {
-        try {
-            // Wait for PDF.js to load if it's not available yet
-            let attempts = 0;
-            while (typeof pdfjsLib === 'undefined' && attempts < 10) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
-            }
-
-            // Check if PDF.js is available
-            if (typeof pdfjsLib === 'undefined') {
-
-                // Try to load PDF.js dynamically
-                try {
-                    await this.loadPDFJS();
-                    if (typeof pdfjsLib === 'undefined') {
-                        throw new Error('Failed to load PDF.js library');
-                    }
-                } catch (loadError) {
-                    console.error('Failed to load PDF.js:', loadError);
-                    throw new Error('PDF.js library not available. Please refresh the page and try again.');
-                }
-            }
-
-            if (pdfjsLib.GlobalWorkerOptions) {
-                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-            }
-
-            const arrayBuffer = await file.arrayBuffer();
-
-            this.updateFileProcessingIndicator(file.name, 'Loading PDF document...');
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-            let fullText = '';
-
-            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                this.updateFileProcessingIndicator(file.name, `Extracting text from page ${pageNum} of ${pdf.numPages}...`);
-
-                const page = await pdf.getPage(pageNum);
-                const textContent = await page.getTextContent();
-
-                const pageText = textContent.items
-                    .map(item => item.str)
-                    .join(' ');
-
-                fullText += pageText + '\n';
-            }
-
-            if (fullText.trim().length === 0) {
-                return `[PDF file: ${file.name}]\n\nNote: This PDF appears to contain only images or non-extractable text. Please copy and paste the text content manually.`;
-            }
-
-            return fullText.trim();
-
-        } catch (error) {
-            console.error('PDF extraction error:', error);
-            return `[PDF file: ${file.name}]\n\nError extracting text from PDF: ${error.message}. Please copy and paste the text content manually, or save the PDF as a text file and try again.`;
-        }
-    }
-
-    async extractTextFromWord(file) {
-        try {
-
-            let attempts = 0;
-            while (typeof mammoth === 'undefined' && attempts < 10) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
-            }
-
-            if (typeof mammoth === 'undefined') {
-                console.error('Mammoth library not loaded after waiting');
-
-                try {
-                    await this.loadMammoth();
-                    if (typeof mammoth === 'undefined') {
-                        throw new Error('Failed to load Mammoth library');
-                    }
-                } catch (loadError) {
-                    console.error('Failed to load Mammoth:', loadError);
-                    throw new Error('Mammoth library not available. Please refresh the page and try again.');
-                }
-            }
-
-            const arrayBuffer = await file.arrayBuffer();
-
-            this.updateFileProcessingIndicator(file.name, 'Extracting text from Word document...');
-
-            try {
-                const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-
-                if (!result.value || result.value.trim().length === 0) {
-                    return `[Word document: ${file.name}]\n\nNote: This document appears to contain only images or non-extractable content. Please copy and paste the text content manually.`;
-                }
-
-                let extractedText = result.value.trim();
-                if (result.messages && result.messages.length > 0) {
-                    const warnings = result.messages
-                        .filter(msg => msg.type === 'warning')
-                        .map(msg => msg.message)
-                        .join(', ');
-                    if (warnings) {
-                        extractedText += `\n\n[Note: Some formatting may have been lost during extraction: ${warnings}]`;
-                    }
-                }
-
-                return extractedText;
-
-            } catch (mammothError) {
-                console.log('Mammoth extraction failed:', mammothError.message);
-
-                // Check if this is a binary .doc file that can't be processed
-                if (mammothError.message.includes('unexpected signature') ||
-                    mammothError.message.includes('zip file') ||
-                    mammothError.message.includes('central directory') ||
-                    mammothError.message.includes('Invalid data')) {
-
-                    // For "Invalid data" errors, try plain text fallback first
-                    if (mammothError.message.includes('Invalid data')) {
-                        console.log('Invalid data error detected, trying plain text fallback...');
-                        this.updateFileProcessingIndicator(file.name, 'Trying alternative extraction method...');
-
-                        try {
-                            const textContent = await this.readFileAsText(file);
-                            const isReadableText = this.isReadableText(textContent);
-
-                            if (textContent && textContent.trim().length > 0 && isReadableText) {
-                                return `[Word document: ${file.name}]\n\n${textContent}\n\nNote: Extracted using fallback method. Some formatting may be lost.`;
-                            }
-                        } catch (textError) {
-                            console.log('Plain text fallback also failed for invalid data');
-                        }
-                    }
-
-                    // Don't try plain text fallback for other binary .doc files
-                    throw new Error(`This .doc file appears to be in an older binary format that cannot be processed. Please convert it to .docx format or copy and paste the text content manually.`);
-                }
-
-                // For other errors, try plain text fallback only if it's likely to be a text-based file
-                console.log('Trying plain text fallback...');
-                this.updateFileProcessingIndicator(file.name, 'Trying alternative extraction method...');
-
-                try {
-                    const textContent = await this.readFileAsText(file);
-
-                    // Check if the content looks like readable text (not binary garbage)
-                    const isReadableText = this.isReadableText(textContent);
-
-                    if (textContent && textContent.trim().length > 0 && isReadableText) {
-                        return `[Word document: ${file.name}]\n\n${textContent}\n\nNote: Extracted using fallback method. Some formatting may be lost.`;
-                    } else {
-                        console.log('Plain text fallback produced unreadable content');
-                    }
-                } catch (textError) {
-                    console.log('Plain text fallback also failed');
-                }
-
-                // Re-throw the original Mammoth error
-                throw mammothError;
-            }
-
-        } catch (error) {
-            console.error('Word extraction error:', error);
-
-            if (error.message.includes('zip file') || error.message.includes('central directory') || error.message.includes('unexpected signature') || error.message.includes('binary format') || error.message.includes('Invalid data')) {
-                return `[Word document: ${file.name}]\n\nThis document could not be processed by our text extraction system. This may be due to:\n1. The file being in an older binary format (.doc)\n2. The file being corrupted or damaged\n3. The file containing unsupported content\n\nPlease try:\n1. Opening the document in Microsoft Word and saving it as .docx format\n2. Copying and pasting the text content manually\n3. Converting the file using an online .doc to .docx converter\n\nNote: Modern .docx files work much better with our system.`;
-            }
-
-            return `[Word document: ${file.name}]\n\nError extracting text from Word document: ${error.message}. Please copy and paste the text content manually, or save the document as a text file and try again.`;
-        }
+    hideAttachmentIndicator() {
+        const indicator = document.getElementById('attachmentIndicator');
+        indicator.style.display = 'none';
     }
 
     readFileAsText(file) {
@@ -1338,33 +966,6 @@ Please analyze the attached document and respond to the user's request based on 
             reader.onerror = (e) => reject(e);
             reader.readAsText(file);
         });
-    }
-
-    isReadableText(text) {
-        // Check if text contains too many non-printable characters
-        const nonPrintableCount = (text.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g) || []).length;
-        const totalLength = text.length;
-        const nonPrintableRatio = nonPrintableCount / totalLength;
-
-        // If more than 10% of characters are non-printable, it's likely binary data
-        if (nonPrintableRatio > 0.1) {
-            return false;
-        }
-
-        // Check for common binary file signatures
-        const binarySignatures = [
-            '\x00\x00\x00\x00', // Common in binary files
-            'Root Entry', // OLE compound document
-            '\xFF\xFF\xFF\xFF' // Another common binary pattern
-        ];
-
-        for (const signature of binarySignatures) {
-            if (text.includes(signature)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     formatMessage(content) {
@@ -1816,4 +1417,3 @@ document.addEventListener('DOMContentLoaded', function() {
 window.addEventListener('load', function() {
     console.log('Window loaded, chat interface should be ready');
 });
-}

@@ -43,6 +43,12 @@ class ChatInterface {
     setupGlobalErrorHandlers() {
         // Handle unhandled promise rejections
         window.addEventListener('unhandledrejection', (event) => {
+            if (event.reason?.toString().includes('Invalid data') || 
+                event.reason?.stack?.includes('client_default')) {
+                event.preventDefault();
+                return;
+            }
+            
             console.error('Unhandled promise rejection:', event.reason);
             event.preventDefault(); // Prevent the default console error
 
@@ -1385,6 +1391,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Additional global error handlers
         window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason?.toString().includes('Invalid data') || 
+                event.reason?.stack?.includes('client_default')) {
+                event.preventDefault();
+                return;
+            }
+            
             console.error('Global unhandled promise rejection:', event.reason);
             event.preventDefault();
 

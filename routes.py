@@ -20,6 +20,7 @@ import psycopg2.extras
 from user_source_tracker import user_source_tracker
 from crisp_service import crisp_service
 from crisp_marketplace import crisp_marketplace
+from file_extraction_service import file_extraction_service
 
 # Check if Stripe should be disabled for beta access
 STRIPE_DISABLED = os.environ.get('STRIPE_DISABLED', 'false').lower() == 'true'
@@ -1555,33 +1556,35 @@ def generate():
             logger.warning("No prompt provided")
             return jsonify({'error': 'Prompt is required'}), 400
 
-        file_content = None
         if uploaded_file and filename:
             try:
-                if filename.lower().endswith(
-                        '.txt') or filename.lower().endswith('.md'):
-                    file_content = uploaded_file.read().decode('utf-8')
-                elif filename.lower().endswith('.pdf'):
-                    file_content = uploaded_file.read().decode('utf-8',
-                                                               errors='ignore')
-                elif filename.lower().endswith(('.doc', '.docx')):
-                    file_content = uploaded_file.read().decode('utf-8',
-                                                               errors='ignore')
-                else:
-                    file_content = uploaded_file.read().decode('utf-8',
-                                                               errors='ignore')
-
+                file_content = file_extraction_service.extract_content(
+                    uploaded_file, filename
+                )
+                
+                prompt = file_extraction_service.format_for_prompt(
+                    prompt, filename, file_content
+                )
+                
                 logger.info(
-                    f"File content extracted: {len(file_content)} characters")
+                    f"File content extracted from {filename}: {len(file_content)} characters"
+                )
 
-                if file_content:
-                    prompt = f"{prompt}\n\nFile content ({filename}):\n{file_content}"
-
+            except ValueError as e:
+                logger.error(f"File extraction error for {filename}: {e}")
+                return jsonify({'error': str(e)}), 400
+                
+            except ImportError as e:
+                logger.error(f"Missing library for file extraction: {e}")
+                return jsonify({
+                    'error': 'Server configuration error. Please contact support.'
+                }), 500
+                
             except Exception as e:
-                logger.error(f"Error processing uploaded file: {e}")
-                return jsonify({'error':
-                                'Error processing uploaded file'}), 400
-
+                logger.error(f"Unexpected error processing file {filename}: {e}")
+                return jsonify({
+                    'error': 'Error processing uploaded file. Please try again.'
+                }), 400
         user = get_current_user()
         logger.info(f"Current user: {user.user_id if user else 'None'}")
 

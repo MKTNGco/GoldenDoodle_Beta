@@ -275,25 +275,29 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Invite Team Member</h5>
+                <h5 class="modal-title">Invite Team Members</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="inviteUserForm">
                     <div class="mb-3">
-                        <label for="inviteEmail" class="form-label">Email Address</label>
-                        <input type="email" class="form-control" id="inviteEmail" required 
-                               placeholder="Enter email address">
+                        <label for="inviteEmails" class="form-label">Email Addresses</label>
+                        <textarea class="form-control" id="inviteEmails" rows="5" required 
+                                  placeholder="Enter email addresses (one per line or comma-separated)&#10;example@company.com&#10;another@company.com&#10;third@company.com"></textarea>
                         <div class="form-text">
-                            The user will receive an invitation email to join {{ tenant.name }}.
+                            Enter multiple email addresses separated by new lines or commas. Each user will receive an invitation email to join {{ tenant.name }}.
                         </div>
+                    </div>
+                    <div id="emailPreview" class="mb-3" style="display: none;">
+                        <label class="form-label text-muted">Email addresses to invite:</label>
+                        <div id="emailList" class="border rounded p-2 bg-light small"></div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="sendInviteBtn">
-                    <i class="fas fa-paper-plane me-1"></i>Send Invitation
+                    <i class="fas fa-paper-plane me-1"></i>Send Invitations
                 </button>
             </div>
         </div>
@@ -330,47 +334,131 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load pending invites
     loadPendingInvites();
 
-    // Handle send invitation
-    document.getElementById('sendInviteBtn').addEventListener('click', function() {
-        const email = document.getElementById('inviteEmail').value.trim();
+    // Handle email input changes to show preview
+    document.getElementById('inviteEmails').addEventListener('input', function() {
+        const emailText = this.value.trim();
+        const emailPreview = document.getElementById('emailPreview');
+        const emailList = document.getElementById('emailList');
         
-        if (!email) {
-            alert('Please enter an email address');
+        if (emailText) {
+            const emails = parseEmails(emailText);
+            if (emails.length > 0) {
+                emailList.innerHTML = emails.map(email => `<div class="badge bg-primary me-1 mb-1">${email}</div>`).join('');
+                emailPreview.style.display = 'block';
+            } else {
+                emailPreview.style.display = 'none';
+            }
+        } else {
+            emailPreview.style.display = 'none';
+        }
+    });
+
+    // Function to parse emails from text
+    function parseEmails(text) {
+        const emails = [];
+        // Split by newlines and commas, then clean up
+        const parts = text.split(/[,\n]/).map(part => part.trim()).filter(part => part.length > 0);
+        
+        for (const part of parts) {
+            // Basic email validation
+            if (part.includes('@') && part.includes('.')) {
+                emails.push(part);
+            }
+        }
+        
+        return emails;
+    }
+
+    // Handle send invitations
+    document.getElementById('sendInviteBtn').addEventListener('click', function() {
+        const emailText = document.getElementById('inviteEmails').value.trim();
+        
+        if (!emailText) {
+            alert('Please enter at least one email address');
+            return;
+        }
+
+        const emails = parseEmails(emailText);
+        
+        if (emails.length === 0) {
+            alert('Please enter valid email addresses');
             return;
         }
 
         this.disabled = true;
         this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sending...';
 
-        fetch('/send-organization-invite', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email: email
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                document.getElementById('inviteEmail').value = '';
-                bootstrap.Modal.getInstance(document.getElementById('inviteUserModal')).hide();
-                loadPendingInvites(); // Refresh pending invites
-            } else {
-                alert('Failed to send invitation: ' + (data.error || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to send invitation');
-        })
-        .finally(() => {
-            this.disabled = false;
-            this.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Invitation';
-        });
+        // Send invitations for all emails
+        sendMultipleInvitations(emails);
     });
+
+    function sendMultipleInvitations(emails) {
+        const results = [];
+        let completed = 0;
+        
+        emails.forEach((email, index) => {
+            fetch('/send-organization-invite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                results.push({
+                    email: email,
+                    success: data.success,
+                    message: data.message || data.error
+                });
+            })
+            .catch(error => {
+                results.push({
+                    email: email,
+                    success: false,
+                    message: 'Network error'
+                });
+            })
+            .finally(() => {
+                completed++;
+                if (completed === emails.length) {
+                    showInvitationResults(results);
+                }
+            });
+        });
+    }
+
+    function showInvitationResults(results) {
+        const sendBtn = document.getElementById('sendInviteBtn');
+        const successful = results.filter(r => r.success);
+        const failed = results.filter(r => !r.success);
+        
+        let message = '';
+        if (successful.length > 0) {
+            message += `✅ Successfully sent ${successful.length} invitation${successful.length > 1 ? 's' : ''}\n`;
+        }
+        
+        if (failed.length > 0) {
+            message += `❌ Failed to send ${failed.length} invitation${failed.length > 1 ? 's' : ''}:\n`;
+            failed.forEach(f => {
+                message += `• ${f.email}: ${f.message}\n`;
+            });
+        }
+        
+        alert(message);
+        
+        if (successful.length > 0) {
+            document.getElementById('inviteEmails').value = '';
+            document.getElementById('emailPreview').style.display = 'none';
+            bootstrap.Modal.getInstance(document.getElementById('inviteUserModal')).hide();
+            loadPendingInvites(); // Refresh pending invites
+        }
+        
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Invitations';
+    }
 
     // Handle subscription level changes
     document.querySelectorAll('.subscription-select').forEach(select => {

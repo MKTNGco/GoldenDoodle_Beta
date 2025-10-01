@@ -1,7 +1,9 @@
 import os
 import json
 import logging
+import hashlib
 from typing import Optional, Dict, Any
+from functools import lru_cache
 import google.genai as genai
 from google.genai import types
 from models import CONTENT_MODE_TEMPERATURES, ContentMode, CONTENT_MODE_CONFIG
@@ -19,6 +21,8 @@ class GeminiService:
         self.client = genai.Client(api_key=api_key)
         # Model name to use for generation
         self.model_name = 'gemini-2.5-flash'
+        # Simple cache for recent responses
+        self._response_cache = {}
         
         # Test the connection
         try:

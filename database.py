@@ -1,7 +1,7 @@
 import os
 import psycopg2
 import psycopg2.extras
-from psycopg2 import sql
+from psycopg2 import sql, pool
 import uuid
 import json
 import logging
@@ -20,11 +20,25 @@ class DatabaseManager:
         self.main_db_url = os.environ.get("DATABASE_URL")
         if not self.main_db_url:
             raise ValueError("DATABASE_URL environment variable is required")
+        
+        # Create connection pool for better performance
+        self.connection_pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=2,
+            maxconn=10,
+            dsn=self.main_db_url
+        )
+        logger.info("Database connection pool initialized")
 
     def get_connection(self, database_url: Optional[str] = None):
-        """Get a database connection"""
-        url = database_url or self.main_db_url
-        return psycopg2.connect(url)
+        """Get a database connection from the pool"""
+        if database_url and database_url != self.main_db_url:
+            return psycopg2.connect(database_url)
+        return self.connection_pool.getconn()
+    
+    def return_connection(self, conn):
+        """Return connection to the pool"""
+        if conn:
+            self.connection_pool.putconn(conn)
 
     def _is_safe_identifier(self, identifier: str) -> bool:
         """Validate that an identifier is safe for use in SQL (alphanumeric, hyphens, underscores only)"""

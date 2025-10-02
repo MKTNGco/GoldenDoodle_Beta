@@ -5182,6 +5182,113 @@ def admin_stats():
         return render_template('500.html'), 500
 
 
+@app.route('/admin/resend-invites')
+@super_admin_required
+def admin_resend_invites():
+    """Admin page for resending beta invitations"""
+    return render_template('admin_resend_invites.html')
+
+
+@app.route('/admin/api/pending-beta-invites')
+@super_admin_required
+def api_pending_beta_invites():
+    """API endpoint to get pending beta invitations"""
+    try:
+        from invitation_manager import invitation_manager
+        
+        # Get all beta invitations
+        beta_invitations = invitation_manager.get_invitations_by_type('beta')
+        
+        # Filter for pending
+        pending = [inv for inv in beta_invitations if inv.get('status') == 'pending']
+        
+        # Get stats
+        stats = invitation_manager.get_invitation_stats()
+        
+        return jsonify({
+            'invitations': pending,
+            'stats': stats
+        })
+    except Exception as e:
+        logger.error(f"Error getting pending invites: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/api/resend-beta-invites', methods=['POST'])
+@super_admin_required
+def api_resend_beta_invites():
+    """API endpoint to resend beta invitations"""
+    try:
+        data = request.get_json()
+        emails = data.get('emails', [])
+        
+        if not emails:
+            return jsonify({'error': 'No emails provided'}), 400
+        
+        from invitation_manager import invitation_manager
+        
+        results = []
+        for email in emails:
+            try:
+                # Get the invitation
+                invitations = invitation_manager.get_invitations_by_email(email)
+                beta_invites = [inv for inv in invitations if inv.get('invitation_type') == 'beta']
+                
+                if not beta_invites:
+                    results.append({
+                        'email': email,
+                        'success': False,
+                        'error': 'No beta invitation found'
+                    })
+                    continue
+                
+                # Get the most recent beta invite
+                invite = beta_invites[0]
+                invite_code = invite['invite_code']
+                org_name = invite['organization_name']
+                
+                # Create invite link
+                base_url = request.url_root.rstrip('/')
+                if base_url.startswith('http://') and 'replit.app' in base_url:
+                    base_url = base_url.replace('http://', 'https://')
+                invite_link = f"{base_url}/register?ref={invite_code}"
+                
+                # Send email
+                email_sent = email_service.send_beta_invitation_email(
+                    to_email=email,
+                    invite_code=invite_code,
+                    organization_name=org_name,
+                    invite_link=invite_link
+                )
+                
+                if email_sent:
+                    results.append({
+                        'email': email,
+                        'success': True,
+                        'message': 'Email sent successfully'
+                    })
+                else:
+                    results.append({
+                        'email': email,
+                        'success': False,
+                        'error': 'Failed to send email'
+                    })
+                    
+            except Exception as e:
+                logger.error(f"Error resending invite to {email}: {e}")
+                results.append({
+                    'email': email,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        return jsonify({'results': results})
+        
+    except Exception as e:
+        logger.error(f"Error in resend API: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/token-usage-data')
 @super_admin_required
 def admin_token_usage_data():

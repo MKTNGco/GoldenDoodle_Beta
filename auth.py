@@ -11,7 +11,6 @@ def get_current_user() -> Optional[User]:
     
     user_id = session['user_id']
     # Get user from database by ID
-    conn = None
     try:
         conn = db_manager.get_connection()
         cursor = conn.cursor()
@@ -22,6 +21,7 @@ def get_current_user() -> Optional[User]:
         
         row = cursor.fetchone()
         cursor.close()
+        conn.close()
         
         if row:
             from models import SubscriptionLevel
@@ -39,9 +39,6 @@ def get_current_user() -> Optional[User]:
             )
     except Exception as e:
         print(f"Error getting current user: {e}")
-    finally:
-        if conn:
-            db_manager.return_connection(conn)
     
     return None
 

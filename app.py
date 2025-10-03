@@ -2,7 +2,6 @@ import os
 import logging
 from flask import Flask, request
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask_compress import Compress
 
 # Configure detailed logging
 logging.basicConfig(
@@ -15,9 +14,6 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "goldendoodlelm-secret-key")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
-# Enable compression for responses
-Compress(app)
 
 # Email service configuration
 app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
@@ -52,7 +48,7 @@ def track_page_views():
     # This creates your DAU/WAU data automatically
     analytics_service.track_page_view()
 
-# Add security headers and caching
+# Add security headers
 @app.after_request
 def add_security_headers(response):
     # Add Content Security Policy to allow inline scripts for development
@@ -66,11 +62,6 @@ def add_security_headers(response):
         "frame-src 'self' https:; "
         "worker-src 'self' blob:;"
     )
-    
-    # Add caching headers for static files
-    if request.path.startswith('/static'):
-        response.headers['Cache-Control'] = 'public, max-age=86400'  # 1 day
-    
     return response
 
 # Make get_current_user available in all templates

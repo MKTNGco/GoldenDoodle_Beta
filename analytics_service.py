@@ -114,13 +114,13 @@ class AnalyticsService:
 
                 logger.info(f"📤 Tracking: {event_name} for user {user_id}")
 
-                # Use async capture to avoid blocking
                 posthog.capture(distinct_id=user_id,
                                 event=event_name,
                                 properties=properties)
 
-                # Don't force immediate flush for better performance
-                # The client will batch and send automatically
+                # Force immediate flush
+                posthog.flush()
+                time.sleep(0.1)
 
                 logger.info(
                     f"✅ Event '{event_name}' sent to PostHog for user {user_id}"

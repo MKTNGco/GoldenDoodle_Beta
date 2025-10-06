@@ -772,6 +772,110 @@ Questions? Reply to this email or contact our support team.
             logger.error(f"Failed to send referral welcome email to {to_email}: {e}")
             return False
 
+    def send_organization_created_notification(self, user_email: str, organization_name: str, user_name: str, is_beta: bool = False) -> bool:
+        """Send notification when a new organization is created"""
+        if not self.client:
+            logger.error("SendGrid client not configured")
+            return False
+
+        try:
+            notification_email = 'goldendoodle@mktng.co'
+            
+            subject = f"🎉 New {'Beta ' if is_beta else ''}Organization Created: {organization_name}"
+            
+            plain_content = f"""
+New Organization Alert
+
+A new {'beta ' if is_beta else ''}organization has been created on GoldenDoodleLM!
+
+Organization Details:
+- Organization Name: {organization_name}
+- Admin Name: {user_name}
+- Admin Email: {user_email}
+- Account Type: {'Beta Invitation' if is_beta else 'Standard Registration'}
+- Created At: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+This notification was sent to help you track new organization signups.
+            """
+
+            html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: #32808c; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: #f9f9f9; padding: 30px; }}
+        .info-box {{ background: #e8f4f5; border-left: 4px solid #32808c; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+        .beta-badge {{ background: #28a745; color: white; padding: 5px 10px; border-radius: 5px; display: inline-block; font-weight: bold; }}
+        .footer {{ background: #32808c; color: white; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; }}
+        table {{ width: 100%; margin: 15px 0; }}
+        td {{ padding: 8px 0; }}
+        td:first-child {{ font-weight: bold; width: 150px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 New Organization Created!</h1>
+            {f'<div class="beta-badge">BETA SIGNUP</div>' if is_beta else ''}
+        </div>
+        <div class="content">
+            <div class="info-box">
+                <h3 style="margin-top: 0; color: #32808c;">Organization Details</h3>
+                <table>
+                    <tr>
+                        <td>Organization Name:</td>
+                        <td><strong>{organization_name}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Admin Name:</td>
+                        <td>{user_name}</td>
+                    </tr>
+                    <tr>
+                        <td>Admin Email:</td>
+                        <td>{user_email}</td>
+                    </tr>
+                    <tr>
+                        <td>Account Type:</td>
+                        <td>{'Beta Invitation' if is_beta else 'Standard Registration'}</td>
+                    </tr>
+                    <tr>
+                        <td>Created At:</td>
+                        <td>{datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</td>
+                    </tr>
+                </table>
+            </div>
+            <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                This is an automated notification to help you track new organization signups on GoldenDoodleLM.
+            </p>
+        </div>
+        <div class="footer">
+            <p style="margin: 0;">GoldenDoodleLM Platform Notifications</p>
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            message = Mail(
+                from_email=From(self.from_email, self.from_name),
+                to_emails=To(notification_email),
+                subject=Subject(subject),
+                plain_text_content=PlainTextContent(plain_content),
+                html_content=HtmlContent(html_content)
+            )
+
+            response = self.client.send(message)
+            logger.info(f"Organization creation notification sent for {organization_name}, status: {response.status_code}")
+            return response.status_code == 202
+
+        except Exception as e:
+            logger.error(f"Failed to send organization creation notification: {e}")
+            return False
+
     def send_feedback_email(self, feedback_data: dict, attachments: list = None) -> bool:
         """Send feedback email to support"""
         try:

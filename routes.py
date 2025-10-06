@@ -326,6 +326,21 @@ def register():
                                                     tenant,
                                                     signup_method='invitation')
 
+                # Send organization creation notification for new organization members
+                # Only send if this is a new organization (check if it's the first user)
+                try:
+                    org_users = db_manager.get_organization_users(tenant.tenant_id)
+                    if len(org_users) == 1:  # First user in organization
+                        email_service.send_organization_created_notification(
+                            user_email=email,
+                            organization_name=organization_name,
+                            user_name=f"{first_name} {last_name}",
+                            is_beta=False
+                        )
+                        logger.info(f"Sent organization creation notification for {organization_name}")
+                except Exception as notif_error:
+                    logger.error(f"Failed to send organization creation notification: {notif_error}")
+
                 # Also track the legacy event for backward compatibility
                 analytics_service.track_user_event(
                     user_id=str(user_id),
@@ -620,6 +635,23 @@ def register():
             signup_method = 'invitation' if invitation_data else 'direct'
             analytics_service.track_user_signup(user_obj, tenant,
                                                 signup_method)
+
+            # Send organization creation notification
+            try:
+                # Check if this is a new organization (first user) or beta user
+                org_users = db_manager.get_organization_users(tenant.tenant_id) if tenant.tenant_type == TenantType.COMPANY else []
+                is_new_organization = len(org_users) <= 1 and tenant.tenant_type == TenantType.COMPANY
+                
+                if is_new_organization:
+                    email_service.send_organization_created_notification(
+                        user_email=email,
+                        organization_name=organization_name if organization_name else tenant.name,
+                        user_name=f"{first_name} {last_name}",
+                        is_beta=is_beta_user
+                    )
+                    logger.info(f"Sent organization creation notification for {tenant.name} (Beta: {is_beta_user})")
+            except Exception as notif_error:
+                logger.error(f"Failed to send organization creation notification: {notif_error}")
 
             # Also track the legacy event for backward compatibility
             analytics_service.track_user_event(user_id=str(user_id),

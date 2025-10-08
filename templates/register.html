@@ -138,10 +138,9 @@
                             <label for="organization_name" class="form-label fw-semibold">Organization Name</label>
                             <input type="text" class="form-control" id="organization_name" name="organization_name"
                                    placeholder="Enter your organization name"
-                                   value="{{ invitation_data.organization_name if invitation_data else '' }}"
-                                   {% if invitation_data %}readonly{% endif %}>
-                            {% if invitation_data %}
-                            <small class="text-muted">This organization name was pre-filled from your invitation.</small>
+                                   value="{{ invitation_data.organization_name if invitation_data else '' }}">
+                            {% if invitation_data and invitation_data.invitation_type == 'beta' %}
+                            <small class="text-muted">You can change this organization name if needed.</small>
                             {% endif %}
                         </div>
                         {% endif %}

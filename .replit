@@ -42,9 +42,5 @@ args = "python3 main.py"
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 35201
-externalPort = 3000
-
 [agent]
 integrations = ["flask_authentication==1.0.0", "python_gemini==1.0.0", "python_database==1.0.0"]

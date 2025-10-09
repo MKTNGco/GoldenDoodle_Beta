@@ -784,7 +784,7 @@ class ChatInterface {
 
         const bubbleDiv = document.createElement('div');
         bubbleDiv.className = 'message-bubble';
-        bubbleDiv.innerHTML = '<span class="loading-dots">Thinking...</span>';
+        bubbleDiv.innerHTML = '<span class="loading-dots">Analyzing your request...</span>';
 
         messageDiv.appendChild(bubbleDiv);
 
@@ -798,12 +798,44 @@ class ChatInterface {
         chatContent.appendChild(messageDiv);
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
 
+        // Cycle through status messages
+        const statusMessages = [
+            'Analyzing your request...',
+            'Applying human centered principles...',
+            'Gathering brand voice context...',
+            'Crafting your response...',
+            'Finalizing content...'
+        ];
+        
+        let currentIndex = 0;
+        const statusInterval = setInterval(() => {
+            const loadingElement = document.getElementById(loadingId);
+            if (!loadingElement) {
+                clearInterval(statusInterval);
+                return;
+            }
+            
+            currentIndex = (currentIndex + 1) % statusMessages.length;
+            const loadingSpan = loadingElement.querySelector('.loading-dots');
+            if (loadingSpan) {
+                loadingSpan.textContent = statusMessages[currentIndex];
+            }
+        }, 1500);
+        
+        // Store interval ID so we can clear it when removing the loading message
+        messageDiv.dataset.statusInterval = statusInterval;
+
         return loadingId;
     }
 
     removeLoadingMessage(loadingId) {
         const loadingMessage = document.getElementById(loadingId);
         if (loadingMessage) {
+            // Clear the status interval if it exists
+            const intervalId = loadingMessage.dataset.statusInterval;
+            if (intervalId) {
+                clearInterval(parseInt(intervalId));
+            }
             loadingMessage.remove();
         }
     }

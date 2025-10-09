@@ -815,12 +815,18 @@ class ChatInterface {
                 return;
             }
             
-            currentIndex = (currentIndex + 1) % statusMessages.length;
+            currentIndex = currentIndex + 1;
+            // Stop cycling after the last message
+            if (currentIndex >= statusMessages.length) {
+                clearInterval(statusInterval);
+                return;
+            }
+            
             const loadingSpan = loadingElement.querySelector('.loading-dots');
             if (loadingSpan) {
                 loadingSpan.textContent = statusMessages[currentIndex];
             }
-        }, 1500);
+        }, 4000);
         
         // Store interval ID so we can clear it when removing the loading message
         messageDiv.dataset.statusInterval = statusInterval;

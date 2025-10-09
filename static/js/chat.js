@@ -48,7 +48,7 @@ class ChatInterface {
                 event.preventDefault();
                 return;
             }
-            
+
             console.error('Unhandled promise rejection:', event.reason);
             event.preventDefault(); // Prevent the default console error
 
@@ -1396,7 +1396,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 event.preventDefault();
                 return;
             }
-            
+
             console.error('Global unhandled promise rejection:', event.reason);
             event.preventDefault();
 

@@ -62,6 +62,8 @@ class CrispService:
                 "user_id": user_data.get('user_id'),
                 "subscription_level": user_data.get('subscription_level'),
                 "tenant_id": user_data.get('tenant_id'),
+                "organization_name": user_data.get('organization_name'),  # Add organization name
+                "organization_type": user_data.get('organization_type'),  # Add organization type
                 "last_login": user_data.get('last_login'),
                 "email_verified": user_data.get('email_verified', False),
                 "is_admin": user_data.get('is_admin', False)

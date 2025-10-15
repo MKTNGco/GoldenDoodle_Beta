@@ -635,6 +635,28 @@ def register():
             signup_method = 'invitation' if invitation_data else 'direct'
             analytics_service.track_user_signup(user_obj, tenant,
                                                 signup_method)
+            
+            # Update Crisp profile on registration
+            try:
+                from crisp_service import crisp_service
+                crisp_service.create_or_update_profile(
+                    user_email=email,
+                    user_data={
+                        'user_id': str(user_obj.user_id),
+                        'first_name': first_name,
+                        'last_name': last_name,
+                        'subscription_level': user_obj.subscription_level.value,
+                        'tenant_id': user_obj.tenant_id,
+                        'organization_name': tenant.name if tenant else 'Personal Account',
+                        'organization_type': tenant.tenant_type.value if tenant else 'independent_user',
+                        'last_login': None,
+                        'email_verified': False,
+                        'is_admin': is_admin
+                    }
+                )
+                logger.info(f"Created Crisp profile for new user {email}")
+            except Exception as crisp_error:
+                logger.error(f"Failed to create Crisp profile: {crisp_error}")
 
             # Send organization creation notification
             try:
@@ -1162,6 +1184,28 @@ def login():
 
             # Get tenant/organization information for user identification
             tenant = db_manager.get_tenant_by_id(user.tenant_id)
+            
+            # Update Crisp profile with complete organization data
+            try:
+                from crisp_service import crisp_service
+                crisp_service.create_or_update_profile(
+                    user_email=user.email,
+                    user_data={
+                        'user_id': str(user.user_id),
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'subscription_level': user.subscription_level.value,
+                        'tenant_id': user.tenant_id,
+                        'organization_name': tenant.name if tenant else 'Personal Account',
+                        'organization_type': tenant.tenant_type.value if tenant else 'independent_user',
+                        'last_login': datetime.utcnow().isoformat(),
+                        'email_verified': user.email_verified,
+                        'is_admin': user.is_admin
+                    }
+                )
+                logger.info(f"Updated Crisp profile for {user.email} with organization data")
+            except Exception as crisp_error:
+                logger.error(f"Failed to update Crisp profile: {crisp_error}")
 
             # Calculate days since last visit for retention tracking
             days_since_last_visit = 0

@@ -1,0 +1,195 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv
+pipenv/
+.pipenv/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Flask
+instance/
+.webassets-cache
+*.db
+*.sqlite
+*.sqlite3
+
+# Database files
+crisp_installations.db
+crisp_installations.db-journal
+
+# Data files (JSON backups and user data)
+beta_trials.json
+beta_trials.json.backup_*
+invitations.json
+invitations.json.backup_*
+user_sources.json
+user_sources.json.backup_*
+*.backup_*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE - VSCode
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE - PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# IDE - Cursor
+.cursor/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# API Keys and Secrets
+secrets.py
+secret_key.txt
+*.pem
+*.key
+*.cert
+
+# Pipfile.lock (optional - comment out if you want to track it)
+# Pipfile.lock
+
+# uv.lock (optional - comment out if you want to track it)
+# uv.lock
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Uploaded files (if any)
+uploads/
+tmp/
+
+# Documentation builds
+docs/_build/
+site/
+
+# Stripe test data
+stripe_test_*
+
+# Email service test data
+test_email_*
+
+# Analytics
+analytics_data/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Local development
+local_config.py
+dev_settings.py
+
+# Deployment
+*.pid
+*.seed
+*.pid.lock
+
+# Debug files
+debug_*.py
+test_*.py
+!test_invitation_manager.py
+!test_beta_registration.py
+!test_posthog_diagnostics.py
+!test_sendgrid.py
+!test_user_source_tracker.py

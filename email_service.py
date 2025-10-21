@@ -14,7 +14,7 @@ class EmailService:
         self.api_key = os.environ.get('SENDGRID_API_KEY')
         self.from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@goldendoodlelm.com')
         self.from_name = os.environ.get('SENDGRID_FROM_NAME', 'GoldenDoodleLM')
-        self.base_url = 'https://goldendoodlelm.ai'
+        self.base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.ai')
 
         if not self.api_key:
             logger.warning("SendGrid API key not configured")
@@ -39,7 +39,7 @@ class EmailService:
 
         try:
             # Get the base URL for verification link
-            base_url = 'https://goldendoodlelm.ai'
+            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.ai')
             # Ensure BASE_URL has protocol
             if not base_url.startswith(('http://', 'https://')):
                 base_url = f"https://{base_url}"
@@ -147,7 +147,7 @@ The GoldenDoodleLM Team
             return False
 
         try:
-            base_url = 'https://goldendoodlelm.ai'
+            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.ai')
             # Ensure BASE_URL has protocol
             if not base_url.startswith(('http://', 'https://')):
                 base_url = f"https://{base_url}"
@@ -297,7 +297,7 @@ The GoldenDoodleLM Team
         try:
             # Use provided invite_link or generate one
             if not invite_link:
-                base_url = 'https://goldendoodlelm.ai'
+                base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.ai')
                 # Ensure BASE_URL has protocol
                 if not base_url.startswith(('http://', 'https://')):
                     base_url = f"https://{base_url}"
@@ -422,7 +422,7 @@ Questions? Reply to this email or visit our support page.
             return False
 
         try:
-            base_url = 'https://goldendoodlelm.ai'
+            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.ai')
             # Ensure BASE_URL has protocol
             if not base_url.startswith(('http://', 'https://')):
                 base_url = f"https://{base_url}"
@@ -689,7 +689,7 @@ The GoldenDoodleLM Team
             return False
 
         try:
-            base_url = 'https://goldendoodlelm.ai'
+            base_url = os.environ.get('BASE_URL', 'https://goldendoodlelm.ai')
             # Ensure BASE_URL has protocol
             if not base_url.startswith(('http://', 'https://')):
                 base_url = f"https://{base_url}"
@@ -1061,7 +1061,7 @@ def detect_email_system():
             'configured': bool(sendgrid_key),
             'from_email': os.environ.get('SENDGRID_FROM_EMAIL'),
             'from_name': os.environ.get('SENDGRID_FROM_NAME'),
-            'base_url': 'https://goldendoodlelm.ai'
+            'base_url': os.environ.get('BASE_URL', 'https://goldendoodlelm.ai')
         }
     }
 

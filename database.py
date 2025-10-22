@@ -104,7 +104,7 @@ class DatabaseManager:
                 );
             """)
 
-            # Add email_verified column if it doesn't exist (for existing databases )
+            # Add email_verified column if it doesn't exist (for existing databases)
             cursor.execute("""
                 DO $$ 
                 BEGIN

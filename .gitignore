@@ -132,6 +132,36 @@ secret_key.txt
 uploads/
 tmp/
 
+# Unused development/debug files
+attached_assets/
+debug_*.py
+check_*.py
+configure_*.py
+create_*.py
+fix_*.py
+list_*.py
+migrate_*.py
+resend_*.py
+reset_*.py
+verify_*.py
+view_*.py
+
+# Documentation files (not needed for production)
+admin_features_documentation.md
+content_guidelines.md
+design_system.md
+MIGRATION_INSTRUCTIONS.md
+replit.md
+START_HERE.md
+REPLIT_VS_RAILWAY.md
+DEPLOYMENT.md
+
+# Backup files
+*.backup_*
+beta_trials.json.backup_*
+invitations.json.backup_*
+user_sources.json.backup_*
+
 # Documentation builds
 docs/_build/
 site/
@@ -186,8 +216,7 @@ run_app.py
 *.seed
 *.pid.lock
 
-# Debug files
-debug_*.py
+# Test files (keep essential ones)
 test_*.py
 !test_invitation_manager.py
 !test_beta_registration.py

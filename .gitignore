@@ -179,6 +179,7 @@ dmypy.json
 # Local development
 local_config.py
 dev_settings.py
+run_app.py
 
 # Deployment
 *.pid

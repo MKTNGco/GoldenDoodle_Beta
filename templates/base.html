@@ -28,6 +28,37 @@
     </style>
 
     {% block head %}{% endblock %}
+    <script type="text/javascript">
+    // 1. Get the settings injected by the Python backend
+    var crispSettings = {{ crisp_settings | tojson | safe }}; 
+    // This line is specific to your web framework (e.g., Jinja2)
+
+    // 2. IDENTIFY THE USER
+    if (crispSettings && crispSettings.user_data) {
+        var user = crispSettings.user_data;
+        
+        // Sets core user attributes
+        $crisp.push(["set", "user:email", [user.email]]);
+        $crisp.push(["set", "user:nickname", [user.nickname]]);
+
+        // Sets custom user session data (like subscription_level, tenant_id)
+        if (user.data) {
+            $crisp.push(["set", "session:data", [user.data]]);
+        }
+    }
+
+    // 3. LAUNCH THE SCENARIO (This replaces the old, static script)
+    if (crispSettings && crispSettings.scenario_id) {
+        $crisp.push([
+            "on",
+            "chat:opened",
+            function() {
+                // Launch the flow using the dynamic ID
+                $crisp.push(["do", "flow:run", [crispSettings.scenario_id]]);
+            }
+        ]);
+    }
+</script>
 </head>
 <body>
     <!-- Navigation -->
